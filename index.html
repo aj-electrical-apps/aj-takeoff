@@ -1,0 +1,1610 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<title>AJ Commercial Takeoff</title>
+</head>
+<body>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<style>
+/* Layout: one-screen drafting desk. Toolbar on top, sheet rail on the left, sheet in the middle, label bar under it. */
+:root {
+  --bg: #e9ecef;
+  --panel: #f8f9fa;
+  --sheet-bg: #d5dadf;
+  --fg: #1d2731;
+  --muted: #5b6875;
+  --line: #c3cad2;
+  --accent: #1f5f8b;
+  --accent-fg: #ffffff;
+  --accent-soft: #d6e5f0;
+  --warn: #b26a00;
+  --warn-soft: #fbecd2;
+  --ok: #2e7d4f;
+  --mark-run: #0b6fb8;
+  --mark-measure: #d9480f;
+  --mark-halo: #ffffff;
+  --sym-stroke: #1d2731;
+  --font-ui: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #13181d; --panel: #1b2229; --sheet-bg: #0d1115; --fg: #e3e8ed; --muted: #92a0ad; --line: #2c3640;
+  --accent: #5ea7da; --accent-fg: #0b1620; --accent-soft: #1d3446; --warn: #f0a63a; --warn-soft: #3a2a12; --ok: #5cc28a; --sym-stroke: #0d1115; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #13181d; --panel: #1b2229; --sheet-bg: #0d1115; --fg: #e3e8ed; --muted: #92a0ad; --line: #2c3640;
+  --accent: #5ea7da; --accent-fg: #0b1620; --accent-soft: #1d3446; --warn: #f0a63a; --warn-soft: #3a2a12; --ok: #5cc28a; --sym-stroke: #0d1115; color-scheme: dark }
+
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 15px; overflow: hidden; }
+* { box-sizing: border-box; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { height: 100%; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); }
+
+/* Toolbar */
+.toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+  padding-block: 8px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--panel); border-bottom: 1px solid var(--line);
+}
+.brand { font-weight: 700; letter-spacing: .02em; font-size: 16px; display: flex; align-items: baseline; gap: 6px; margin-right: 4px; }
+.brand small { font-weight: 500; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+.group { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding-left: 12px; border-left: 1px solid var(--line); }
+.group-label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-right: 4px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-weight: 500; white-space: nowrap;
+}
+.btn:hover { border-color: var(--accent); }
+.btn:disabled { opacity: .45; cursor: default; border-color: var(--line); }
+.btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.btn.icon { width: 34px; padding: 0; justify-content: center; }
+.btn svg { width: 16px; height: 16px; flex: none; }
+.count { font-family: var(--font-mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.spacer { flex: 1; }
+
+/* Corner picker: a little sheet with four quadrants */
+.corners { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; width: 44px; height: 34px; padding: 2px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.corners button { border: 0; border-radius: 2px; background: var(--line); padding: 0; }
+.corners button[aria-pressed="true"] { background: var(--accent); }
+.corners button:hover { outline: 1px solid var(--accent); }
+
+/* Body */
+.desk { display: grid; grid-template-columns: 200px minmax(0, 1fr) 290px; min-height: 0; }
+@media (max-width: 1100px) { .desk { grid-template-columns: 160px minmax(0, 1fr) 250px; } }
+.rail { overflow-y: auto; border-right: 1px solid var(--line); background: var(--panel); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.thumb { display: grid; grid-template-columns: 28px 1fr; gap: 8px; align-items: start; text-align: left; padding: 6px; border: 1px solid transparent; border-radius: 6px; background: none; }
+.thumb:hover { border-color: var(--line); }
+.thumb[aria-current="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.thumb .num { font-family: var(--font-mono); font-size: 12px; color: var(--muted); padding-top: 2px; }
+.thumb .pic { position: relative; background: #fff; border: 1px solid var(--line); aspect-ratio: 3 / 2; overflow: hidden; }
+.thumb .pic img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.thumb .pic .q { position: absolute; width: 50%; height: 50%; border: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.thumb .name { grid-column: 2; font-size: 13px; line-height: 1.25; overflow-wrap: anywhere; }
+.thumb .name.unnamed { color: var(--warn); font-style: italic; }
+
+.viewer { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: var(--sheet-bg); display: grid; place-items: center; padding: 18px; }
+.stage { position: relative; width: 100%; height: 100%; overflow: hidden; }
+.sheet { position: absolute; transform-origin: 0 0; transition: transform .28s ease; }
+.sheet img { display: block; width: 100%; height: 100%; }
+.sheet svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.sheet.tooling svg { pointer-events: all; cursor: crosshair; }
+@media (prefers-reduced-motion: reduce) { .sheet { transition: none; } }
+.mk-run { fill: none; stroke: var(--mark-run); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+.mk-draft { fill: none; stroke: var(--mark-run); stroke-width: 2.5; stroke-dasharray: 8 5; }
+.mk-meas { fill: none; stroke: var(--mark-measure); stroke-width: 2.5; }
+.mk-dot { fill: var(--mark-halo); stroke: var(--mark-run); stroke-width: 2; }
+.mk-dot.meas { stroke: var(--mark-measure); }
+.mk-label { font-family: var(--font-mono); font-weight: 600; paint-order: stroke; stroke: var(--mark-halo); stroke-linejoin: round; fill: var(--mark-run); }
+.mk-label.meas { fill: var(--mark-measure); }
+
+.toolhint { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; max-width: calc(100% - 24px);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px 6px 12px; font-size: 14px; box-shadow: 0 4px 14px rgb(0 0 0 / .14); }
+.toolhint b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.btn.sm { height: 30px; padding: 0 10px; font-size: 14px; }
+.btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--fg); }
+.btn.warn { border-color: var(--warn); color: var(--warn); background: var(--warn-soft); }
+
+/* Runs panel */
+.runs { overflow-y: auto; border-left: 1px solid var(--line); background: var(--panel); padding: 12px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.runs h2 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.runs-scale { font-size: 13px; }
+.runs-scale b { font-family: var(--font-mono); font-weight: 600; }
+.runs-scale.unset { color: var(--warn); }
+.run-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.run { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; }
+.run input { min-width: 0; height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); font-size: 14px; }
+.run .lf { font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.run button { width: 26px; height: 26px; border: 0; background: none; color: var(--muted); border-radius: 4px; padding: 0; }
+.run button:hover { color: var(--warn); background: var(--warn-soft); }
+.empty { font-size: 13px; color: var(--muted); line-height: 1.45; margin: 0; }
+.totals { border-top: 1px solid var(--line); padding-top: 8px; display: grid; gap: 4px; font-size: 13px; }
+.totals div { display: flex; justify-content: space-between; gap: 8px; }
+.totals b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* Toolbox */
+.tbx { display: grid; gap: 4px; }
+.tbx details { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.tbx summary { cursor: pointer; padding: 6px 8px; display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
+.tbx summary .gcount { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-weight: 400; }
+.tbx-items { display: grid; gap: 2px; padding: 0 4px 6px; }
+.dev { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; text-align: left; padding: 5px 6px; border: 1px solid transparent; border-radius: 5px; background: none; }
+.dev:hover { border-color: var(--line); background: var(--panel); }
+.dev[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.dev .nm { font-size: 13px; line-height: 1.2; min-width: 0; }
+.dev .nm small { display: block; color: var(--muted); font-size: 11.5px; font-family: var(--font-mono); }
+.dev .ct { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.dev svg, .tbx summary svg { width: 18px; height: 18px; overflow: visible; }
+.sym { stroke: var(--sym-stroke); stroke-width: 1.4; }
+.counts { width: 100%; border-collapse: collapse; font-size: 13px; }
+.counts th { text-align: left; font-weight: 500; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 2px 0; }
+.counts td { padding: 3px 0; border-top: 1px solid var(--line); vertical-align: middle; }
+.counts td.n, .counts th.n { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; width: 3.5em; }
+.counts td:first-child { display: flex; gap: 6px; align-items: center; }
+.counts svg { width: 14px; height: 14px; flex: none; overflow: visible; }
+.mk-dev { stroke: #1d2731; stroke-width: 1.5; }
+.btn.erase[aria-pressed="true"] { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+
+/* Jobs */
+.jobbtn { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 0; height: auto; min-height: 34px; padding: 3px 12px; max-width: 260px; }
+.jobbtn .jl { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); line-height: 1.2; }
+.jobbtn .jn { font-weight: 600; max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.25; }
+.job-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 40vh; overflow-y: auto; }
+.job-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); text-align: left; width: 100%; }
+.job-row:hover { border-color: var(--accent); }
+.job-row[aria-current="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.job-row .jt { font-weight: 600; }
+.job-row .jm { font-size: 12.5px; color: var(--muted); }
+.job-row .js { font-family: var(--font-mono); font-size: 12px; color: var(--muted); white-space: nowrap; }
+.job-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.job-fields label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.job-fields label.wide { grid-column: 1 / -1; }
+.job-fields input { height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 15px; color: var(--fg); }
+@media (max-width: 480px) { .job-fields { grid-template-columns: 1fr; } }
+
+.drive { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); max-width: 300px; }
+.drive .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex: none; }
+.drive.ok .dot { background: var(--ok); }
+.drive.busy .dot { background: var(--accent); animation: pulse 1s ease-in-out infinite alternate; }
+.drive.bad { color: var(--warn); }
+.drive.bad .dot { background: var(--warn); }
+.drive span.t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes pulse { from { opacity: .35 } to { opacity: 1 } }
+@media (prefers-reduced-motion: reduce) { .drive.busy .dot { animation: none; } }
+.job-row .badge { font-size: 11px; font-weight: 600; color: var(--accent); }
+.sub-h { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; margin: 4px 0 0; }
+
+/* Running count list */
+.cnt-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.cnt { display: grid; grid-template-columns: 1fr auto; gap: 4px; align-items: stretch; }
+.cnt-main { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: start; text-align: left; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); min-width: 0; }
+.cnt-main:hover { border-color: var(--accent); }
+.cnt-main[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.cnt-main svg { width: 18px; height: 18px; overflow: visible; margin-top: 2px; }
+.cnt-txt { min-width: 0; font-size: 13px; line-height: 1.3; }
+.cnt-txt b { font-family: var(--font-mono); }
+.cnt-txt .d { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; color: var(--muted); font-size: 12.5px; }
+.cnt-n { font-family: var(--font-mono); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; line-height: 1.35; }
+.cnt-n small { display: block; color: var(--muted); }
+.cnt-edit { width: 30px; border: 1px solid transparent; border-radius: 6px; background: none; color: var(--muted); padding: 0; }
+.cnt-edit:hover { border-color: var(--line); color: var(--fg); }
+.mk-tag { font-family: var(--font-mono); font-weight: 600; paint-order: stroke; stroke: var(--mark-halo); stroke-linejoin: round; fill: #1d2731; }
+.modal textarea { min-height: 84px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 15px; resize: vertical; font-family: var(--font-ui); color: var(--fg); }
+.modal input[type="text"] { height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 15px; color: var(--fg); }
+.modal input[type="color"] { width: 44px; height: 38px; padding: 2px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.row2 { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
+.btn.danger { color: var(--warn); }
+
+/* Scale dialog */
+.modal { position: fixed; inset: 0; z-index: 25; display: grid; place-items: center; background: rgb(0 0 0 / .35); padding: 16px; }
+.modal-card { width: min(460px, 100%); max-height: 100%; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 14px; }
+.modal-card h2 { margin: 0; font-size: 20px; text-wrap: balance; }
+.modal-card p { margin: 0; }
+.opt { display: grid; gap: 6px; }
+.opt > label, .opt > .lbl { font-weight: 600; }
+.modal select, .modal input[type="number"] { height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 15px; }
+.known-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.known-row input { width: 90px; }
+.or { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); display: flex; align-items: center; gap: 10px; }
+.or::before, .or::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+.check { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+.actions { display: flex; justify-content: flex-end; gap: 8px; }
+.zoom-tag { position: absolute; top: 12px; right: 12px; font-family: var(--font-mono); font-size: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 3px 8px; }
+.example-tag { position: absolute; top: 12px; left: 12px; font-size: 12px; background: var(--warn-soft); color: var(--warn); border-radius: 4px; padding: 3px 8px; font-weight: 600; }
+
+.drop { position: absolute; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--accent) 22%, transparent); border: 3px dashed var(--accent); font-size: 20px; font-weight: 600; pointer-events: none; }
+
+/* Label bar */
+.labelbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  background: var(--panel); border-top: 1px solid var(--line);
+}
+.labelbar label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.labelbar .sheetno { font-family: var(--font-mono); font-weight: 600; font-size: 14px; min-width: 9ch; font-variant-numeric: tabular-nums; }
+#nameInput { flex: 1 1 260px; min-width: 0; height: 40px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 16px; }
+#nameInput:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.progress { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.progress b { color: var(--ok); }
+
+.busy { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 70%, transparent); }
+.busy-card { width: min(360px, calc(100% - 32px)); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: grid; gap: 10px; }
+.bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .15s; }
+.toast { position: fixed; z-index: 30; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 6px; font-size: 14px; max-width: calc(100% - 32px); }
+.confirm { display: flex; gap: 6px; align-items: center; font-size: 13px; }
+
+kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; color: var(--muted); }
+.hint { font-size: 12px; color: var(--muted); }
+
+@media (max-width: 760px) {
+  .desk { grid-template-columns: minmax(0, 1fr); }
+  .desk { grid-template-rows: minmax(0, 1fr) auto auto; }
+  .runs { grid-row: 2; max-height: 30vh; border-left: 0; border-top: 1px solid var(--line); }
+  .rail { grid-row: 3; flex-direction: row; overflow-x: auto; overflow-y: hidden; border-right: 0; border-top: 1px solid var(--line); padding: 8px; }
+  .thumb { grid-template-columns: 1fr; width: 110px; flex: none; }
+  .thumb .num { display: none; }
+  .thumb .name { grid-column: 1; font-size: 12px; }
+  .group { border-left: 0; padding-left: 0; }
+  .hide-sm { display: none; }
+  .viewer { padding: 8px; }
+}
+</style>
+
+<div class="app">
+  <header class="toolbar" role="toolbar" aria-label="Main toolbar">
+    <div class="brand">AJ Takeoff <small>Commercial</small></div>
+    <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
+
+    <div class="group">
+      <button class="btn primary" id="uploadBtn" title="Upload PDFs or images (up to 120 pages)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 11V2M4.5 5.5 8 2l3.5 3.5M2 11v3h12v-3"/></svg>
+        Upload plans
+      </button>
+      <input type="file" id="fileInput" accept="application/pdf,image/*" multiple hidden>
+      <span class="count" id="pageCount">0 / 120</span>
+    </div>
+
+    <div class="group">
+      <button class="btn icon" id="prevBtn" title="Previous sheet (Page Up)" aria-label="Previous sheet">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 3 5 8l5 5"/></svg>
+      </button>
+      <span class="count" id="pos">–</span>
+      <button class="btn icon" id="nextNavBtn" title="Next sheet (Page Down)" aria-label="Next sheet">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 3 5 5-5 5"/></svg>
+      </button>
+    </div>
+
+    <div class="group">
+      <span class="group-label">Zoom</span>
+      <div class="corners" role="group" aria-label="Zoom into a corner">
+        <button data-zoom="TL" aria-label="Top left corner" title="Top left (1)"></button>
+        <button data-zoom="TR" aria-label="Top right corner" title="Top right (2)"></button>
+        <button data-zoom="BL" aria-label="Bottom left corner" title="Bottom left (3)"></button>
+        <button data-zoom="BR" aria-label="Bottom right corner" title="Bottom right (4)"></button>
+      </div>
+      <button class="btn" id="fullBtn" title="Show whole sheet (0)">Full sheet</button>
+    </div>
+
+    <div class="group">
+      <span class="group-label">Takeoff</span>
+      <button class="btn" id="scaleBtn" title="Set the drawing scale for this sheet">Scale</button>
+      <button class="btn" id="measureBtn" aria-pressed="false" title="Measure between two points (M)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M1.5 11.5 11.5 1.5l3 3-10 10z"/><path d="m4.5 8.5 1.5 1.5M6.5 6.5 8 8M8.5 4.5 10 6"/></svg>
+        Measure
+      </button>
+      <button class="btn" id="runBtn" aria-pressed="false" title="Draw a linear foot run (L)">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 13V7h6V3h6"/><circle cx="2" cy="13" r="1.3" fill="currentColor"/><circle cx="14" cy="3" r="1.3" fill="currentColor"/></svg>
+        Linear run
+      </button>
+    </div>
+
+    <div class="spacer"></div>
+    <div class="drive" id="driveStatus" role="status"><span class="dot"></span><span class="t" id="driveText">Saved in this browser</span>
+      <button class="btn sm" id="driveRetry" type="button" hidden>Try again</button></div>
+    <div class="group" id="clearGroup">
+      <button class="btn" id="clearBtn">Delete job</button>
+    </div>
+  </header>
+
+  <main class="desk">
+    <nav class="rail" id="rail" aria-label="Sheets"></nav>
+    <section class="viewer" id="viewer">
+      <div class="stage" id="stage"><div class="sheet" id="sheet"><img id="sheetImg" alt=""><svg id="overlay" aria-hidden="true"></svg></div></div>
+      <div class="toolhint" id="toolHint" hidden>
+        <span id="toolHintText"></span>
+        <button class="btn sm primary" id="finishBtn" type="button" hidden>Finish run</button>
+        <button class="btn sm" id="undoBtn" type="button" hidden>Undo point</button>
+        <button class="btn sm" id="cancelToolBtn" type="button">Done</button>
+      </div>
+      <span class="example-tag" id="exampleTag" hidden>Example sheet · upload your plans to replace</span>
+      <span class="zoom-tag" id="zoomTag">Full sheet</span>
+      <div class="drop" id="drop" hidden>Drop PDFs or images</div>
+    </section>
+    <aside class="runs" aria-label="Toolbox and takeoff">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <h2>Counts</h2>
+        <span style="display:flex;gap:6px">
+          <button class="btn sm erase" id="eraseBtn" type="button" aria-pressed="false" title="Click a symbol on the sheet to remove it (E)">Erase</button>
+          <button class="btn sm primary" id="addCountBtn" type="button">+ Add count</button>
+        </span>
+      </div>
+      <ul class="cnt-list" id="cntList"></ul>
+      <p class="empty" id="countsEmpty">No counts yet. Tap <b>+ Add count</b>, pick the fixture and type the engineer's description, then click the sheet wherever one goes. Pick a count from this list to keep adding it on any sheet.</p>
+      <div class="totals" id="cntTotals" hidden>
+        <div><span>This sheet</span><b id="cntSheet">0</b></div>
+        <div><span>All sheets</span><b id="cntAll">0</b></div>
+      </div>
+      <details class="tbx-wrap">
+        <summary class="sub-h" style="cursor:pointer">Toolbox · pick a fixture to add a count</summary>
+        <div class="tbx" id="toolbox" style="margin-top:6px"></div>
+      </details>
+      <h2>Sheet scale</h2>
+      <div class="runs-scale" id="runsScale"></div>
+      <h2>Linear runs</h2>
+      <ol class="run-list" id="runList"></ol>
+      <p class="empty" id="runsEmpty">No runs on this sheet yet. Pick <b>Linear run</b>, then click along the path. Double-click, press Enter or tap Finish run to end it.</p>
+      <div class="totals">
+        <div><span>This sheet</span><b id="sheetTotal">0.0 LF</b></div>
+        <div><span>All sheets</span><b id="projTotal">0.0 LF</b></div>
+      </div>
+    </aside>
+  </main>
+
+  <form class="labelbar" id="labelForm" autocomplete="off">
+    <label for="nameInput">Sheet name</label>
+    <span class="sheetno" id="sheetNo">Sheet –</span>
+    <input id="nameInput" placeholder="e.g. E-101 First Floor Lighting" enterkeyhint="next">
+    <button class="btn primary" type="submit" id="nextBtn">Next
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 3 5 5-5 5"/></svg>
+    </button>
+    <span class="progress" id="progress"></span>
+    <span class="hint hide-sm">Type a name, press <kbd>Enter</kbd> for the next sheet. Zoom <kbd>1</kbd>–<kbd>4</kbd>, <kbd>0</kbd> full. <kbd>M</kbd> measure, <kbd>L</kbd> run.</span>
+  </form>
+</div>
+
+<div class="busy" id="busy" hidden>
+  <div class="busy-card">
+    <strong id="busyTitle">Loading pages…</strong>
+    <div class="bar"><i id="busyBar"></i></div>
+    <span class="hint" id="busyText"></span>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<div class="modal" id="jobsModal" hidden role="dialog" aria-modal="true" aria-labelledby="jobsTitle">
+  <div class="modal-card">
+    <h2 id="jobsTitle">Jobs</h2>
+    <p class="hint" id="jobsWhere">Jobs save to the AJ Takeoff Jobs folder in your Google Drive, so you can open them on any device.</p>
+    <ul class="job-list" id="jobList"></ul>
+    <p class="empty" id="jobsEmpty">No jobs yet. Start one below, then upload its plans.</p>
+    <p class="sub-h" id="driveJobsHead" hidden>Only in your Google Drive</p>
+    <ul class="job-list" id="driveJobList"></ul>
+    <p class="hint" id="driveJobsNote" hidden></p>
+    <form id="jobForm" autocomplete="off" style="display:grid;gap:10px">
+      <span class="lbl" id="jobFormTitle" style="font-weight:600">New job</span>
+      <div class="job-fields">
+        <label class="wide">Job name<input id="jobNameIn" required placeholder="e.g. Riverside Medical Office"></label>
+        <label>Customer / GC<input id="jobCustIn" placeholder="e.g. Harmon Builders"></label>
+        <label>Bid date<input id="jobBidIn" type="date"></label>
+        <label class="wide">Address<input id="jobAddrIn" placeholder="e.g. 1200 River Rd"></label>
+      </div>
+      <div class="actions">
+        <button class="btn" type="button" id="jobsClose">Close</button>
+        <button class="btn" type="button" id="jobNewToggle" hidden>Start a new job instead</button>
+        <button class="btn primary" type="submit" id="jobSave">Start job</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal" id="countModal" hidden role="dialog" aria-modal="true" aria-labelledby="countTitle">
+  <form class="modal-card" id="countForm" autocomplete="off">
+    <h2 id="countTitle">Add count</h2>
+    <div class="opt">
+      <label for="cntBase">Fixture or device</label>
+      <select id="cntBase"></select>
+    </div>
+    <div class="row2">
+      <div class="opt"><label for="cntTag">Type / tag on the plans</label><input type="text" id="cntTag" placeholder="e.g. A, F1, EM"></div>
+      <div class="opt"><label for="cntColor">Color</label><input type="color" id="cntColor"></div>
+    </div>
+    <div class="opt">
+      <label for="cntDesc">Engineer's description</label>
+      <textarea id="cntDesc" placeholder='Copy it from the fixture schedule, e.g. 6" LED downlight, 1000 lm, 3000K, 0-10V dimming, white trim. Lithonia LDN6 or equal.'></textarea>
+    </div>
+    <div class="actions">
+      <button class="btn danger" type="button" id="cntDelete" hidden>Delete count</button>
+      <span class="spacer"></span>
+      <button class="btn" type="button" id="cntCancel">Cancel</button>
+      <button class="btn primary" type="submit" id="cntSave">Save and place</button>
+    </div>
+  </form>
+</div>
+
+<div class="modal" id="scaleModal" hidden role="dialog" aria-modal="true" aria-labelledby="scaleTitle">
+  <form class="modal-card" id="scaleForm" autocomplete="off">
+    <h2 id="scaleTitle">Set the sheet scale</h2>
+    <p class="hint" id="scaleWhy">Lengths are worked out from this scale.</p>
+    <div class="opt">
+      <label for="scaleSelect">Scale from the title block</label>
+      <select id="scaleSelect"></select>
+      <p class="hint" id="presetNote"></p>
+    </div>
+    <div class="or">or</div>
+    <div class="opt">
+      <span class="lbl">Measure a known dimension</span>
+      <p class="hint">Click both ends of something you know the length of, like a dimension string or a column grid, then type its length.</p>
+      <div><button class="btn" id="pickKnownBtn" type="button">Pick two points on the sheet</button></div>
+      <div class="known-row" id="knownRow" hidden>
+        <input type="number" id="knownFt" min="0" step="any" aria-label="Feet"> ft
+        <input type="number" id="knownIn" min="0" max="11.99" step="any" aria-label="Inches"> in
+      </div>
+    </div>
+    <label class="check"><input type="checkbox" id="applyAll"> Also use this scale on every sheet that doesn't have one yet</label>
+    <div class="actions">
+      <button class="btn" type="button" id="scaleCancel">Cancel</button>
+      <button class="btn primary" type="submit" id="scaleSave">Save scale</button>
+    </div>
+  </form>
+</div>
+
+<script>
+const MAX_PAGES = 120;
+const MAX_SIDE = 3200; // px on the long side; enough for a 2x corner zoom to stay sharp
+const ZOOM_LABEL = { FULL: "Full sheet", TL: "Top left · 2×", TR: "Top right · 2×", BL: "Bottom left · 2×", BR: "Bottom right · 2×" };
+
+// page: {id, name, zoom, blob, url, example, pxPerInch, ftPerPx, scaleLabel, runs:[{id, name, pts:[[x,y]...], px}]}
+// pxPerInch = image pixels per printed inch (known for PDFs, unknown for photos); ftPerPx = real feet per image pixel.
+let pages = [];
+let current = 0;
+const $ = id => document.getElementById(id);
+
+if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+/* ---------- storage (this browser only) ---------- */
+let dbp = null;
+function db() {
+  if (!dbp) dbp = new Promise((res, rej) => {
+    try {
+      const r = indexedDB.open("aj-takeoff", 2);
+      r.onupgradeneeded = () => {
+        const d = r.result;
+        if (!d.objectStoreNames.contains("pages")) d.createObjectStore("pages", { keyPath: "id" });
+        if (!d.objectStoreNames.contains("jobs")) d.createObjectStore("jobs", { keyPath: "id" });
+      };
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    } catch (e) { rej(e); }
+  });
+  return dbp;
+}
+async function store(fn, name = "pages") {
+  try { const d = await db(); const tx = d.transaction(name, "readwrite"); fn(tx.objectStore(name)); await new Promise(r => { tx.oncomplete = tx.onerror = tx.onabort = r; }); } catch (e) {}
+}
+const meta = p => ({ fileId: p.fileId || null, name: p.name, zoom: p.zoom, pxPerInch: p.pxPerInch || null, ftPerPx: p.ftPerPx || null, scaleLabel: p.scaleLabel || "", runs: p.runs, devices: p.devices });
+const savePage = (p, i) => p.example ? null : (scheduleSync(), store(s => s.put({ id: p.id, jobId: job.id, order: i, blob: p.blob, ...meta(p) })));
+const saveMeta = (p, quiet) => p.example ? null : (quiet || scheduleSync(), store(s => { const g = s.get(p.id); g.onsuccess = () => g.result && s.put({ ...g.result, ...meta(p) }); }));
+async function getAll(name) {
+  const d = await db();
+  return new Promise((res, rej) => { const g = d.transaction(name).objectStore(name).getAll(); g.onsuccess = () => res(g.result); g.onerror = rej; });
+}
+async function loadSaved(jobId) {
+  try {
+    const all = (await getAll("pages")).filter(r => r.jobId === jobId);
+    return all.sort((a, b) => a.order - b.order).map(r => ({ id: r.id, name: r.name || "", zoom: r.zoom || "FULL", blob: r.blob, url: URL.createObjectURL(r.blob),
+      pxPerInch: r.pxPerInch || null, ftPerPx: r.ftPerPx || null, scaleLabel: r.scaleLabel || "", runs: r.runs || [], devices: r.devices || [], fileId: r.fileId || null }));
+  } catch (e) { return []; }
+}
+
+/* ---------- upload ---------- */
+$("uploadBtn").onclick = () => $("fileInput").click();
+$("fileInput").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
+const viewer = $("viewer");
+viewer.addEventListener("dragover", e => { e.preventDefault(); $("drop").hidden = false; });
+viewer.addEventListener("dragleave", e => { if (!viewer.contains(e.relatedTarget)) $("drop").hidden = true; });
+viewer.addEventListener("drop", e => { e.preventDefault(); $("drop").hidden = true; addFiles([...e.dataTransfer.files]); });
+
+function canvasBlob(canvas) { return new Promise(r => canvas.toBlob(r, "image/jpeg", 0.88)); }
+function busy(title, frac, text) {
+  $("busy").hidden = frac === null; $("busyTitle").textContent = title || ""; $("busyBar").style.width = ((frac || 0) * 100) + "%"; $("busyText").textContent = text || "";
+}
+
+async function addFiles(files) {
+  files = files.filter(f => f.type === "application/pdf" || /\.pdf$/i.test(f.name) || f.type.startsWith("image/"));
+  if (!files.length) return toast("Choose PDF or image files.");
+  if (pages.some(p => p.example)) { pages.forEach(p => URL.revokeObjectURL(p.url)); pages = []; current = 0; }
+  await ensureJob(files[0].name);
+  const startCount = pages.length;
+  let room = MAX_PAGES - pages.length, skipped = 0;
+  if (room <= 0) return toast(`This project already has ${MAX_PAGES} pages, the limit.`);
+  busy("Reading files…", 0);
+  try {
+    for (const f of files) {
+      const isPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+      if (isPdf) {
+        if (!window.pdfjsLib) { toast("The PDF reader didn't load. Check your connection and reload."); continue; }
+        const pdf = await pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise;
+        for (let n = 1; n <= pdf.numPages; n++) {
+          if (room <= 0) { skipped += pdf.numPages - n + 1; break; }
+          busy(`Splitting ${f.name}`, n / pdf.numPages, `Page ${n} of ${pdf.numPages}`);
+          const page = await pdf.getPage(n);
+          const v1 = page.getViewport({ scale: 1 });
+          const scale = Math.min(4, MAX_SIDE / Math.max(v1.width, v1.height));
+          const vp = page.getViewport({ scale });
+          const c = document.createElement("canvas"); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
+          const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+          await page.render({ canvasContext: ctx, viewport: vp }).promise;
+          pushPage(await canvasBlob(c), "", 72 * scale); // PDF points are 1/72 in
+          page.cleanup(); room--;
+        }
+        pdf.destroy();
+      } else {
+        if (room <= 0) { skipped++; continue; }
+        busy(`Adding ${f.name}`, 1);
+        pushPage(f, ""); room--;
+      }
+    }
+  } catch (err) {
+    toast("One file couldn't be read. It may be damaged or password protected.");
+  }
+  busy(null, null);
+  pages.forEach((p, i) => i >= startCount && savePage(p, i));
+  touchJob();
+  if (startCount === 0) current = 0; else current = startCount;
+  renderAll();
+  if (skipped) toast(`Added up to the ${MAX_PAGES}-page limit. ${skipped} page${skipped > 1 ? "s" : ""} left out.`);
+  $("nameInput").focus();
+}
+const uid = () => crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
+function pushPage(blob, name, pxPerInch = null) {
+  pages.push({ id: uid(), name, zoom: "FULL", blob, url: URL.createObjectURL(blob), pxPerInch, ftPerPx: null, scaleLabel: "", runs: [], devices: [] });
+}
+
+/* ---------- render ---------- */
+const QPOS = { TL: "left:0;top:0", TR: "right:0;top:0", BL: "left:0;bottom:0", BR: "right:0;bottom:0" };
+function renderRail() {
+  const rail = $("rail");
+  rail.innerHTML = "";
+  pages.forEach((p, i) => {
+    const b = document.createElement("button");
+    b.className = "thumb"; b.type = "button";
+    b.setAttribute("aria-current", i === current ? "true" : "false");
+    b.innerHTML = `<span class="num">${String(i + 1).padStart(3, "0")}</span><span class="pic"><img alt="" loading="lazy">${p.zoom !== "FULL" ? `<span class="q" style="${QPOS[p.zoom]}"></span>` : ""}</span><span class="name"></span>`;
+    b.querySelector("img").src = p.url;
+    const nm = b.querySelector(".name"); nm.textContent = p.name || "Not named yet"; if (!p.name) nm.classList.add("unnamed");
+    b.onclick = () => go(i);
+    rail.appendChild(b);
+  });
+  rail.children[current]?.scrollIntoView({ block: "nearest", inline: "nearest" });
+}
+function renderSheet() {
+  const p = pages[current];
+  const img = $("sheetImg");
+  const has = !!p;
+  ["prevBtn", "nextNavBtn", "fullBtn", "nextBtn", "nameInput", "scaleBtn", "measureBtn", "runBtn"].forEach(id => $(id).disabled = !has);
+  document.querySelectorAll(".corners button").forEach(b => { b.disabled = !has; b.setAttribute("aria-pressed", has && p.zoom === b.dataset.zoom ? "true" : "false"); });
+  $("exampleTag").hidden = !(p && p.example);
+  const real = pages.filter(x => !x.example);
+  $("pageCount").textContent = `${real.length} / ${MAX_PAGES}`;
+  $("clearGroup").hidden = !job;
+  $("scaleBtn").textContent = p && p.ftPerPx ? `Scale ${p.scaleLabel}` : "Set scale";
+  $("scaleBtn").classList.toggle("warn", !!p && !p.ftPerPx);
+  if (!p) { img.removeAttribute("src"); $("pos").textContent = "–"; $("sheetNo").textContent = "Sheet –"; $("progress").textContent = ""; return; }
+  if (img.getAttribute("src") !== p.url) img.src = p.url;
+  applyZoom();
+  $("pos").textContent = `${current + 1} / ${pages.length}`;
+  $("sheetNo").textContent = `Sheet ${String(current + 1).padStart(3, "0")}`;
+  $("nameInput").value = p.name;
+  const named = pages.filter(x => x.name.trim()).length;
+  $("progress").innerHTML = `<b>${named}</b> of ${pages.length} named`;
+  $("nextBtn").firstChild.textContent = current === pages.length - 1 ? "Save " : "Next ";
+}
+function renderAll() { renderRail(); renderSheet(); renderRuns(); renderCounts(); }
+
+/* Corner zoom: the sheet (image + markup layer) is sized to fit the view, then scaled 2x and
+   anchored on the chosen corner, so exactly that quarter of the sheet (50% wide x 50% tall) fills the view. */
+let k = 1; // screen px per image px, so markup stays a readable size at any zoom
+function applyZoom() {
+  const p = pages[current], img = $("sheetImg"), stage = $("stage"), sh = $("sheet");
+  if (!p) return;
+  $("zoomTag").textContent = ZOOM_LABEL[p.zoom];
+  const W = stage.clientWidth, H = stage.clientHeight;
+  const iw = img.naturalWidth || 1, ih = img.naturalHeight || 1;
+  const s = Math.min(W / iw, H / ih), dw = iw * s, dh = ih * s;
+  Object.assign(sh.style, { left: (W - dw) / 2 + "px", top: (H - dh) / 2 + "px", width: dw + "px", height: dh + "px" });
+  $("overlay").setAttribute("viewBox", `0 0 ${iw} ${ih}`);
+  if (p.zoom === "FULL") { sh.style.transform = "none"; k = s; }
+  else { sh.style.transform = `translate(${p.zoom[1] === "R" ? -dw : 0}px, ${p.zoom[0] === "B" ? -dh : 0}px) scale(2)`; k = 2 * s; }
+  drawOverlay();
+}
+$("sheetImg").addEventListener("load", applyZoom);
+new ResizeObserver(applyZoom).observe($("stage"));
+
+const FIXTURES = {
+  high_bay:[
+    {id:'HB-1',manufacturer:'Lithonia',model:'IBG 24L, 120W',wattage:120,voltage:'120-277V',lumens:18000,mountingHeight:'16 ft',size:'standard'},
+    {id:'HB-2',manufacturer:'RAB',model:'HBLED300, 300W',wattage:300,voltage:'347-480V',lumens:42000,mountingHeight:'22 ft',size:'large'}
+  ],
+  linear_light:[
+    {id:'LN-1',manufacturer:'Lithonia',model:'CPX 4SL',wattage:40,voltage:'120V',lumens:4800,mountingHeight:'10 ft'},
+    {id:'LN-2',manufacturer:'Metalux',model:'SNLED 8FT',wattage:65,voltage:'120-277V',lumens:8800,mountingHeight:'12 ft'}
+  ],
+  recessed_light:[
+    {id:'RC-1',manufacturer:'Halo',model:'RL560',wattage:12,voltage:'120V',lumens:900,mountingHeight:'ceiling'}
+  ],
+  wall_pack:[
+    {id:'WP-1',manufacturer:'RAB',model:'WPLED26, small',wattage:26,voltage:'120-277V',lumens:3600,mountingHeight:'12 ft',size:'standard'},
+    {id:'WP-2',manufacturer:'RAB',model:'WPLED78, large / high-output',wattage:78,voltage:'120-277V',lumens:9500,mountingHeight:'14 ft',size:'large'}
+  ],
+  sconce:[
+    {id:'SC-1',manufacturer:'Lithonia',model:'OLW LED, inside sconce',wattage:14,voltage:'120V',lumens:1200,mountingHeight:'7 ft'},
+    {id:'SC-2',manufacturer:'Lithonia',model:'OLW LED, outside sconce',wattage:14,voltage:'120V',lumens:1200,mountingHeight:'7 ft'}
+  ],
+  barn_light:[
+    {id:'BL-1',manufacturer:'RAB',model:'GN-LED26, 10" gooseneck',wattage:26,voltage:'120-277V',lumens:3200,mountingHeight:'10 ft',size:'standard'},
+    {id:'BL-2',manufacturer:'RAB',model:'GN-LED40, 12" gooseneck',wattage:40,voltage:'120-277V',lumens:5000,mountingHeight:'10 ft',size:'large'}
+  ],
+  uplight:[
+    {id:'UP-1',manufacturer:'RAB',model:'WPLED9 uplight',wattage:9,voltage:'120V',lumens:900,mountingHeight:'grade'}
+  ],
+  flood_light:[
+    {id:'FL-1',manufacturer:'RAB',model:'FFLED78, 2-head',wattage:78,voltage:'120-277V',lumens:9200,mountingHeight:'16 ft'},
+    {id:'FL-2',manufacturer:'RAB',model:'FFLED78/PC, 2-head + motion',wattage:78,voltage:'120-277V',lumens:9200,mountingHeight:'16 ft',motion:true}
+  ],
+  duplex_receptacle:[
+    {id:'RCP-1',manufacturer:'Leviton',model:'5320, duplex 20A',wattage:null,voltage:'120V',lumens:null,mountingHeight:'18 in'}
+  ],
+  quad_receptacle:[
+    {id:'QUAD-1',manufacturer:'Leviton',model:'5362, quad 20A',wattage:null,voltage:'120V',lumens:null,mountingHeight:'18 in'}
+  ],
+  gfci_receptacle:[
+    {id:'GFCI-1',manufacturer:'Leviton',model:'GFNT2, GFCI 20A',wattage:null,voltage:'120V',lumens:null,mountingHeight:'18 in'}
+  ],
+  weatherproof_receptacle:[
+    {id:'WP-R1',manufacturer:'Taymac',model:'MM410, in-use cover, WR GFCI 20A',wattage:null,voltage:'120V',lumens:null,mountingHeight:'18 in'}
+  ],
+  receptacle_240v:[
+    {id:'240-30',manufacturer:'Hubbell',model:'HBL9430, 30A receptacle, NEMA 6-30R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'48 in',sym1:'30A'},
+    {id:'240-50',manufacturer:'Hubbell',model:'HBL9450, 50A receptacle, NEMA 6-50R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'48 in',sym1:'50A'},
+    {id:'RNG-50',manufacturer:'Hubbell',model:'HBL9450FR, range 50A, NEMA 14-50R',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'18 in',sym1:'RANGE',sym2:'50A'},
+    {id:'RV-30',manufacturer:'Hubbell',model:'HBL9330, RV 30A, NEMA TT-30R',wattage:null,voltage:'120V',lumens:null,mountingHeight:'48 in',sym1:'RV',sym2:'30A'},
+    {id:'RV-50',manufacturer:'Hubbell',model:'HBL9450RV, RV 50A, NEMA 14-50R',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'48 in',sym1:'RV',sym2:'50A'},
+    {id:'WLD-30',manufacturer:'Hubbell',model:'HBL9330W, welder 30A, NEMA 6-30R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'48 in',sym1:'WELD',sym2:'30A'},
+    {id:'WLD-50',manufacturer:'Hubbell',model:'HBL9450W, welder 50A, NEMA 6-50R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'48 in',sym1:'WELD',sym2:'50A'},
+    {id:'WH-30',manufacturer:'Hubbell',model:'HBL9330WH, water heater 30A',wattage:null,voltage:'240V',lumens:null,mountingHeight:'48 in',sym1:'WH',sym2:'30A'}
+  ],
+  ev_charger:[
+    {id:'EV-50',manufacturer:'Siemens',model:'VersiCharge, EV charger 50A',wattage:null,voltage:'240V',lumens:null,mountingHeight:'18 in'}
+  ],
+  switch:[
+    {id:'SW-1',manufacturer:'Leviton',model:'1451, single-pole',wattage:null,voltage:'120/277V',lumens:null,mountingHeight:'48 in',way:1},
+    {id:'SW-2',manufacturer:'Leviton',model:'5613, 3-way',wattage:null,voltage:'120/277V',lumens:null,mountingHeight:'48 in',way:3},
+    {id:'SW-3',manufacturer:'Leviton',model:'5614, 4-way',wattage:null,voltage:'120/277V',lumens:null,mountingHeight:'48 in',way:4},
+    {id:'SW-4',manufacturer:'Lutron',model:'DVCL-153P, single-pole dimmer',wattage:null,voltage:'120V',lumens:null,mountingHeight:'48 in',way:1,dimmer:true},
+    {id:'SW-5',manufacturer:'Lutron',model:'DVCL-153P-3, 3-way dimmer',wattage:null,voltage:'120V',lumens:null,mountingHeight:'48 in',way:3,dimmer:true}
+  ],
+  occupancy_switch:[
+    {id:'OCC-1',manufacturer:'Leviton',model:'ODC10, occupancy / motion, wall mount',wattage:null,voltage:'120/277V',lumens:null,mountingHeight:'48 in'}
+  ],
+  panel:[
+    {id:'PNL-M200',manufacturer:'Square D',model:'QO130M200, main panel 200A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'MAIN',sym2:'200A'},
+    {id:'PNL-M400',manufacturer:'Square D',model:'QO142M400, main panel 400A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'MAIN',sym2:'400A'},
+    {id:'PNL-S30',manufacturer:'Square D',model:'QO112L30, subpanel 30A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'SUB',sym2:'30A'},
+    {id:'PNL-S50',manufacturer:'Square D',model:'QO112L50, subpanel 50A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'SUB',sym2:'50A'},
+    {id:'PNL-S100',manufacturer:'Square D',model:'QO124L100, subpanel 100A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'SUB',sym2:'100A'},
+    {id:'PNL-S200',manufacturer:'Square D',model:'QO130L200, subpanel 200A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'SUB',sym2:'200A'}
+  ],
+  disconnect:[
+    {id:'DISC-30',manufacturer:'Square D',model:'H221N, disconnect 30A, NEMA 3R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'60 in',sym1:'30A'},
+    {id:'DISC-50',manufacturer:'Square D',model:'H222N, disconnect 50A, NEMA 3R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'60 in',sym1:'50A'},
+    {id:'DISC-100',manufacturer:'Square D',model:'H223N, disconnect 100A, NEMA 3R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'60 in',sym1:'100A'},
+    {id:'DISC-200',manufacturer:'Square D',model:'H224N, disconnect 200A, NEMA 3R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'60 in',sym1:'200A'}
+  ],
+  meter:[
+    {id:'MTR-200',manufacturer:'Utility',model:'Meter base, 200A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'60 in'},
+    {id:'MTR-400',manufacturer:'Utility',model:'Meter base, 400A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'60 in'}
+  ],
+  service_overhead:[
+    {id:'SVC-OH200',manufacturer:'Utility',model:'Overhead service, 200A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'200A'},
+    {id:'SVC-OH400',manufacturer:'Utility',model:'Overhead service, 400A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'400A'}
+  ],
+  service_underground:[
+    {id:'SVC-UG200',manufacturer:'Utility',model:'Underground service, 200A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'200A'},
+    {id:'SVC-UG400',manufacturer:'Utility',model:'Underground service, 400A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'400A'}
+  ],
+  junction_box:[
+    {id:'JB-1',manufacturer:'Generic',model:'4-11/16 sq, pull box',wattage:null,voltage:null,lumens:null,mountingHeight:'varies'}
+  ],
+  fan:[
+    {id:'FAN-1',manufacturer:'Big Ass Fans',model:'Basic 6, agricultural ceiling fan',wattage:750,voltage:'120-240V',lumens:null,mountingHeight:'14 ft',size:'large',symbolType:'ceiling'},
+    {id:'FAN-3',manufacturer:'Generic',model:'Standard 52 in ceiling fan',wattage:75,voltage:'120V',lumens:null,mountingHeight:'9 ft',size:'small',symbolType:'ceiling'},
+    {id:'FAN-5',manufacturer:'Generic',model:'Standard 52 in ceiling fan, exterior / wet-rated',wattage:75,voltage:'120V',lumens:null,mountingHeight:'9 ft',size:'small',symbolType:'ceiling'},
+    {id:'FAN-2',manufacturer:'Multifan',model:'Wall exhaust fan, 24 in',wattage:370,voltage:'120-240V',lumens:null,mountingHeight:'8 ft',symbolType:'exhaust'},
+    {id:'FAN-4',manufacturer:'Broan',model:'Can-style exhaust fan, ceiling mount',wattage:80,voltage:'120V',lumens:null,mountingHeight:'ceiling',symbolType:'can_exhaust'}
+  ]
+};
+// Shapes tell the family apart, colors tell the items apart.
+const GROUPS = [
+  { key: "lights", name: "Lights", shape: "circle", types: ["high_bay", "linear_light", "recessed_light", "wall_pack", "sconce", "barn_light", "uplight", "flood_light"] },
+  { key: "switches", name: "Switches", shape: "triangle", types: ["switch", "occupancy_switch"] },
+  { key: "recept", name: "Receptacles", shape: "square", types: ["duplex_receptacle", "quad_receptacle", "gfci_receptacle", "weatherproof_receptacle", "receptacle_240v", "ev_charger"] },
+  { key: "fans", name: "Fans", shape: "diamond", types: ["fan"] },
+  { key: "gear", name: "Panels & gear", shape: "hexagon", types: ["panel", "disconnect", "meter", "service_overhead", "service_underground", "junction_box"] }
+];
+const KIND = { high_bay: "High bay", linear_light: "Linear", recessed_light: "Recessed can", wall_pack: "Wall pack", sconce: "Sconce", barn_light: "Barn light",
+  uplight: "Uplight", flood_light: "Flood", duplex_receptacle: "Duplex", quad_receptacle: "Quad", gfci_receptacle: "GFCI", weatherproof_receptacle: "Weatherproof GFCI",
+  receptacle_240v: "240V / special", ev_charger: "EV charger", switch: "Switch", occupancy_switch: "Occupancy sensor", fan: "Fan", panel: "Panel",
+  disconnect: "Disconnect", meter: "Meter base", service_overhead: "Overhead service", service_underground: "Underground service", junction_box: "Junction box" };
+const PALETTE = ["#f2b705", "#e8590c", "#2f9e44", "#1c7ed6", "#ae3ec9", "#e64980", "#15aabf", "#82c91e", "#7048e8", "#a5672a", "#fa5252", "#495057", "#ffd8a8", "#99e9f2", "#d0bfff"];
+const DEVICES = {}; // id -> {id, label, model, group, shape, color}
+GROUPS.forEach(g => {
+  g.items = [];
+  g.types.forEach(t => (FIXTURES[t] || []).forEach(f => {
+    const d = { id: f.id, kind: KIND[t] || t, model: f.model, maker: f.manufacturer, group: g.key, shape: g.shape, color: PALETTE[g.items.length % PALETTE.length] };
+    g.items.push(d); DEVICES[f.id] = d;
+  }));
+});
+
+// One shape drawer for the toolbox swatches and the marks on the sheet. r = half size.
+function shapeEl(d, cx, cy, r, cls) {
+  const NS = "http://www.w3.org/2000/svg";
+  let e;
+  if (d.shape === "circle") { e = document.createElementNS(NS, "circle"); e.setAttribute("cx", cx); e.setAttribute("cy", cy); e.setAttribute("r", r); }
+  else if (d.shape === "square") { e = document.createElementNS(NS, "rect"); e.setAttribute("x", cx - r * .9); e.setAttribute("y", cy - r * .9); e.setAttribute("width", r * 1.8); e.setAttribute("height", r * 1.8); }
+  else {
+    const pts = d.shape === "triangle" ? [[0, -1.1], [1, .75], [-1, .75]]
+      : d.shape === "diamond" ? [[0, -1.15], [1.15, 0], [0, 1.15], [-1.15, 0]]
+      : [0, 1, 2, 3, 4, 5].map(i => [Math.cos(Math.PI / 3 * i), Math.sin(Math.PI / 3 * i)]);
+    e = document.createElementNS(NS, "polygon");
+    e.setAttribute("points", pts.map(([x, y]) => `${cx + x * r},${cy + y * r}`).join(" "));
+  }
+  e.setAttribute("fill", d.color); e.setAttribute("class", cls);
+  return e;
+}
+function swatch(d, size = 18) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "-10 -10 20 20"); svg.setAttribute("aria-hidden", "true");
+  svg.appendChild(shapeEl(d, 0, 0, 8, "sym"));
+  return svg;
+}
+
+let placeType = null;   // device id while placing
+const countOn = (pg, id) => pg.devices.reduce((n, v) => n + (v.t === id), 0);
+
+function buildToolbox() {
+  const box = $("toolbox"); box.replaceChildren();
+  GROUPS.forEach((g, gi) => {
+    const det = document.createElement("details"); if (gi === 0) det.open = true;
+    const sum = document.createElement("summary");
+    sum.appendChild(swatch({ shape: g.shape, color: "transparent" }));
+    sum.append(g.name);
+    const gc = document.createElement("span"); gc.className = "gcount"; gc.dataset.group = g.key; sum.appendChild(gc);
+    det.appendChild(sum);
+    const wrap = document.createElement("div"); wrap.className = "tbx-items";
+    g.items.forEach(d => {
+      const b = document.createElement("button"); b.type = "button"; b.className = "dev"; b.dataset.dev = d.id;
+      b.setAttribute("aria-pressed", "false"); b.title = `${d.maker} ${d.model}`;
+      b.appendChild(swatch(d));
+      const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = d.kind;
+      const sm = document.createElement("small"); sm.textContent = `${d.id} · ${d.model}`; nm.appendChild(sm);
+      const ct = document.createElement("span"); ct.className = "ct";
+      b.append(nm, ct);
+      b.onclick = () => openCount(null, d.id);
+      wrap.appendChild(b);
+    });
+    det.appendChild(wrap); box.appendChild(det);
+  });
+}
+buildToolbox();
+
+/* Count items: the job's own list of what is being counted (fixture + tag + engineer's description).
+   Placed symbols point at a count item id; older placements may point straight at a toolbox device id. */
+let exampleCounts = [];
+const countsList = () => job ? (job.counts || (job.counts = [])) : exampleCounts;
+function devInfo(t) {
+  const c = countsList().find(c => c.id === t);
+  if (c) { const b = DEVICES[c.base] || Object.values(DEVICES)[0]; return { ...b, id: c.id, base: c.base, color: c.color || b.color, tag: c.tag || "", desc: c.desc || "", custom: true }; }
+  return DEVICES[t];
+}
+const nameOf = d => d.custom ? (d.tag ? `Type ${d.tag}` : d.kind) : `${d.id} ${d.kind}`;
+
+function renderCounts() {
+  const p = pages[current];
+  document.querySelectorAll(".gcount").forEach(s => {
+    const n = p ? p.devices.filter(v => { const d = devInfo(v.t); return d && d.group === s.dataset.group; }).length : 0;
+    s.textContent = n || "";
+  });
+  const items = countsList().map(c => devInfo(c.id));
+  // placements from before count items existed still show, without a description
+  const legacy = Object.values(DEVICES).filter(d => pages.some(pg => countOn(pg, d.id)));
+  const all = [...items, ...legacy];
+  const ul = $("cntList"); ul.replaceChildren();
+  $("countsEmpty").hidden = all.length > 0;
+  $("cntTotals").hidden = !all.length;
+  let sheetTot = 0, allTot = 0;
+  all.forEach(d => {
+    const nS = p ? countOn(p, d.id) : 0, nA = pages.reduce((t, pg) => t + countOn(pg, d.id), 0);
+    sheetTot += nS; allTot += nA;
+    const li = document.createElement("li"); li.className = "cnt";
+    const b = document.createElement("button"); b.type = "button"; b.className = "cnt-main";
+    b.setAttribute("aria-pressed", tool === "place" && placeType === d.id);
+    b.title = "Place on this sheet";
+    b.appendChild(swatch(d));
+    const tx = document.createElement("span"); tx.className = "cnt-txt";
+    const nm = document.createElement("b"); nm.textContent = nameOf(d);
+    const kind = document.createElement("span"); kind.textContent = d.custom ? ` · ${d.kind}` : "";
+    const ds = document.createElement("span"); ds.className = "d"; ds.textContent = d.custom ? (d.desc || "No description yet") : `${d.maker} ${d.model}`;
+    tx.append(nm, kind, ds);
+    const n = document.createElement("span"); n.className = "cnt-n"; n.innerHTML = `${nS}<small>of ${nA}</small>`;
+    b.append(tx, n);
+    b.onclick = () => setTool("place", d.id);
+    li.appendChild(b);
+    if (d.custom) {
+      const e = document.createElement("button"); e.type = "button"; e.className = "cnt-edit"; e.title = "Edit this count"; e.setAttribute("aria-label", "Edit " + nameOf(d));
+      e.innerHTML = `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M11 2.5 13.5 5 6 12.5H3.5V10z"/></svg>`;
+      e.onclick = () => openCount(d.id);
+      li.appendChild(e);
+    }
+    ul.appendChild(li);
+  });
+  $("cntSheet").textContent = sheetTot; $("cntAll").textContent = allTot;
+}
+
+/* Add / edit a count */
+let editingCount = null, deleteArmed = false;
+$("cntBase").innerHTML = GROUPS.map(g => `<optgroup label="${g.name}">` +
+  g.items.map(d => `<option value="${d.id}">${d.kind} · ${d.id} · ${d.model.replace(/"/g, "&quot;")}</option>`).join("") + `</optgroup>`).join("");
+function openCount(id, base) {
+  if (!pages.length) return;
+  if (tool) setTool(null);
+  const list = countsList();
+  editingCount = id ? list.find(c => c.id === id) : null;
+  deleteArmed = false;
+  const c = editingCount || {};
+  const b = c.base || base || "RC-1";
+  $("countTitle").textContent = editingCount ? "Edit count" : "Add count";
+  $("cntBase").value = b;
+  $("cntTag").value = c.tag || "";
+  $("cntDesc").value = c.desc || "";
+  $("cntColor").value = c.color || PALETTE[list.length % PALETTE.length];
+  $("cntDelete").hidden = !editingCount; $("cntDelete").textContent = "Delete count";
+  $("cntSave").textContent = editingCount ? "Save" : "Save and place";
+  $("countModal").hidden = false;
+  (editingCount ? $("cntDesc") : $("cntBase")).focus();
+}
+$("addCountBtn").onclick = () => openCount(null);
+$("cntCancel").onclick = () => { $("countModal").hidden = true; };
+$("countModal").addEventListener("keydown", e => { if (e.key === "Escape") $("countModal").hidden = true; });
+$("cntDelete").onclick = () => {
+  const c = editingCount; if (!c) return;
+  const n = pages.reduce((t, pg) => t + countOn(pg, c.id), 0);
+  if (n && !deleteArmed) { deleteArmed = true; $("cntDelete").textContent = `Delete and remove ${n} symbol${n > 1 ? "s" : ""}`; return; }
+  pages.forEach(pg => { if (countOn(pg, c.id)) { pg.devices = pg.devices.filter(v => v.t !== c.id); saveMeta(pg); } });
+  if (job) { job.counts = job.counts.filter(x => x !== c); saveJob(job); } else exampleCounts = exampleCounts.filter(x => x !== c);
+  $("countModal").hidden = true; renderCounts(); drawOverlay();
+};
+$("countForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const fields = { base: $("cntBase").value, tag: $("cntTag").value.trim(), desc: $("cntDesc").value.trim(), color: $("cntColor").value };
+  let c = editingCount;
+  if (c) Object.assign(c, fields);
+  else { c = { id: uid(), ...fields }; countsList().push(c); }
+  if (job) { job.updated = new Date().toISOString(); saveJob(job); }
+  $("countModal").hidden = true;
+  renderCounts(); drawOverlay();
+  if (!editingCount) setTool("place", c.id);
+});
+
+/* ---------- scale, measure, linear runs ---------- */
+const SCALES = [ // [label, real feet per printed inch]
+  ['1/32" = 1\'-0"', 32], ['1/16" = 1\'-0"', 16], ['3/32" = 1\'-0"', 32 / 3], ['1/8" = 1\'-0"', 8], ['3/16" = 1\'-0"', 16 / 3],
+  ['1/4" = 1\'-0"', 4], ['3/8" = 1\'-0"', 8 / 3], ['1/2" = 1\'-0"', 2], ['3/4" = 1\'-0"', 4 / 3], ['1" = 1\'-0"', 1],
+  ['1-1/2" = 1\'-0"', 2 / 3], ['3" = 1\'-0"', 1 / 3],
+  ['1" = 10\'', 10], ['1" = 20\'', 20], ['1" = 30\'', 30], ['1" = 40\'', 40], ['1" = 50\'', 50], ['1" = 60\'', 60], ['1" = 100\'', 100]
+];
+$("scaleSelect").innerHTML = `<option value="">Choose a scale…</option><optgroup label="Architectural">` +
+  SCALES.map(([l], i) => (i === 12 ? `</optgroup><optgroup label="Engineering">` : "") + `<option value="${i}">${l.replace(/"/g, "&quot;")}</option>`).join("") + `</optgroup>`;
+
+function fmtFt(ft) {
+  let inch = Math.round(ft * 12), f = Math.floor(inch / 12), i = inch - f * 12;
+  return `${f}' ${i}"`;
+}
+const fmtLF = ft => `${ft.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} LF`;
+const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+const polyLen = pts => pts.reduce((t, q, i) => i ? t + dist(pts[i - 1], q) : 0, 0);
+
+let tool = null;        // "measure" | "run" | "calibrate"
+let draft = [];         // points being placed, in image pixels
+let hover = null;
+let lastMeasure = null; // {pageId, pts}
+let scaleDraft = null;  // {then, knownPx}
+let placed = [];        // devices dropped since the place tool was picked, for Undo last
+
+function setTool(t, dev) {
+  const p = pages[current];
+  if (t && t !== "calibrate" && !p) return;
+  if ((t === "measure" || t === "run") && !p.ftPerPx) { openScale(t); return; }
+  if (t && tool === t && t !== "calibrate" && (t !== "place" || placeType === dev)) t = null; // clicking the active tool turns it off
+  tool = t; draft = []; hover = null; placed = [];
+  placeType = t === "place" ? dev : null;
+  $("measureBtn").setAttribute("aria-pressed", tool === "measure");
+  $("runBtn").setAttribute("aria-pressed", tool === "run");
+  $("eraseBtn").setAttribute("aria-pressed", tool === "erase");
+  renderCounts();
+  $("sheet").classList.toggle("tooling", !!tool);
+  updateHint(); drawOverlay();
+}
+function updateHint() {
+  const h = $("toolHint"), t = $("toolHintText"), p = pages[current];
+  h.hidden = !tool;
+  $("finishBtn").hidden = tool !== "run";
+  $("undoBtn").hidden = !((tool === "run" && draft.length) || (tool === "place" && placed.length));
+  $("undoBtn").textContent = tool === "place" ? "Undo last" : "Undo point";
+  $("cancelToolBtn").textContent = tool === "calibrate" ? "Cancel" : "Done";
+  if (!tool) return;
+  const live = draft.length && hover ? [...draft, hover] : draft;
+  if (tool === "place") {
+    const d = devInfo(placeType);
+    t.innerHTML = `Placing <b></b>. Click the sheet to drop one. <b>${countOn(p, d.id)}</b> on this sheet.`;
+    t.querySelector("b").textContent = nameOf(d);
+  } else if (tool === "erase") t.textContent = "Click a symbol to remove it.";
+  else if (tool === "calibrate") t.textContent = draft.length ? "Now click the other end of the known dimension." : "Click one end of a dimension you know.";
+  else if (tool === "measure") {
+    const m = lastMeasure && lastMeasure.pageId === p.id && !draft.length ? lastMeasure.pts : live;
+    t.innerHTML = m.length === 2 ? `Measured <b>${fmtFt(dist(m[0], m[1]) * p.ftPerPx)}</b>. Click to measure again.` : draft.length ? "Click the second point." : "Click the first point.";
+  } else {
+    t.innerHTML = draft.length ? `Run so far <b>${fmtLF(polyLen(live) * p.ftPerPx)}</b>. Keep clicking corners, double-click to finish.` : "Click where the run starts.";
+  }
+}
+
+function svgEl(tag, attrs, text) {
+  const e = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const a in attrs) e.setAttribute(a, attrs[a]);
+  if (text != null) e.textContent = text;
+  return e;
+}
+function label(g, x, y, text, cls) {
+  const fs = 13 / k;
+  g.appendChild(svgEl("text", { x, y: y - 8 / k, class: "mk-label " + (cls || ""), "font-size": fs, "stroke-width": 4 / k, "text-anchor": "middle" }, text));
+}
+function drawOverlay() {
+  const svg = $("overlay"), p = pages[current];
+  svg.replaceChildren();
+  if (!p) return;
+  const ns = { "vector-effect": "non-scaling-stroke" };
+  const ptsAttr = pts => pts.map(q => q.join(",")).join(" ");
+  const dots = (g, pts, cls) => pts.forEach(q => g.appendChild(svgEl("circle", { cx: q[0], cy: q[1], r: 4 / k, class: "mk-dot " + (cls || ""), ...ns })));
+  const g = svgEl("g", {});
+  for (const r of p.runs) {
+    g.appendChild(svgEl("polyline", { points: ptsAttr(r.pts), class: "mk-run", ...ns }));
+    dots(g, [r.pts[0], r.pts[r.pts.length - 1]]);
+    const end = r.pts[r.pts.length - 1];
+    if (p.ftPerPx) label(g, end[0], end[1], `${r.name} · ${fmtLF(r.px * p.ftPerPx)}`);
+  }
+  for (const v of p.devices) {
+    const d = devInfo(v.t); if (!d) continue;
+    const e = shapeEl(d, v.x, v.y, 8 / k, "mk-dev");
+    e.setAttribute("vector-effect", "non-scaling-stroke");
+    e.appendChild(svgEl("title", {}, d.custom ? `${nameOf(d)} · ${d.desc || d.kind}` : `${d.id} · ${d.maker} ${d.model}`));
+    g.appendChild(e);
+    if (d.tag) g.appendChild(svgEl("text", { x: v.x + 10 / k, y: v.y - 6 / k, class: "mk-tag", "font-size": 11 / k, "stroke-width": 3 / k }, d.tag));
+  }
+  if (tool === "place" && hover) {
+    const e = shapeEl(devInfo(placeType), hover[0], hover[1], 8 / k, "mk-dev");
+    e.setAttribute("opacity", ".55"); e.setAttribute("vector-effect", "non-scaling-stroke"); g.appendChild(e);
+  }
+  const live = draft.length && hover ? [...draft, hover] : draft;
+  if (tool === "run" && live.length) {
+    g.appendChild(svgEl("polyline", { points: ptsAttr(live), class: "mk-draft", ...ns }));
+    dots(g, draft);
+    const end = live[live.length - 1];
+    if (live.length > 1) label(g, end[0], end[1], fmtLF(polyLen(live) * p.ftPerPx));
+  }
+  const m = (tool === "measure" || tool === "calibrate") && live.length ? live : (lastMeasure && lastMeasure.pageId === p.id ? lastMeasure.pts : null);
+  if (m && m.length) {
+    if (m.length === 2) {
+      g.appendChild(svgEl("line", { x1: m[0][0], y1: m[0][1], x2: m[1][0], y2: m[1][1], class: "mk-meas", ...ns }));
+      if (tool !== "calibrate" && p.ftPerPx) label(g, (m[0][0] + m[1][0]) / 2, (m[0][1] + m[1][1]) / 2, fmtFt(dist(m[0], m[1]) * p.ftPerPx), "meas");
+    }
+    dots(g, m, "meas");
+  }
+  svg.appendChild(g);
+}
+
+function imgPoint(e) {
+  const r = $("overlay").getBoundingClientRect(), img = $("sheetImg");
+  return [(e.clientX - r.left) / r.width * img.naturalWidth, (e.clientY - r.top) / r.height * img.naturalHeight];
+}
+$("overlay").addEventListener("pointermove", e => { if (!tool) return; hover = imgPoint(e); drawOverlay(); updateHint(); });
+$("overlay").addEventListener("pointerleave", () => { hover = null; drawOverlay(); });
+$("overlay").addEventListener("click", e => {
+  if (!tool) return;
+  const q = imgPoint(e), p = pages[current];
+  if (tool === "place") {
+    const v = { t: placeType, x: q[0], y: q[1] };
+    p.devices.push(v); placed.push(v);
+    saveMeta(p); drawOverlay(); updateHint(); renderCounts(); return;
+  }
+  if (tool === "erase") {
+    let best = null, bd = 14 / k;
+    p.devices.forEach(v => { const dd = dist([v.x, v.y], q); if (dd < bd) { bd = dd; best = v; } });
+    if (best) { p.devices = p.devices.filter(v => v !== best); saveMeta(p); drawOverlay(); renderCounts(); }
+    else toast("No symbol there. Click right on the symbol to remove it.");
+    return;
+  }
+  const prev = draft[draft.length - 1];
+  if (prev && dist(prev, q) * k < 4) return; // second click of a double-click
+  draft.push(q);
+  if (tool === "measure" && draft.length === 2) { lastMeasure = { pageId: p.id, pts: draft }; draft = []; }
+  if (tool === "calibrate" && draft.length === 2) {
+    scaleDraft.knownPx = dist(draft[0], draft[1]); scaleDraft.knownPts = draft;
+    tool = null; draft = []; $("sheet").classList.remove("tooling");
+    updateHint(); showScaleModal(true); return;
+  }
+  drawOverlay(); updateHint();
+});
+$("overlay").addEventListener("dblclick", e => { if (tool === "run") { e.preventDefault(); finishRun(); } });
+$("finishBtn").onclick = finishRun;
+$("undoBtn").onclick = () => {
+  const p = pages[current];
+  if (tool === "place") { const v = placed.pop(); if (v) { p.devices = p.devices.filter(x => x !== v); saveMeta(p); renderCounts(); } }
+  else draft.pop();
+  drawOverlay(); updateHint();
+};
+$("eraseBtn").onclick = () => setTool("erase");
+$("cancelToolBtn").onclick = () => { if (tool === "calibrate") { setTool(null); showScaleModal(false); } else setTool(null); };
+$("measureBtn").onclick = () => setTool("measure");
+$("runBtn").onclick = () => setTool("run");
+
+function finishRun() {
+  const p = pages[current];
+  if (tool !== "run") return;
+  if (draft.length < 2) { toast("Click at least two points to make a run."); return; }
+  const n = p.runs.length + 1;
+  const run = { id: uid(), name: `Run ${n}`, pts: draft, px: polyLen(draft) };
+  p.runs.push(run); draft = []; hover = null;
+  saveMeta(p); renderRuns(); drawOverlay(); updateHint();
+  const inp = $("run-" + run.id); if (inp) { inp.focus(); inp.select(); }
+}
+
+function renderRuns() {
+  const p = pages[current], list = $("runList");
+  list.replaceChildren();
+  const sc = $("runsScale");
+  if (!p) { sc.textContent = "No sheet open."; $("runsEmpty").hidden = false; $("sheetTotal").textContent = fmtLF(0); $("projTotal").textContent = fmtLF(0); return; }
+  sc.className = "runs-scale" + (p.ftPerPx ? "" : " unset");
+  sc.innerHTML = p.ftPerPx ? `<b></b>` : "Not set. You'll be asked for it before measuring.";
+  if (p.ftPerPx) sc.querySelector("b").textContent = p.scaleLabel;
+  $("runsEmpty").hidden = p.runs.length > 0;
+  for (const r of p.runs) {
+    const li = document.createElement("li"); li.className = "run";
+    li.innerHTML = `<input aria-label="Run name"><span class="lf"></span><button type="button" title="Delete run" aria-label="Delete run"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 4h10M6 4V2.5h4V4M4.5 4l.7 9.5h5.6l.7-9.5"/></svg></button>`;
+    const inp = li.querySelector("input"); inp.id = "run-" + r.id; inp.value = r.name;
+    inp.onchange = () => { r.name = inp.value.trim() || r.name; saveMeta(p); drawOverlay(); };
+    inp.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); inp.blur(); } };
+    li.querySelector(".lf").textContent = p.ftPerPx ? fmtLF(r.px * p.ftPerPx) : "–";
+    li.querySelector("button").onclick = () => { p.runs = p.runs.filter(x => x !== r); saveMeta(p); renderRuns(); drawOverlay(); };
+    list.appendChild(li);
+  }
+  const lf = pg => pg.ftPerPx ? pg.runs.reduce((t, r) => t + r.px * pg.ftPerPx, 0) : 0;
+  $("sheetTotal").textContent = fmtLF(lf(p));
+  $("projTotal").textContent = fmtLF(pages.reduce((t, pg) => t + lf(pg), 0));
+}
+
+/* Scale dialog. Opens on its own when a measuring tool is picked on a sheet with no scale. */
+function openScale(then) {
+  const p = pages[current]; if (!p) return;
+  setTool(null);
+  scaleDraft = { then: then || null, knownPx: null };
+  $("scaleWhy").textContent = then ? "This sheet doesn't have a scale yet. Set it first so the lengths come out right." : "Lengths on this sheet are worked out from this scale.";
+  $("scaleSelect").value = "";
+  $("knownFt").value = ""; $("knownIn").value = "";
+  $("applyAll").checked = false;
+  showScaleModal(false);
+}
+function showScaleModal(afterPick) {
+  const p = pages[current];
+  const canPreset = !!p.pxPerInch;
+  $("scaleSelect").disabled = !canPreset;
+  $("presetNote").textContent = canPreset
+    ? "Use this when the PDF is full size. If it was printed or saved at half size, measure a known dimension instead."
+    : "Photos and images don't carry a print size, so measure a known dimension instead.";
+  $("knownRow").hidden = !scaleDraft.knownPx;
+  $("pickKnownBtn").textContent = scaleDraft.knownPx ? "Pick the two points again" : "Pick two points on the sheet";
+  $("scaleModal").hidden = false;
+  if (afterPick) $("knownFt").focus(); else (canPreset ? $("scaleSelect") : $("pickKnownBtn")).focus();
+}
+$("scaleBtn").onclick = () => openScale(null);
+$("pickKnownBtn").onclick = () => { $("scaleModal").hidden = true; setTool("calibrate"); };
+$("scaleSelect").onchange = () => { if ($("scaleSelect").value !== "") { scaleDraft.knownPx = null; $("knownRow").hidden = true; } };
+$("scaleCancel").onclick = () => { $("scaleModal").hidden = true; scaleDraft = null; };
+$("scaleModal").addEventListener("keydown", e => { if (e.key === "Escape") $("scaleCancel").click(); });
+$("scaleForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const p = pages[current];
+  let ftPerPx, lbl, pxPerInchNeeded = false;
+  if (scaleDraft.knownPx) {
+    const ft = (parseFloat($("knownFt").value) || 0) + (parseFloat($("knownIn").value) || 0) / 12;
+    if (!(ft > 0)) { toast("Type the length of the dimension you picked."); $("knownFt").focus(); return; }
+    ftPerPx = ft / scaleDraft.knownPx; lbl = "Custom";
+  } else if ($("scaleSelect").value !== "") {
+    const [l, ftPerIn] = SCALES[+$("scaleSelect").value];
+    ftPerPx = ftPerIn / p.pxPerInch; lbl = l; pxPerInchNeeded = true;
+  } else { toast("Choose a scale or pick two points on a known dimension."); return; }
+  p.ftPerPx = ftPerPx; p.scaleLabel = lbl; saveMeta(p);
+  if ($("applyAll").checked) {
+    let n = 0;
+    pages.forEach(pg => {
+      if (pg === p || pg.ftPerPx) return;
+      if (pxPerInchNeeded) { if (!pg.pxPerInch) return; pg.ftPerPx = SCALES[+$("scaleSelect").value][1] / pg.pxPerInch; }
+      else pg.ftPerPx = ftPerPx;
+      pg.scaleLabel = lbl; saveMeta(pg); n++;
+    });
+    if (n) toast(`Scale also set on ${n} other sheet${n > 1 ? "s" : ""}.`);
+  }
+  $("scaleModal").hidden = true;
+  const then = scaleDraft.then; scaleDraft = null;
+  renderAll();
+  if (then) setTool(then);
+});
+
+function setZoom(z) {
+  const p = pages[current]; if (!p) return;
+  p.zoom = p.zoom === z ? "FULL" : z;
+  saveMeta(p); renderAll();
+}
+document.querySelectorAll(".corners button").forEach(b => b.onclick = () => setZoom(b.dataset.zoom));
+$("fullBtn").onclick = () => setZoom("FULL");
+
+function go(i) {
+  if (!pages.length) return;
+  commitName();
+  current = Math.max(0, Math.min(pages.length - 1, i));
+  if (tool) setTool(null);
+  renderAll();
+}
+function commitName() {
+  const p = pages[current]; if (!p) return;
+  const v = $("nameInput").value.trim();
+  if (v !== p.name) { p.name = v; saveMeta(p); }
+}
+$("prevBtn").onclick = () => go(current - 1);
+$("nextNavBtn").onclick = () => go(current + 1);
+
+$("labelForm").addEventListener("submit", e => {
+  e.preventDefault();
+  if (!pages.length) return;
+  commitName();
+  if (current < pages.length - 1) {
+    // jump to the next sheet; if it already has a name, skip ahead to the next unnamed one after it
+    let next = current + 1;
+    for (let i = current + 1; i < pages.length; i++) if (!pages[i].name) { next = i; break; }
+    current = next;
+    if (tool) setTool(null);
+    renderAll();
+    $("nameInput").focus(); $("nameInput").select();
+  } else {
+    renderAll();
+    const left = pages.filter(x => !x.name).length;
+    toast(left ? `Saved. ${left} sheet${left > 1 ? "s" : ""} still need a name.` : "All sheets named.");
+  }
+});
+
+document.addEventListener("keydown", e => {
+  const typing = !!e.target.closest("input, select, textarea");
+  if (!$("scaleModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden) return;
+  if (tool && !typing) {
+    if (e.key === "Escape") { $("cancelToolBtn").click(); return; }
+    if (e.key === "Enter" && tool === "run") { e.preventDefault(); finishRun(); return; }
+    if (e.key === "Backspace" && ((tool === "run" && draft.length) || (tool === "place" && placed.length))) { e.preventDefault(); $("undoBtn").click(); return; }
+  }
+  if (e.key === "PageDown") { e.preventDefault(); go(current + 1); }
+  else if (e.key === "PageUp") { e.preventDefault(); go(current - 1); }
+  else if (!typing && !e.ctrlKey && !e.metaKey) {
+    const map = { "1": "TL", "2": "TR", "3": "BL", "4": "BR", "0": "FULL" };
+    if (map[e.key]) setZoom(map[e.key]);
+    else if (e.key === "ArrowRight") go(current + 1);
+    else if (e.key === "ArrowLeft") go(current - 1);
+    else if (e.key === "m" || e.key === "M") setTool("measure");
+    else if (e.key === "l" || e.key === "L") setTool("run");
+    else if (e.key === "e" || e.key === "E") setTool("erase");
+  }
+});
+
+/* ---------- Google Drive (through the viewer's Google Drive connector) ----------
+   Layout in Drive:  AJ Takeoff Jobs/
+                       <job name> · ajjob <id>.json      job details + every sheet's name, scale, runs, devices
+                       <job name> sheets · ajjob <id>/   one JPEG per sheet, uploaded once
+   Drive's connector can't overwrite a file, so each save writes a new .json and trashes the old one.
+   A job's .json id therefore changes on every save, which is how another device's newer save is spotted. */
+const DRIVE = "Google Drive";
+let mcp = null, fileArgs = false, rootId = null;
+const mcpReady = (async () => {
+  try {
+    mcp = await window.claude?.use?.("mcp") ?? null;
+    if (mcp) { try { fileArgs = !!(await mcp.listTools()).fileArgs; } catch (e) {} }
+  } catch (e) { mcp = null; }
+  if (!mcp) setDrive("off");
+  return mcp;
+})();
+async function drv(tool, input) {
+  if (!(await mcpReady)) throw { code: "not_granted" };
+  const r = await mcp.callTool(DRIVE, tool, input, { cache: false });
+  return r.payload || {};
+}
+function driveMsg(e) {
+  switch (e && e.code) {
+    case "needs_reauth": return "Reconnect Google Drive in claude.ai Settings → Connectors";
+    case "server_not_connected": return "Add Google Drive in claude.ai Settings → Connectors";
+    case "not_in_manifest": case "approval_required": return "Allow Google Drive for this app to save there";
+    case "blocked_by_policy": return "Your organization blocks Google Drive here";
+    case "not_granted": case "capability_disabled": case "capability_removed": return "Google Drive isn't available in this view";
+    case "server_unavailable": case "rate_limited": return "Google Drive didn't answer";
+    case "tool_error": return "Google Drive refused the save" + (e.message ? `: ${String(e.message).slice(0, 80)}` : "");
+    default: return "Couldn't reach Google Drive";
+  }
+}
+function setDrive(state, text) {
+  const el = $("driveStatus");
+  el.className = "drive " + ({ ok: "ok", busy: "busy", bad: "bad" }[state] || "");
+  $("driveText").textContent = text || (state === "off" ? "Saved in this browser only" : "Saved in this browser");
+  $("driveRetry").hidden = state !== "bad";
+}
+$("driveRetry").onclick = () => { syncWanted = true; runSync(); };
+
+async function driveRoot() {
+  if (rootId) return rootId;
+  const cached = lsGet("aj-drive-root");
+  const r = await drv("search_files", { query: "title = 'AJ Takeoff Jobs' and mimeType = 'application/vnd.google-apps.folder' and owner = 'me'", excludeContentSnippets: true, pageSize: 10 });
+  const hit = (r.files || []).find(f => f.id === cached) || (r.files || [])[0];
+  if (hit) rootId = hit.id;
+  else rootId = (await drv("create_file", { title: "AJ Takeoff Jobs", contentMimeType: "application/vnd.google-apps.folder" })).id;
+  lsSet("aj-drive-root", rootId);
+  return rootId;
+}
+const safeName = n => (n || "Untitled job").replace(/[\\/:*?"<>|·]/g, "-").slice(0, 80).trim();
+const b64ToBytes = b => Uint8Array.from(atob(b), c => c.charCodeAt(0));
+const blobToB64 = blob => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1]); r.onerror = rej; r.readAsDataURL(blob); });
+async function asJpeg(blob, maxBytes) {
+  if (blob.type === "image/jpeg" && blob.size <= maxBytes) return blob;
+  const img = await createImageBitmap(blob);
+  let scale = 1, q = 0.85, out = blob;
+  for (let i = 0; i < 6; i++) {
+    const c = document.createElement("canvas"); c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+    const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, 0, 0, c.width, c.height);
+    out = await new Promise(r => c.toBlob(r, "image/jpeg", q));
+    if (out.size <= maxBytes) break;
+    q = Math.max(0.55, q - 0.1); scale *= 0.85;
+  }
+  return out;
+}
+async function uploadSheet(blob, title, parentId) {
+  // With file arguments the bytes skip the 1 MiB call limit (16 MiB per file); without, they ride inline.
+  const jpg = await asJpeg(blob, fileArgs ? 15e6 : 700e3);
+  const content = fileArgs ? { $file: { data: jpg, name: title, type: "image/jpeg" } } : await blobToB64(jpg);
+  return (await drv("create_file", { title, parentId, base64Content: content, contentMimeType: "image/jpeg", disableConversionToGoogleType: true })).id;
+}
+
+let syncTimer = null, syncing = false, syncWanted = false;
+function scheduleSync() {
+  if (!job) return;
+  syncWanted = true;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(runSync, 4000);
+}
+async function runSync() {
+  if (syncing || !syncWanted || !job) return;
+  if (!(await mcpReady)) return setDrive("off");
+  syncing = true; syncWanted = false;
+  const j = job, list = pages;
+  try {
+    const root = await driveRoot();
+    if (!j.driveSheetsId) {
+      setDrive("busy", "Setting up this job in Drive…");
+      j.driveSheetsId = (await drv("create_file", { title: `${safeName(j.name)} sheets · ajjob ${j.id}`, parentId: root, contentMimeType: "application/vnd.google-apps.folder" })).id;
+      await putJobLocal(j);
+    }
+    const todo = list.filter(p => !p.fileId);
+    for (let i = 0; i < todo.length; i++) {
+      if (job !== j) break;
+      setDrive("busy", `Saving sheets to Drive… ${i + 1} of ${todo.length}`);
+      const p = todo[i];
+      p.fileId = await uploadSheet(p.blob, `${String(list.indexOf(p) + 1).padStart(3, "0")}-${p.id}.jpg`, j.driveSheetsId);
+      saveMeta(p, true);
+    }
+    if (job !== j) return;
+    setDrive("busy", "Saving to Drive…");
+    const data = { app: "aj-takeoff", v: 1, savedAt: new Date().toISOString(), job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, driveSheetsId: j.driveSheetsId, counts: j.counts || [] },
+      pages: list.map(p => ({ id: p.id, fileId: p.fileId, ...meta(p) })) };
+    const made = await drv("create_file", { title: `${safeName(j.name)} · ajjob ${j.id}.json`, parentId: root, textContent: JSON.stringify(data), contentMimeType: "application/json", disableConversionToGoogleType: true });
+    const old = j.driveJsonId;
+    j.driveJsonId = made.id; await putJobLocal(j);
+    if (old && old !== made.id) drv("trash_file", { fileId: old }).catch(() => {});
+    const t = new Date();
+    setDrive("ok", `Saved to Google Drive ${t.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}`);
+  } catch (e) {
+    syncWanted = true; // keep the change; the viewer can try again
+    setDrive("bad", driveMsg(e));
+  } finally {
+    syncing = false;
+    if (syncWanted && $("driveStatus").className.indexOf("bad") < 0) scheduleSync();
+  }
+}
+async function trashJobInDrive(j) {
+  if (!j.driveJsonId && !j.driveSheetsId) return;
+  try {
+    if (j.driveJsonId) await drv("trash_file", { fileId: j.driveJsonId });
+    if (j.driveSheetsId) await drv("trash_file", { fileId: j.driveSheetsId });
+  } catch (e) { toast("Deleted here, but Drive didn't answer. You can remove it from the AJ Takeoff Jobs folder."); }
+}
+
+// Every job .json in the folder, newest save first: [{fileId, id, name, modified}]
+async function driveJobFiles() {
+  const root = await driveRoot(), out = [];
+  let pageToken;
+  for (let n = 0; n < 20; n++) {
+    const r = await drv("search_files", { query: `parentId = '${root}' and title contains 'ajjob' and mimeType = 'application/json'`, excludeContentSnippets: true, pageSize: 100, ...(pageToken ? { pageToken } : {}) });
+    (r.files || []).forEach(f => {
+      const m = /^(.*) · ajjob (\S+)\.json$/.exec(f.title || "");
+      if (m) out.push({ fileId: f.id, id: m[2], name: m[1], modified: f.modifiedTime || "" });
+    });
+    pageToken = r.next_page_token || r.nextPageToken;
+    if (!pageToken || !(r.files || []).length) break;
+  }
+  const newest = {};
+  out.forEach(f => { if (!newest[f.id] || f.modified > newest[f.id].modified) newest[f.id] = f; });
+  return Object.values(newest).sort((a, b) => b.modified.localeCompare(a.modified));
+}
+let driveIndex = {}; // job id -> newest Drive file, from the last listing
+async function listDriveJobs(localList) {
+  const head = $("driveJobsHead"), ul = $("driveJobList"), note = $("driveJobsNote");
+  ul.replaceChildren(); head.hidden = true; note.hidden = true;
+  if (!(await mcpReady)) { note.hidden = false; note.textContent = "Google Drive isn't available in this view, so only jobs saved in this browser are listed."; return; }
+  note.hidden = false; note.textContent = "Checking your Google Drive…";
+  let files;
+  try { files = await driveJobFiles(); } catch (e) { note.textContent = driveMsg(e) + "."; return; }
+  note.hidden = true;
+  driveIndex = {}; files.forEach(f => driveIndex[f.id] = f);
+  const local = new Map(jobs.map(j => [j.id, j]));
+  // mark local jobs that another device saved more recently
+  localList.querySelectorAll(".job-row").forEach((b, i) => {
+    const j = jobs[i], f = j && driveIndex[j.id];
+    if (f && j.driveJsonId && f.fileId !== j.driveJsonId) {
+      const tag = document.createElement("span"); tag.className = "badge"; tag.textContent = " · Newer copy in Drive, opens it";
+      b.querySelector(".jm").appendChild(tag);
+    }
+  });
+  const remote = files.filter(f => !local.has(f.id));
+  head.hidden = !remote.length;
+  remote.forEach(f => {
+    const li = document.createElement("li");
+    const b = document.createElement("button"); b.type = "button"; b.className = "job-row";
+    b.innerHTML = `<span><span class="jt"></span><br><span class="jm"></span></span><span class="js">Open</span>`;
+    b.querySelector(".jt").textContent = f.name;
+    b.querySelector(".jm").textContent = f.modified ? "Saved " + new Date(f.modified).toLocaleString() : "In Google Drive";
+    b.onclick = () => { $("jobsModal").hidden = true; pullJob(f); };
+    li.appendChild(b); ul.appendChild(li);
+  });
+  if (!files.length && !jobs.length) $("jobsEmpty").textContent = "No jobs yet, here or in your Google Drive. Start one below.";
+}
+// Copy a job from Drive into this browser (sheets this browser already has are reused), then open it.
+async function pullJob(f) {
+  try {
+    busy("Opening from Google Drive…", 0, f.name);
+    const raw = await drv("download_file_content", { fileId: f.fileId });
+    const data = JSON.parse(new TextDecoder().decode(b64ToBytes(raw.content || "")));
+    if (data.app !== "aj-takeoff") throw { code: "tool_error", message: "That file isn't an AJ Takeoff job" };
+    const have = new Map((await getAll("pages")).filter(r => r.jobId === data.job.id).map(r => [r.id, r]));
+    const j = { ...newJobRecord({}), ...(jobs.find(x => x.id === data.job.id) || {}), ...data.job, driveJsonId: f.fileId };
+    const rows = [];
+    for (let i = 0; i < data.pages.length; i++) {
+      const pg = data.pages[i];
+      busy("Opening from Google Drive…", (i + 1) / data.pages.length, `Sheet ${i + 1} of ${data.pages.length}`);
+      let blob = have.get(pg.id) && have.get(pg.id).blob;
+      if (!blob) {
+        const img = await drv("download_file_content", { fileId: pg.fileId });
+        blob = new Blob([b64ToBytes(img.content || "")], { type: "image/jpeg" });
+      }
+      rows.push({ ...pg, jobId: j.id, order: i, blob });
+    }
+    await store(s => { have.forEach((_, id) => s.delete(id)); rows.forEach(r => s.put(r)); });
+    await putJobLocal(j);
+    busy(null, null);
+    await openJob(j);
+    setDrive("ok", "Opened from Google Drive");
+  } catch (e) {
+    busy(null, null);
+    toast(e && e.code ? driveMsg(e) + "." : "That job couldn't be opened from Drive.");
+  }
+}
+
+/* ---------- jobs ---------- */
+// job: {id, name, customer, address, bidDate, created, updated}. null while showing the example sheets.
+let job = null, jobs = [];
+const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} };
+const putJobLocal = j => store(s => s.put(j), "jobs");
+const saveJob = j => { if (job && j.id === job.id) scheduleSync(); return putJobLocal(j); };
+function showJobName() { $("jobName").textContent = job ? job.name : "Example job"; }
+async function openJob(j) {
+  if (tool) setTool(null);
+  pages.forEach(p => URL.revokeObjectURL(p.url));
+  clearTimeout(syncTimer); syncWanted = false;
+  job = j; lsSet("aj-current-job", j ? j.id : null); showJobName();
+  setDrive(j && j.driveJsonId ? "ok" : "idle", j && j.driveJsonId ? "Saved to Google Drive" : null);
+  if (!j) return loadExamples();
+  pages = await loadSaved(j.id);
+  current = Math.max(0, pages.findIndex(p => !p.name));
+  renderAll();
+}
+function newJobRecord(fields) {
+  const now = new Date().toISOString();
+  return { id: uid(), name: "Untitled job", customer: "", address: "", bidDate: "", created: now, updated: now, ...fields };
+}
+async function sheetCounts() {
+  const c = {};
+  try { (await getAll("pages")).forEach(r => { c[r.jobId] = (c[r.jobId] || 0) + 1; }); } catch (e) {}
+  return c;
+}
+let editingJob = null; // the job the form edits, or null for a new job
+async function showJobs(mode) {
+  try { jobs = await getAll("jobs"); } catch (e) { jobs = []; }
+  jobs.sort((a, b) => (b.updated || "").localeCompare(a.updated || ""));
+  const counts = await sheetCounts();
+  const list = $("jobList"); list.replaceChildren();
+  jobs.forEach(j => {
+    const li = document.createElement("li");
+    const b = document.createElement("button"); b.type = "button"; b.className = "job-row";
+    b.setAttribute("aria-current", job && job.id === j.id ? "true" : "false");
+    b.innerHTML = `<span><span class="jt"></span><br><span class="jm"></span></span><span class="js"></span>`;
+    b.querySelector(".jt").textContent = j.name;
+    b.querySelector(".jm").textContent = [j.customer, j.bidDate && "Bid " + j.bidDate].filter(Boolean).join(" · ") || "No details yet";
+    b.querySelector(".js").textContent = `${counts[j.id] || 0} sheets`;
+    b.onclick = async () => {
+      $("jobsModal").hidden = true;
+      const f = driveIndex[j.id];
+      if (f && j.driveJsonId && f.fileId !== j.driveJsonId) await pullJob(f); else await openJob(j);
+    };
+    li.appendChild(b); list.appendChild(li);
+  });
+  $("jobsEmpty").hidden = jobs.length > 0;
+  editingJob = mode === "new" || !job ? null : job;
+  fillJobForm();
+  $("jobsModal").hidden = false;
+  $("jobNameIn").focus();
+  listDriveJobs(list);
+}
+function fillJobForm() {
+  const j = editingJob || {};
+  $("jobFormTitle").textContent = editingJob ? "This job's details" : "New job";
+  $("jobSave").textContent = editingJob ? "Save details" : "Start job";
+  $("jobNewToggle").hidden = !editingJob;
+  $("jobNameIn").value = editingJob ? j.name : "";
+  $("jobCustIn").value = j.customer || ""; $("jobBidIn").value = j.bidDate || ""; $("jobAddrIn").value = j.address || "";
+}
+$("jobBtn").onclick = () => showJobs();
+$("jobsClose").onclick = () => { $("jobsModal").hidden = true; };
+$("jobsModal").addEventListener("keydown", e => { if (e.key === "Escape") $("jobsModal").hidden = true; });
+$("jobNewToggle").onclick = () => { editingJob = null; fillJobForm(); $("jobNameIn").focus(); };
+$("jobForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const fields = { name: $("jobNameIn").value.trim() || "Untitled job", customer: $("jobCustIn").value.trim(), bidDate: $("jobBidIn").value, address: $("jobAddrIn").value.trim() };
+  $("jobsModal").hidden = true;
+  if (editingJob) {
+    Object.assign(editingJob, fields, { updated: new Date().toISOString() });
+    await saveJob(editingJob); showJobName(); toast("Job details saved.");
+  } else {
+    const j = newJobRecord(fields);
+    await saveJob(j); await openJob(j);
+    toast("Job started. Upload its plans to begin.");
+  }
+});
+// Called before the first upload while the example sheets are showing.
+async function ensureJob(firstFileName) {
+  if (job) return;
+  const j = newJobRecord({ name: (firstFileName || "Untitled job").replace(/\.[a-z0-9]+$/i, "") });
+  await saveJob(j);
+  job = j; lsSet("aj-current-job", j.id); showJobName();
+}
+const touchJob = () => { if (job) { job.updated = new Date().toISOString(); saveJob(job); } };
+
+/* Delete the open job, with an in-page confirm (the viewer blocks confirm()) */
+function askClear() {
+  if (!job) return;
+  $("clearGroup").innerHTML = `<span class="confirm"></span>`;
+  const c = $("clearGroup").firstChild;
+  c.append(`Delete "${job.name}" and its ${pages.length} sheets? `);
+  c.insertAdjacentHTML("beforeend", `<button class="btn" id="yesClear">Delete</button><button class="btn" id="noClear">Keep</button>`);
+  $("noClear").onclick = restoreClear;
+  $("yesClear").onclick = async () => {
+    const ids = pages.map(p => p.id), jid = job.id, gone = { ...job };
+    clearTimeout(syncTimer); syncWanted = false;
+    await store(s => ids.forEach(id => s.delete(id)));
+    trashJobInDrive(gone);
+    await store(s => s.delete(jid), "jobs");
+    restoreClear();
+    jobs = (await getAll("jobs").catch(() => [])).sort((a, b) => (b.updated || "").localeCompare(a.updated || ""));
+    await openJob(jobs[0] || null);
+    toast("Job deleted.");
+  };
+}
+function restoreClear() { $("clearGroup").innerHTML = `<button class="btn" id="clearBtn">Delete job</button>`; $("clearBtn").onclick = askClear; renderSheet(); }
+$("clearBtn").onclick = askClear;
+
+let toastT;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 3200); }
+
+/* ---------- example sheets, drawn so the tool opens in a working state ---------- */
+async function drawExample(title, num, seed) {
+  const c = document.createElement("canvas"); c.width = 2400; c.height = 1600;
+  const x = c.getContext("2d");
+  x.fillStyle = "#fff"; x.fillRect(0, 0, 2400, 1600);
+  x.strokeStyle = "#222"; x.lineWidth = 6; x.strokeRect(40, 40, 2320, 1520);
+  x.lineWidth = 3; x.strokeRect(1960, 40, 400, 1520);
+  x.fillStyle = "#222"; x.font = "bold 44px Arial"; x.fillText(num, 2000, 1480);
+  x.font = "26px Arial"; x.fillText(title, 2000, 1420); x.fillText("AJ ELECTRICAL", 2000, 120);
+  let r = seed; const rnd = () => (r = (r * 9301 + 49297) % 233280) / 233280;
+  x.lineWidth = 8; x.strokeRect(140, 140, 1720, 1320);
+  x.lineWidth = 4;
+  for (let i = 0; i < 6; i++) { const vx = 140 + 1720 * (0.15 + 0.7 * rnd()); x.beginPath(); x.moveTo(vx, 140); x.lineTo(vx, 140 + 500 + 500 * rnd()); x.stroke(); }
+  for (let i = 0; i < 4; i++) { const hy = 140 + 1320 * (0.2 + 0.6 * rnd()); x.beginPath(); x.moveTo(140, hy); x.lineTo(140 + 600 + 900 * rnd(), hy); x.stroke(); }
+  x.lineWidth = 2; x.strokeStyle = "#1f5f8b";
+  for (let gx = 240; gx < 1800; gx += 180) for (let gy = 240; gy < 1400; gy += 160) {
+    if (rnd() < 0.55) { x.strokeRect(gx, gy, 70, 36); x.beginPath(); x.moveTo(gx, gy); x.lineTo(gx + 70, gy + 36); x.stroke(); }
+    else if (rnd() < 0.3) { x.beginPath(); x.arc(gx + 20, gy + 20, 14, 0, Math.PI * 2); x.stroke(); }
+  }
+  x.fillStyle = "#222"; x.font = "bold 30px Arial"; x.fillText("PANEL LP-1", 1640, 1420); x.strokeStyle = "#222"; x.strokeRect(1640, 1340, 160, 40);
+  return await canvasBlob(c);
+}
+async function loadExamples() {
+  const ex = [["FIRST FLOOR LIGHTING", "E-101", 7, "E-101 First Floor Lighting"], ["FIRST FLOOR POWER", "E-201", 31, ""], ["SECOND FLOOR LIGHTING", "E-102", 53, ""]];
+  pages = [];
+  for (const [t, n, s, name] of ex) {
+    const b = await drawExample(t, n, s);
+    // drawn as a 24" x 16" sheet at 100 px per inch
+    pages.push({ id: n, name, zoom: n === "E-102" ? "BR" : "FULL", blob: b, url: URL.createObjectURL(b), example: true, pxPerInch: 100, ftPerPx: null, scaleLabel: "", runs: [], devices: [] });
+  }
+  const first = pages[0];
+  first.ftPerPx = 8 / 100; first.scaleLabel = SCALES[3][0];
+  const pts = [[1720, 1340], [1720, 900], [1100, 900], [1100, 500]];
+  first.runs.push({ id: "ex-run", name: "LP-1 home run", pts, px: polyLen(pts) });
+  // a few example devices on the first sheet
+  exampleCounts = [
+    { id: "ex-A", base: "RC-1", tag: "A", color: "#ae3ec9", desc: '6" LED downlight, 1000 lm, 3000K, 0-10V dimming, white trim. Lithonia LDN6 or equal.' },
+    { id: "ex-B", base: "LN-1", tag: "B", color: "#2f9e44", desc: "4' LED wraparound, 4000 lm, 4000K, surface mount." }
+  ];
+  [[280, 255, "ex-B"], [460, 255, "ex-B"], [640, 255, "ex-B"], [280, 575, "ex-A"], [460, 575, "ex-A"], [640, 575, "ex-A"],
+   [1640, 560, "HB-1"], [1640, 880, "HB-1"], [180, 700, "SW-1"], [180, 760, "SW-2"], [960, 1440, "RCP-1"], [1300, 1440, "GFCI-1"]]
+    .forEach(([x, y, t]) => first.devices.push({ t, x, y }));
+  current = 0;
+  renderAll();
+}
+
+(async function start() {
+  try {
+    jobs = await getAll("jobs");
+    const orphans = (await getAll("pages")).filter(r => !r.jobId);
+    if (orphans.length) { // sheets saved before jobs existed
+      const j = newJobRecord({ name: "My first job" });
+      await saveJob(j); jobs.push(j);
+      await store(s => orphans.forEach(r => s.put({ ...r, jobId: j.id })));
+    }
+  } catch (e) { jobs = []; }
+  const want = lsGet("aj-current-job");
+  jobs.sort((a, b) => (b.updated || "").localeCompare(a.updated || ""));
+  await openJob(jobs.find(j => j.id === want) || jobs[0] || null);
+})();
+</script>
+
+</body>
+</html>
