@@ -114,7 +114,14 @@ button { cursor: pointer; }
 .sheet img { display: block; width: 100%; height: 100%; }
 .sheet svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .sheet.tooling svg { pointer-events: all; cursor: crosshair; }
+.sheet.free { transition: none; }
+.stage.panning, .stage.panning * { cursor: grabbing !important; }
+.stage.can-pan, .stage.can-pan * { cursor: grab !important; }
 @media (prefers-reduced-motion: reduce) { .sheet { transition: none; } }
+.zoomrow { display: grid; grid-template-columns: auto 1fr 1fr 1fr 1fr; gap: 6px; align-items: center; }
+.zoomrow .zl { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.zoomrow .btn { justify-content: center; padding: 0 6px; }
+.btn.tool.hand[aria-pressed="true"], .zoomrow .btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
 .mk-run { fill: none; stroke: var(--mark-run); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
 .mk-draft { fill: none; stroke: var(--mark-run); stroke-width: 2.5; stroke-dasharray: 8 5; }
 .mk-meas { fill: none; stroke: var(--mark-measure); stroke-width: 2.5; }
@@ -403,7 +410,17 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
           <button class="btn tool" id="scaleBtn" type="button" title="Set the drawing scale for this sheet">Set scale</button>
           <button class="btn tool erase" id="eraseBtn" type="button" aria-pressed="false" title="Click a symbol on the sheet to remove it (E)">Erase</button>
         </div>
-        <p class="empty">Click a symbol to highlight it. Drag across the sheet to highlight everything in an area, then delete it all at once. Right-click a symbol for more.</p>
+        <div class="zoomrow">
+          <span class="zl">Zoom</span>
+          <button class="btn" id="zoomOut" type="button" title="Zoom out (−)" aria-label="Zoom out">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8h10"/></svg></button>
+          <button class="btn" id="zoomIn" type="button" title="Zoom in (+)" aria-label="Zoom in">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 8h10M8 3v10"/></svg></button>
+          <button class="btn" id="zoomFit" type="button" title="Fit the whole sheet (0)">Fit</button>
+          <button class="btn" id="panBtn" type="button" aria-pressed="false" title="Move around the sheet by dragging (or hold Space)" aria-label="Move around">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 1.5v13M1.5 8h13M8 1.5 6 3.5M8 1.5l2 2M8 14.5l-2-2M8 14.5l2-2M1.5 8l2-2M1.5 8l2 2M14.5 8l-2-2M14.5 8l-2 2"/></svg></button>
+        </div>
+        <p class="empty">Scroll the mouse wheel to zoom in and out. To move around, hold Space or the wheel button and drag, or turn on the arrows button. On a tablet, pinch with two fingers. Click a symbol to highlight it. Drag across the sheet to highlight everything in an area, then delete it all at once. Right-click a symbol for more.</p>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <h2>Counts</h2>
@@ -670,7 +687,7 @@ function renderRail() {
     const b = document.createElement("button");
     b.className = "thumb"; b.type = "button";
     b.setAttribute("aria-current", i === current ? "true" : "false");
-    b.innerHTML = `<span class="num">${String(i + 1).padStart(3, "0")}</span><span class="pic"><img alt="" loading="lazy">${p.zoom !== "FULL" ? `<span class="q" style="${QPOS[p.zoom]}"></span>` : ""}</span><span class="name"></span>`;
+    b.innerHTML = `<span class="num">${String(i + 1).padStart(3, "0")}</span><span class="pic"><img alt="" loading="lazy">${QPOS[p.zoom] ? `<span class="q" style="${QPOS[p.zoom]}"></span>` : ""}</span><span class="name"></span>`;
     b.querySelector("img").src = p.url;
     const nm = b.querySelector(".name"); nm.textContent = p.name || "Not named yet"; if (!p.name) nm.classList.add("unnamed");
     b.onclick = () => go(i);
@@ -682,7 +699,7 @@ function renderSheet() {
   const p = pages[current];
   const img = $("sheetImg");
   const has = !!p;
-  ["prevBtn", "nextNavBtn", "fullBtn", "nextBtn", "nameInput"].forEach(id => $(id).disabled = !has);
+  ["prevBtn", "nextNavBtn", "fullBtn", "nextBtn", "nameInput", "zoomIn", "zoomOut", "zoomFit", "panBtn"].forEach(id => $(id).disabled = !has);
   ["scaleBtn", "measureBtn", "runBtn", "eraseBtn", "addCountBtn"].forEach(id => $(id).disabled = !has || !!cmp);
   $("cmpBtn").disabled = pages.length < 2;
   $("exampleTag").hidden = !(p && p.example) || !!cmp;
@@ -708,17 +725,28 @@ function renderAll() { addTab(pages[current]); renderTabs(); renderRail(); rende
 /* Corner zoom: the sheet (image + markup layer) is sized to fit the view, then scaled 2x and
    anchored on the chosen corner, so exactly that quarter of the sheet (50% wide x 50% tall) fills the view. */
 let k = 1; // screen px per image px, so markup stays a readable size at any zoom
+let fit = null; // the fitted sheet box inside the stage, from the last applyZoom
+// Corner zooms are fixed 2x views; "FREE" is wherever the wheel, pinch or + / − buttons left it.
+function viewOf(p) {
+  if (p.zoom === "FREE" && p.view) return p.view;
+  if (p.zoom === "FULL" || !fit) return { z: 1, tx: 0, ty: 0 };
+  return { z: 2, tx: p.zoom[1] === "R" ? -fit.dw : 0, ty: p.zoom[0] === "B" ? -fit.dh : 0 };
+}
 function applyZoom() {
   const p = pages[current], img = $("sheetImg"), stage = $("stage"), sh = $("sheet");
   if (!p) return;
-  $("zoomTag").textContent = ZOOM_LABEL[p.zoom];
+  if (p.zoom === "FREE" && !p.view) p.zoom = "FULL";
   const W = stage.clientWidth, H = stage.clientHeight;
   const iw = img.naturalWidth || 1, ih = img.naturalHeight || 1;
   const s = Math.min(W / iw, H / ih), dw = iw * s, dh = ih * s;
-  Object.assign(sh.style, { left: (W - dw) / 2 + "px", top: (H - dh) / 2 + "px", width: dw + "px", height: dh + "px" });
+  fit = { s, dw, dh, left: (W - dw) / 2, top: (H - dh) / 2, W, H };
+  Object.assign(sh.style, { left: fit.left + "px", top: fit.top + "px", width: dw + "px", height: dh + "px" });
   $("overlay").setAttribute("viewBox", `0 0 ${iw} ${ih}`);
-  if (p.zoom === "FULL") { sh.style.transform = "none"; k = s; }
-  else { sh.style.transform = `translate(${p.zoom[1] === "R" ? -dw : 0}px, ${p.zoom[0] === "B" ? -dh : 0}px) scale(2)`; k = 2 * s; }
+  const v = viewOf(p);
+  sh.classList.toggle("free", p.zoom === "FREE");
+  sh.style.transform = v.z === 1 && !v.tx && !v.ty ? "none" : `translate(${v.tx}px, ${v.ty}px) scale(${v.z})`;
+  k = s * v.z;
+  $("zoomTag").textContent = p.zoom === "FREE" ? `${Math.round(v.z * 100)}%` : ZOOM_LABEL[p.zoom];
   drawOverlay();
 }
 $("sheetImg").addEventListener("load", applyZoom);
@@ -1577,11 +1605,115 @@ $("scaleForm").addEventListener("submit", e => {
 
 function setZoom(z) {
   const p = pages[current]; if (!p) return;
-  p.zoom = p.zoom === z ? "FULL" : z;
+  p.zoom = p.zoom === z ? "FULL" : z; p.view = null;
   saveMeta(p); renderAll();
 }
 document.querySelectorAll(".corners button").forEach(b => b.onclick = () => setZoom(b.dataset.zoom));
 $("fullBtn").onclick = () => setZoom("FULL");
+
+/* Free zoom and pan. The wheel zooms toward the mouse; Space, the wheel button or the arrows button
+   drags the sheet around; two fingers pinch and drag on a tablet. Clicks are mapped through the
+   sheet's on-screen box, so placing, measuring and selecting land in the right spot at any zoom. */
+const ZMIN = 0.5, ZMAX = 16;
+function zoomAt(factor, sx, sy) { // sx, sy: point in stage pixels that stays put
+  const p = pages[current]; if (!p || !fit) return;
+  const v = viewOf(p);
+  const z = Math.min(ZMAX, Math.max(ZMIN, v.z * factor));
+  if (z === v.z) return;
+  const px = sx - fit.left, py = sy - fit.top;
+  const ux = (px - v.tx) / v.z, uy = (py - v.ty) / v.z;
+  setView({ z, tx: px - ux * z, ty: py - uy * z });
+}
+function setView(v) {
+  const p = pages[current]; if (!p || !fit) return;
+  // keep at least 80px of the sheet on screen
+  const m = 80, w = fit.dw * v.z, h = fit.dh * v.z;
+  v.tx = Math.min(fit.W - fit.left - m, Math.max(m - fit.left - w, v.tx));
+  v.ty = Math.min(fit.H - fit.top - m, Math.max(m - fit.top - h, v.ty));
+  const was = p.zoom;
+  p.view = v; p.zoom = Math.abs(v.z - 1) < 0.01 && Math.abs(v.tx) < 1 && Math.abs(v.ty) < 1 ? "FULL" : "FREE";
+  if (p.zoom === "FULL") p.view = null;
+  applyZoom(); renderZoomUi();
+  if (was !== p.zoom) renderRail();
+}
+function stagePt(e) { const r = $("stage").getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+function renderZoomUi() {
+  const p = pages[current];
+  document.querySelectorAll(".corners button").forEach(b => b.setAttribute("aria-pressed", p && p.zoom === b.dataset.zoom ? "true" : "false"));
+}
+$("stage").addEventListener("wheel", e => {
+  if (!pages[current] || !$("cmpModal").hidden) return;
+  e.preventDefault();
+  const [sx, sy] = stagePt(e);
+  const d = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
+  zoomAt(Math.exp(-d * (e.ctrlKey ? 0.01 : 0.0018)), sx, sy);
+}, { passive: false });
+const zoomCenter = f => fit && zoomAt(f, fit.W / 2, fit.H / 2);
+$("zoomIn").onclick = () => zoomCenter(1.4);
+$("zoomOut").onclick = () => zoomCenter(1 / 1.4);
+$("zoomFit").onclick = () => setZoom("FULL");
+
+let spaceDown = false, panMode = false, pan = null, panMoved = false;
+const touches = new Map();
+let pinch = null;
+function setPanMode(on) { panMode = on; $("panBtn").setAttribute("aria-pressed", on ? "true" : "false"); $("stage").classList.toggle("can-pan", on || spaceDown); }
+$("panBtn").onclick = () => setPanMode(!panMode);
+$("stage").addEventListener("pointerdown", e => {
+  const p = pages[current]; if (!p) return;
+  if (e.pointerType === "touch") {
+    touches.set(e.pointerId, [e.clientX, e.clientY]);
+    if (touches.size === 1) panMoved = false;
+    if (touches.size === 2) { // second finger: pinch and pan instead of whatever the first finger started
+      boxDrag = null; if (typeof pressT === "number") { clearTimeout(pressT); pressT = null; }
+      const [a, b] = [...touches.values()], v = viewOf(p);
+      pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], v: { ...v } };
+      panMoved = true; drawOverlay();
+      e.stopPropagation();
+    }
+    return;
+  }
+  const want = e.button === 1 || (e.button === 0 && (spaceDown || panMode));
+  if (!want) { panMoved = false; return; }
+  e.preventDefault(); e.stopPropagation();
+  pan = { id: e.pointerId, x: e.clientX, y: e.clientY, v: { ...viewOf(p) } }; panMoved = true;
+  try { $("stage").setPointerCapture(e.pointerId); } catch (_) {}
+  $("stage").classList.add("panning");
+}, true);
+$("stage").addEventListener("pointermove", e => {
+  if (pinch && touches.has(e.pointerId)) {
+    touches.set(e.pointerId, [e.clientX, e.clientY]);
+    if (touches.size < 2) return;
+    const [a, b] = [...touches.values()], r = $("stage").getBoundingClientRect();
+    const d = Math.hypot(a[0] - b[0], a[1] - b[1]), mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const z = Math.min(ZMAX, Math.max(ZMIN, pinch.v.z * d / pinch.d));
+    // the image point under the starting midpoint follows the fingers' midpoint
+    const ux = (pinch.mid[0] - r.left - fit.left - pinch.v.tx) / pinch.v.z, uy = (pinch.mid[1] - r.top - fit.top - pinch.v.ty) / pinch.v.z;
+    setView({ z, tx: mid[0] - r.left - fit.left - ux * z, ty: mid[1] - r.top - fit.top - uy * z });
+    e.stopPropagation(); return;
+  }
+  if (touches.has(e.pointerId)) touches.set(e.pointerId, [e.clientX, e.clientY]);
+  if (!pan || e.pointerId !== pan.id) return;
+  const dx = e.clientX - pan.x, dy = e.clientY - pan.y;
+  setView({ z: pan.v.z, tx: pan.v.tx + dx, ty: pan.v.ty + dy });
+  e.stopPropagation();
+}, true);
+function endPointer(e) {
+  touches.delete(e.pointerId);
+  if (pinch && touches.size < 2) { pinch = null; e.stopPropagation(); }
+  if (pan && e.pointerId === pan.id) { pan = null; $("stage").classList.remove("panning"); e.stopPropagation(); }
+}
+$("stage").addEventListener("pointerup", endPointer, true);
+$("stage").addEventListener("pointercancel", endPointer, true);
+// a drag that moved the sheet isn't also a click on it
+$("stage").addEventListener("click", e => { if (panMoved) { panMoved = false; e.stopPropagation(); e.preventDefault(); } }, true);
+$("stage").addEventListener("auxclick", e => { if (e.button === 1) e.preventDefault(); });
+$("stage").addEventListener("mousedown", e => { if (e.button === 1) e.preventDefault(); });
+addEventListener("keydown", e => {
+  if (e.code !== "Space" || e.repeat || e.target.closest("input, select, textarea, button")) return;
+  e.preventDefault(); spaceDown = true; $("stage").classList.add("can-pan");
+});
+addEventListener("keyup", e => { if (e.code === "Space") { spaceDown = false; $("stage").classList.toggle("can-pan", panMode); } });
+addEventListener("blur", () => { spaceDown = false; $("stage").classList.toggle("can-pan", panMode); });
 
 function go(i) {
   if (!pages.length) return;
@@ -1647,6 +1779,8 @@ document.addEventListener("keydown", e => {
     else if (e.key === "m" || e.key === "M") setTool("measure");
     else if (e.key === "l" || e.key === "L") setTool("run");
     else if (e.key === "e" || e.key === "E") setTool("erase");
+    else if (e.key === "+" || e.key === "=") zoomCenter(1.4);
+    else if (e.key === "-" || e.key === "_") zoomCenter(1 / 1.4);
   }
 });
 
