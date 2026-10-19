@@ -240,6 +240,12 @@ button { cursor: pointer; }
 .busy-card { width: min(360px, calc(100% - 32px)); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: grid; gap: 10px; }
 .bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
 .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .15s; }
+.ctx { position: fixed; z-index: 40; min-width: 200px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,.25); padding: 4px; }
+.ctx .ctx-head { padding: 6px 10px 4px; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+.ctx button { display: block; width: 100%; text-align: left; font: inherit; font-size: 15px; padding: 10px 12px; border: 0; border-radius: 6px; background: none; color: inherit; cursor: pointer; }
+.ctx button:hover, .ctx button:focus-visible { background: var(--accent-soft); outline: none; }
+.ctx button.del { color: var(--warn); }
+.ctx button.del:hover, .ctx button.del:focus-visible { background: var(--warn-soft); }
 .toast { position: fixed; z-index: 30; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 6px; font-size: 14px; max-width: calc(100% - 32px); }
 .confirm { display: flex; gap: 6px; align-items: center; font-size: 13px; }
 
@@ -378,6 +384,11 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <div class="bar"><i id="busyBar"></i></div>
     <span class="hint" id="busyText"></span>
   </div>
+</div>
+<div class="ctx" id="ctxMenu" role="menu" hidden>
+  <div class="ctx-head" id="ctxHead"></div>
+  <button type="button" role="menuitem" class="del" id="ctxDelete">Delete</button>
+  <button type="button" role="menuitem" id="ctxMore">Add more of this count</button>
 </div>
 <div class="toast" id="toast" hidden></div>
 
@@ -955,7 +966,7 @@ function updateHint() {
   const live = draft.length && hover ? [...draft, hover] : draft;
   if (tool === "place") {
     const d = devInfo(placeType);
-    t.innerHTML = `Placing <b></b>. Click the sheet to drop one. <b>${countOn(p, d.id)}</b> on this sheet.`;
+    t.innerHTML = `Placing <b></b>. Click the sheet to drop one. <b>${countOn(p, d.id)}</b> on this sheet. Right-click one to delete it.`;
     t.querySelector("b").textContent = nameOf(d);
   } else if (tool === "erase") t.textContent = "Click a symbol to remove it.";
   else if (tool === "calibrate") t.textContent = draft.length ? "Now click the other end of the known dimension." : "Click one end of a dimension you know.";
@@ -1028,7 +1039,7 @@ function imgPoint(e) {
 $("overlay").addEventListener("pointermove", e => { if (!tool) return; hover = imgPoint(e); drawOverlay(); updateHint(); });
 $("overlay").addEventListener("pointerleave", () => { hover = null; drawOverlay(); });
 $("overlay").addEventListener("click", e => {
-  if (!tool) return;
+  if (!tool || longPressed) { longPressed = false; return; }
   const q = imgPoint(e), p = pages[current];
   if (tool === "place") {
     const v = { t: placeType, x: q[0], y: q[1] };
@@ -1065,6 +1076,55 @@ $("eraseBtn").onclick = () => setTool("erase");
 $("cancelToolBtn").onclick = () => { if (tool === "calibrate") { setTool(null); showScaleModal(false); } else setTool(null); };
 $("measureBtn").onclick = () => setTool("measure");
 $("runBtn").onclick = () => setTool("run");
+
+/* Right-click (or press and hold on a phone/tablet) a symbol on the sheet: Delete it, or keep placing more of that count. */
+let ctxTarget = null, longPressed = false, pressT = null, pressAt = null;
+function symbolAt(e) {
+  const p = pages[current]; if (!p) return null;
+  const q = imgPoint(e);
+  let best = null, bd = 14 / k;
+  p.devices.forEach(v => { const dd = dist([v.x, v.y], q); if (dd < bd) { bd = dd; best = v; } });
+  return best;
+}
+function openCtx(e) {
+  const v = symbolAt(e);
+  if (!v) { toast("Right-click right on a symbol to delete it or add more."); return; }
+  ctxTarget = v;
+  const d = devInfo(v.t);
+  $("ctxHead").textContent = d ? nameOf(d) + (d.desc ? " · " + d.desc : "") : "Symbol";
+  const m = $("ctxMenu"); m.hidden = false;
+  const w = m.offsetWidth, h = m.offsetHeight;
+  m.style.left = Math.max(8, Math.min(e.clientX, innerWidth - w - 8)) + "px";
+  m.style.top = Math.max(8, Math.min(e.clientY, innerHeight - h - 8)) + "px";
+  $("ctxDelete").focus();
+}
+function closeCtx() { $("ctxMenu").hidden = true; ctxTarget = null; }
+$("sheet").addEventListener("contextmenu", e => { e.preventDefault(); if (pressT === "fired") return; openCtx(e); });
+$("sheet").addEventListener("pointerdown", e => {
+  if (e.pointerType === "mouse") return;
+  clearTimeout(pressT); pressAt = [e.clientX, e.clientY];
+  const ev = { clientX: e.clientX, clientY: e.clientY };
+  pressT = setTimeout(() => { pressT = "fired"; longPressed = true; openCtx(ev); setTimeout(() => { if (pressT === "fired") pressT = null; }, 400); }, 550);
+});
+$("sheet").addEventListener("pointermove", e => { if (pressAt && typeof pressT === "number" && Math.hypot(e.clientX - pressAt[0], e.clientY - pressAt[1]) > 10) { clearTimeout(pressT); pressT = null; } });
+["pointerup", "pointercancel"].forEach(t => $("sheet").addEventListener(t, () => { if (typeof pressT === "number") { clearTimeout(pressT); pressT = null; } pressAt = null; }));
+$("ctxDelete").onclick = () => {
+  const p = pages[current], v = ctxTarget; closeCtx();
+  if (!p || !v) return;
+  p.devices = p.devices.filter(x => x !== v); placed = placed.filter(x => x !== v);
+  saveMeta(p); drawOverlay(); updateHint(); renderCounts();
+};
+$("ctxMore").onclick = () => {
+  const v = ctxTarget; closeCtx();
+  if (!v) return;
+  if (!(tool === "place" && placeType === v.t)) setTool("place", v.t);
+};
+document.addEventListener("pointerdown", e => { if (!$("ctxMenu").hidden && !e.target.closest("#ctxMenu")) closeCtx(); }, true);
+$("ctxMenu").addEventListener("keydown", e => {
+  if (e.key === "Escape") { e.stopPropagation(); closeCtx(); }
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); (document.activeElement === $("ctxDelete") ? $("ctxMore") : $("ctxDelete")).focus(); }
+});
+addEventListener("resize", closeCtx);
 
 function finishRun() {
   const p = pages[current];
@@ -1168,6 +1228,7 @@ $("fullBtn").onclick = () => setZoom("FULL");
 
 function go(i) {
   if (!pages.length) return;
+  closeCtx();
   commitName();
   current = Math.max(0, Math.min(pages.length - 1, i));
   if (tool) setTool(null);
@@ -1201,6 +1262,7 @@ $("labelForm").addEventListener("submit", e => {
 });
 
 document.addEventListener("keydown", e => {
+  if (!$("ctxMenu").hidden) return;
   const typing = !!e.target.closest("input, select, textarea");
   if (!$("scaleModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden) return;
   if (tool && !typing) {
