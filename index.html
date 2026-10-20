@@ -165,6 +165,9 @@ button { cursor: pointer; }
 .runs-scale.unset { color: var(--warn); }
 .run-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .run { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; }
+.run select { grid-column: 1 / -1; min-width: 0; height: 28px; font-size: 13px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); padding: 0 6px; margin-top: -2px; }
+.wire-swatch { width: 22px; height: 0; border-top: 4px solid; border-radius: 2px; flex: none; }
+.wire-prev { font-family: var(--font-mono); font-weight: 600; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 6px; }
 .run input { min-width: 0; height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); font-size: 14px; }
 .run .lf { font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .run button { width: 26px; height: 26px; border: 0; background: none; color: var(--muted); border-radius: 4px; padding: 0; }
@@ -444,6 +447,12 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
         <p class="empty">Scroll the mouse wheel to zoom in and out. To move around, hold the right mouse button and drag (Space or the wheel button work too), or turn on the arrows button. On a tablet, pinch with two fingers. Click a symbol to highlight it, and drag it to move it (highlighted symbols move together). Drag across empty paper to highlight everything in an area, then delete it all at once. Right-click a symbol for more.</p>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <h2>Conduit &amp; wire</h2>
+        <button class="btn sm primary" id="addWireBtn" type="button">+ Add run type</button>
+      </div>
+      <ul class="cnt-list" id="wireList"></ul>
+      <p class="empty" id="wiresEmpty">Make a run type like 3/4" EMT with 5 #12 STR. Then click it to draw runs of it, and click it again any time to add more.</p>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <h2>Counts</h2>
         <button class="btn sm primary" id="addCountBtn" type="button">+ Add type</button>
       </div>
@@ -462,7 +471,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <div class="runs-scale" id="runsScale"></div>
       <h2>Linear runs</h2>
       <ol class="run-list" id="runList"></ol>
-      <p class="empty" id="runsEmpty">No runs on this sheet yet. Pick <b>Linear run</b>, then click along the path. Double-click, press Enter or tap Finish run to end it.</p>
+      <p class="empty" id="runsEmpty">No runs on this sheet yet. Pick a run type above (or <b>Linear run</b>), then click along the path. Right-click a run to continue it. Double-click, press Enter or tap Finish run to end it.</p>
       <div class="totals">
         <div><span>This sheet</span><b id="sheetTotal">0.0 LF</b></div>
         <div><span>All sheets</span><b id="projTotal">0.0 LF</b></div>
@@ -605,6 +614,33 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <span class="spacer"></span>
       <button class="btn" type="button" id="cntCancel">Cancel</button>
       <button class="btn primary" type="submit" id="cntSave">Save and place</button>
+    </div>
+  </form>
+</div>
+
+<div class="modal" id="wireModal" hidden role="dialog" aria-modal="true" aria-labelledby="wireTitle">
+  <form class="modal-card" id="wireForm" autocomplete="off">
+    <h2 id="wireTitle">New run type</h2>
+    <p class="hint">Pick the conduit and the wire in it. Every run you draw with this type adds to its totals.</p>
+    <div class="sched two">
+      <div class="opt"><label for="wConduit">Conduit</label><select id="wConduit"></select></div>
+      <div class="opt"><label for="wSize">Conduit size</label><select id="wSize"></select></div>
+    </div>
+    <div class="sched three">
+      <div class="opt"><label for="wCount">How many wires</label><input type="number" id="wCount" min="1" max="40" step="1" inputmode="numeric"></div>
+      <div class="opt"><label for="wGauge">Wire size</label><select id="wGauge"></select></div>
+      <div class="opt"><label for="wIns">Wire type</label><select id="wIns"></select></div>
+    </div>
+    <div class="sched two">
+      <div class="opt"><label for="wGround">Ground wire</label><select id="wGround"></select></div>
+      <div class="opt"><label for="wColor">Line color</label><input type="color" id="wColor"></div>
+    </div>
+    <div class="wire-prev" id="wirePrev" aria-live="polite"></div>
+    <div class="actions">
+      <button class="btn danger" type="button" id="wireDelete" hidden>Delete type</button>
+      <span class="spacer"></span>
+      <button class="btn" type="button" id="wireCancel">Cancel</button>
+      <button class="btn primary" type="submit" id="wireSave">Save and draw</button>
     </div>
   </form>
 </div>
@@ -772,7 +808,7 @@ function renderSheet() {
   const img = $("sheetImg");
   const has = !!p;
   ["prevBtn", "nextNavBtn", "fullBtn", "nextBtn", "nameInput", "zoomIn", "zoomOut", "zoomFit", "panBtn"].forEach(id => $(id).disabled = !has);
-  ["scaleBtn", "measureBtn", "runBtn", "eraseBtn", "addCountBtn"].forEach(id => $(id).disabled = !has || !!cmp);
+  ["scaleBtn", "measureBtn", "runBtn", "eraseBtn", "addCountBtn", "addWireBtn"].forEach(id => $(id).disabled = !has || !!cmp);
   $("cmpBtn").disabled = pages.length < 2;
   $("exampleTag").hidden = !(p && p.example) || !!cmp;
   document.querySelectorAll(".corners button").forEach(b => { b.disabled = !has; b.setAttribute("aria-pressed", has && p.zoom === b.dataset.zoom ? "true" : "false"); });
@@ -792,7 +828,7 @@ function renderSheet() {
   $("progress").innerHTML = `<b>${named}</b> of ${pages.length} named`;
   $("nextBtn").firstChild.textContent = current === pages.length - 1 ? "Save " : "Next ";
 }
-function renderAll() { addTab(pages[current]); renderTabs(); renderRail(); renderSheet(); renderRuns(); renderCounts(); renderSel(); renderCmpBar(); }
+function renderAll() { addTab(pages[current]); renderTabs(); renderRail(); renderSheet(); renderRuns(); renderWires(); renderCounts(); renderSel(); renderCmpBar(); }
 
 /* Corner zoom: the sheet (image + markup layer) is sized to fit the view, then scaled 2x and
    anchored on the chosen corner, so exactly that quarter of the sheet (50% wide x 50% tall) fills the view. */
@@ -1140,13 +1176,14 @@ function setTool(t, dev) {
   if (t && t !== "calibrate" && !p) return;
   if ((t === "measure" || t === "run") && !p.ftPerPx) { openScale(t); return; }
   if (t && tool === t && t !== "calibrate" && (t !== "place" || placeType === dev)) t = null; // clicking the active tool turns it off
-  tool = t; draft = []; hover = null; placed = []; hoverDev = null;
+  tool = t; draft = []; hover = null; placed = []; hoverDev = null; contRun = null;
+  if (t && t !== "run") runType = null;
   if (t) { sel.clear(); renderSel(); }
   placeType = t === "place" ? dev : null;
   $("measureBtn").setAttribute("aria-pressed", tool === "measure");
   $("runBtn").setAttribute("aria-pressed", tool === "run");
   $("eraseBtn").setAttribute("aria-pressed", tool === "erase");
-  renderCounts();
+  renderCounts(); renderWires();
   $("sheet").classList.toggle("tooling", !!tool);
   updateHint(); drawOverlay();
 }
@@ -1169,7 +1206,11 @@ function updateHint() {
     const m = lastMeasure && lastMeasure.pageId === p.id && !draft.length ? lastMeasure.pts : live;
     t.innerHTML = m.length === 2 ? `Measured <b>${fmtFt(dist(m[0], m[1]) * p.ftPerPx)}</b>. Click to measure again.` : draft.length ? "Click the second point." : "Click the first point.";
   } else {
-    t.innerHTML = draft.length ? `Run so far <b>${fmtLF(polyLen(live) * p.ftPerPx)}</b>. Keep clicking corners, double-click to finish.` : "Click where the run starts.";
+    const ty = runType ? `<b class="ty"></b>. ` : "";
+    t.innerHTML = contRun ? `${ty}Making <b class="cn"></b> longer: <b>${fmtLF(polyLen(live) * p.ftPerPx)}</b>. Keep clicking, double-click to finish.`
+      : draft.length ? `${ty}Run so far <b>${fmtLF(polyLen(live) * p.ftPerPx)}</b>. Keep clicking corners, double-click to finish.` : `${ty}Click where the run starts.`;
+    if (runType) t.querySelector(".ty").textContent = wireLabel(wireOf(runType));
+    if (contRun) t.querySelector(".cn").textContent = contRun.name;
   }
 }
 
@@ -1193,11 +1234,13 @@ function drawOverlay() {
   const dots = (g, pts, cls) => pts.forEach(q => g.appendChild(svgEl("circle", { cx: q[0], cy: q[1], r: 4 / k, class: "mk-dot " + (cls || ""), ...ns })));
   const g = svgEl("g", {});
   for (const r of p.runs) {
+    if (r === contRun) continue; // drawn below as the draft that's growing
+    const w = wireOf(r.typeId), col = w ? { style: `stroke:${w.color}` } : {};
     if (sel.has(r)) g.appendChild(svgEl("polyline", { points: ptsAttr(r.pts), class: "mk-glow-run", ...ns }));
-    g.appendChild(svgEl("polyline", { points: ptsAttr(r.pts), class: "mk-run", ...ns }));
+    g.appendChild(svgEl("polyline", { points: ptsAttr(r.pts), class: "mk-run", ...col, ...ns }));
     dots(g, [r.pts[0], r.pts[r.pts.length - 1]]);
     const end = r.pts[r.pts.length - 1];
-    if (p.ftPerPx) label(g, end[0], end[1], `${r.name} · ${fmtLF(r.px * p.ftPerPx)}`);
+    if (p.ftPerPx) label(g, end[0], end[1], `${r.name} · ${w ? wireLabel(w) + " · " : ""}${fmtLF(r.px * p.ftPerPx)}`);
   }
   for (const v of p.devices) {
     const d = devInfo(v.t); if (!d) continue;
@@ -1215,7 +1258,7 @@ function drawOverlay() {
   }
   const live = draft.length && hover ? [...draft, hover] : draft;
   if (tool === "run" && live.length) {
-    g.appendChild(svgEl("polyline", { points: ptsAttr(live), class: "mk-draft", ...ns }));
+    g.appendChild(svgEl("polyline", { points: ptsAttr(live), class: "mk-draft", ...(wireOf(runType) ? { style: `stroke:${wireOf(runType).color}` } : {}), ...ns }));
     dots(g, draft);
     const end = live[live.length - 1];
     if (live.length > 1) label(g, end[0], end[1], fmtLF(polyLen(live) * p.ftPerPx));
@@ -1278,7 +1321,7 @@ $("undoBtn").onclick = () => {
 $("eraseBtn").onclick = () => setTool("erase");
 $("cancelToolBtn").onclick = () => { if (tool === "calibrate") { setTool(null); showScaleModal(false); } else setTool(null); };
 $("measureBtn").onclick = () => setTool("measure");
-$("runBtn").onclick = () => setTool("run");
+$("runBtn").onclick = () => { if (tool !== "run") { runType = null; contRun = null; } setTool("run"); };
 
 /* Right-click (or press and hold on a phone/tablet) a symbol on the sheet: Delete it, or keep placing more of that count. */
 let ctxTarget = null, longPressed = false, pressT = null, pressAt = null;
@@ -1298,7 +1341,8 @@ function openCtx(e) {
   const isRun = !("t" in v), d = isRun ? null : devInfo(v.t);
   $("ctxHead").textContent = sel.size > 1 ? `${sel.size} selected` : isRun ? `${v.name} · linear run` : d ? nameOf(d) + (specOf(d) ? " · " + specOf(d) : "") : "Symbol";
   $("ctxDelete").textContent = sel.size > 1 ? `Delete all ${sel.size} selected` : "Delete";
-  $("ctxMore").hidden = isRun;
+  $("ctxMore").hidden = false;
+  $("ctxMore").textContent = isRun ? "Continue this run" : "Add more of this count";
   renderSel(); drawOverlay();
   const m = $("ctxMenu"); m.hidden = false;
   const w = m.offsetWidth, h = m.offsetHeight;
@@ -1321,6 +1365,7 @@ $("ctxDelete").onclick = () => { closeCtx(); deleteSel(); };
 $("ctxMore").onclick = () => {
   const v = ctxTarget; closeCtx();
   if (!v) return;
+  if (!("t" in v)) return continueRun(v);
   if (!(tool === "place" && placeType === v.t)) setTool("place", v.t);
 };
 
@@ -1720,12 +1765,130 @@ function finishRun() {
   const p = pages[current];
   if (tool !== "run") return;
   if (draft.length < 2) { toast("Click at least two points to make a run."); return; }
+  remember();
+  if (contRun && p.runs.includes(contRun)) { // continuing a run makes that run longer instead of adding one
+    contRun.pts = draft; contRun.px = polyLen(draft);
+    const r = contRun; contRun = null; draft = []; hover = null;
+    saveMeta(p); renderRuns(); renderWires(); drawOverlay(); updateHint();
+    return toast(`${r.name} is now ${fmtLF(r.px * p.ftPerPx)}.`);
+  }
   const n = p.runs.length + 1;
-  const run = { id: uid(), name: `Run ${n}`, pts: draft, px: polyLen(draft) };
-  remember(); p.runs.push(run); draft = []; hover = null;
-  saveMeta(p); renderRuns(); drawOverlay(); updateHint();
+  const run = { id: uid(), name: `Run ${n}`, pts: draft, px: polyLen(draft), typeId: runType || null };
+  p.runs.push(run); draft = []; hover = null;
+  saveMeta(p); renderRuns(); renderWires(); drawOverlay(); updateHint();
   const inp = $("run-" + run.id); if (inp) { inp.focus(); inp.select(); }
 }
+
+/* Run types: a conduit with the wire pulled in it, e.g. 3/4" EMT with 5 #12 THHN stranded.
+   Pick one and every run drawn is that type; its totals show conduit feet and wire feet (feet x wires). */
+let runType = null, contRun = null; // the type being drawn, and the run being made longer
+let exampleWires = [];
+const wiresList = () => job ? (job.wireTypes || (job.wireTypes = [])) : exampleWires;
+const wireOf = id => id ? wiresList().find(w => w.id === id) : null;
+const CONDUITS = ["EMT", "PVC Sch 40", "PVC Sch 80", "Rigid (RMC)", "IMC", "Flex (FMC)", "Sealtite (LFMC)", "MC cable", "No conduit"];
+const CSIZES = ['1/2"', '3/4"', '1"', '1-1/4"', '1-1/2"', '2"', '2-1/2"', '3"', '3-1/2"', '4"'];
+const GAUGES = ["14", "12", "10", "8", "6", "4", "3", "2", "1", "1/0", "2/0", "3/0", "4/0", "250", "300", "350", "400", "500", "600", "750"];
+const INSUL = ["STR", "SOL", "THHN STR", "THHN SOL", "XHHW", "XHHW-2 AL", "USE-2", "Bare"];
+const gaugeTxt = g => /^\d{3}$/.test(g) ? `${g} kcmil` : `#${g}`;
+function wireLabel(w) {
+  if (!w) return "No type";
+  const pipe = w.conduit === "No conduit" ? "" : w.conduit === "MC cable" ? "MC cable" : `${w.size} ${w.conduit}`;
+  const wire = `${w.count}x ${gaugeTxt(w.gauge)} ${w.ins}` + (w.ground ? ` + ${gaugeTxt(w.ground)} GND` : "");
+  return pipe ? `${pipe} · ${wire}` : wire;
+}
+const wireTotal = w => (w.count || 0) + (w.ground ? 1 : 0);
+function renderWires() {
+  const ul = $("wireList"), list = wiresList();
+  ul.replaceChildren();
+  $("wiresEmpty").hidden = list.length > 0;
+  const lfOf = id => pages.reduce((t, pg) => t + (pg.ftPerPx ? pg.runs.filter(r => r.typeId === id).reduce((a, r) => a + r.px * pg.ftPerPx, 0) : 0), 0);
+  list.forEach(w => {
+    const lf = lfOf(w.id);
+    const li = document.createElement("li"); li.className = "cnt";
+    const b = document.createElement("button"); b.type = "button"; b.className = "cnt-main";
+    b.setAttribute("aria-pressed", tool === "run" && runType === w.id && !contRun);
+    b.title = "Draw a run of this type";
+    const sw = document.createElement("span"); sw.className = "wire-swatch"; sw.style.borderColor = w.color;
+    const tx = document.createElement("span"); tx.className = "cnt-txt";
+    const nm = document.createElement("b"); nm.textContent = wireLabel(w);
+    const ds = document.createElement("span"); ds.className = "d";
+    ds.textContent = lf ? `${fmtLF(lf)} of conduit · ${fmtLF(lf * wireTotal(w))} of wire` : "Nothing drawn yet";
+    tx.append(nm, ds);
+    b.append(sw, tx);
+    b.onclick = () => startRunType(w.id);
+    const e = document.createElement("button"); e.type = "button"; e.className = "cnt-edit"; e.title = "Edit this run type"; e.setAttribute("aria-label", "Edit " + wireLabel(w));
+    e.innerHTML = `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M11 2.5 13.5 5 6 12.5H3.5V10z"/></svg>`;
+    e.onclick = () => openWire(w.id);
+    li.append(b, e); ul.appendChild(li);
+  });
+}
+function startRunType(id) {
+  if (tool === "run") {
+    if (runType === id && !contRun && !draft.length) return setTool(null); // clicking the active type again stops drawing
+    runType = id; contRun = null; draft = []; hover = null;
+    updateHint(); renderWires(); drawOverlay();
+    return;
+  }
+  runType = id; contRun = null;
+  setTool("run");
+}
+function continueRun(r) {
+  const p = pages[current];
+  if (!p.ftPerPx) return openScale("run");
+  runType = r.typeId || null;
+  setTool(null); setTool("run");
+  contRun = r; draft = r.pts.map(q => [...q]);
+  updateHint(); renderWires(); drawOverlay();
+}
+let editingWire = null;
+const fillSel = (id, opts, lab) => { $(id).innerHTML = opts.map(o => `<option value="${o.replace(/"/g, "&quot;")}">${(lab ? lab(o) : o).replace(/"/g, "&quot;")}</option>`).join(""); };
+fillSel("wConduit", CONDUITS); fillSel("wSize", CSIZES); fillSel("wGauge", GAUGES, gaugeTxt); fillSel("wIns", INSUL);
+$("wGround").innerHTML = `<option value="">No separate ground</option>` + GAUGES.slice(0, 12).map(g => `<option value="${g}">${gaugeTxt(g)} ground</option>`).join("");
+function wireFields() {
+  return { conduit: $("wConduit").value, size: $("wSize").value, count: Math.max(1, Math.min(40, parseInt($("wCount").value, 10) || 1)),
+    gauge: $("wGauge").value, ins: $("wIns").value, ground: $("wGround").value, color: $("wColor").value };
+}
+function wirePreview() {
+  $("wSize").disabled = ["MC cable", "No conduit"].includes($("wConduit").value);
+  $("wirePrev").textContent = wireLabel(wireFields());
+}
+["wConduit", "wSize", "wCount", "wGauge", "wIns", "wGround"].forEach(id => $(id).addEventListener("input", wirePreview));
+function openWire(id) {
+  if (!pages.length) return;
+  if (tool) setTool(null);
+  const list = wiresList();
+  editingWire = id ? list.find(w => w.id === id) : null;
+  const last = list[list.length - 1];
+  const w = editingWire || { conduit: "EMT", size: '3/4"', count: 5, gauge: "12", ins: "STR", ground: "", ...(last ? { conduit: last.conduit, ins: last.ins } : {}) };
+  $("wireTitle").textContent = editingWire ? "Edit run type" : "New run type";
+  $("wConduit").value = w.conduit; $("wSize").value = w.size; $("wCount").value = w.count; $("wGauge").value = w.gauge; $("wIns").value = w.ins; $("wGround").value = w.ground || "";
+  $("wColor").value = w.color || PALETTE[(list.length + 3) % PALETTE.length];
+  $("wireDelete").hidden = !editingWire;
+  $("wireSave").textContent = editingWire ? "Save" : "Save and draw";
+  wirePreview();
+  $("wireModal").hidden = false; $("wConduit").focus();
+}
+$("addWireBtn").onclick = () => openWire(null);
+$("wireCancel").onclick = () => { $("wireModal").hidden = true; };
+$("wireModal").addEventListener("keydown", e => { if (e.key === "Escape") $("wireModal").hidden = true; });
+$("wireDelete").onclick = () => {
+  const w = editingWire; if (!w) return;
+  // runs of this type stay; they just lose the type
+  pages.forEach(pg => { if (pg.runs.some(r => r.typeId === w.id)) { pg.runs.forEach(r => { if (r.typeId === w.id) r.typeId = null; }); saveMeta(pg); } });
+  if (job) { job.wireTypes = job.wireTypes.filter(x => x !== w); saveJob(job); } else exampleWires = exampleWires.filter(x => x !== w);
+  if (runType === w.id) runType = null;
+  $("wireModal").hidden = true; renderWires(); renderRuns(); drawOverlay();
+};
+$("wireForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const f = wireFields();
+  let w = editingWire;
+  if (w) Object.assign(w, f); else { w = { id: uid(), ...f }; wiresList().push(w); }
+  if (job) { job.updated = new Date().toISOString(); saveJob(job); }
+  $("wireModal").hidden = true;
+  renderWires(); renderRuns(); drawOverlay();
+  if (!editingWire) startRunType(w.id);
+});
 
 function renderRuns() {
   const p = pages[current], list = $("runList");
@@ -1738,12 +1901,20 @@ function renderRuns() {
   $("runsEmpty").hidden = p.runs.length > 0;
   for (const r of p.runs) {
     const li = document.createElement("li"); li.className = "run";
-    li.innerHTML = `<input aria-label="Run name"><span class="lf"></span><button type="button" title="Delete run" aria-label="Delete run"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 4h10M6 4V2.5h4V4M4.5 4l.7 9.5h5.6l.7-9.5"/></svg></button>`;
+    li.innerHTML = `<input aria-label="Run name"><span class="lf"></span><button type="button" class="del" title="Delete run" aria-label="Delete run"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 4h10M6 4V2.5h4V4M4.5 4l.7 9.5h5.6l.7-9.5"/></svg></button>`;
     const inp = li.querySelector("input"); inp.id = "run-" + r.id; inp.value = r.name;
     inp.onchange = () => { r.name = inp.value.trim() || r.name; saveMeta(p); drawOverlay(); };
     inp.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); inp.blur(); } };
     li.querySelector(".lf").textContent = p.ftPerPx ? fmtLF(r.px * p.ftPerPx) : "–";
-    li.querySelector("button").onclick = () => { remember(); p.runs = p.runs.filter(x => x !== r); saveMeta(p); renderRuns(); drawOverlay(); };
+    li.querySelector("button.del").onclick = () => { remember(); p.runs = p.runs.filter(x => x !== r); saveMeta(p); renderRuns(); renderWires(); drawOverlay(); };
+    if (wiresList().length) {
+      const s = document.createElement("select"); s.setAttribute("aria-label", "Run type");
+      s.innerHTML = `<option value="">No conduit / wire type</option>` + wiresList().map(w => `<option value="${w.id}"></option>`).join("");
+      [...s.options].slice(1).forEach((o, i) => { o.textContent = wireLabel(wiresList()[i]); });
+      s.value = r.typeId && wireOf(r.typeId) ? r.typeId : "";
+      s.onchange = () => { remember(); r.typeId = s.value || null; saveMeta(p); renderWires(); drawOverlay(); };
+      li.appendChild(s);
+    }
     list.appendChild(li);
   }
   const lf = pg => pg.ftPerPx ? pg.runs.reduce((t, r) => t + r.px * pg.ftPerPx, 0) : 0;
@@ -1969,7 +2140,7 @@ $("labelForm").addEventListener("submit", e => {
 document.addEventListener("keydown", e => {
   if (!$("ctxMenu").hidden) return;
   const typing = !!e.target.closest("input, select, textarea");
-  if (!$("scaleModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden) return;
+  if (!$("scaleModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden || !$("wireModal").hidden) return;
   if (!typing && (e.ctrlKey || e.metaKey) && !e.altKey) {
     const key = e.key.toLowerCase();
     if (key === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
@@ -2111,7 +2282,7 @@ async function runSync() {
     }
     if (job !== j) return;
     setDrive("busy", "Saving to Drive…");
-    const data = { app: "aj-takeoff", v: 1, savedAt: new Date().toISOString(), job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, driveSheetsId: j.driveSheetsId, counts: j.counts || [], align: j.align || {} },
+    const data = { app: "aj-takeoff", v: 1, savedAt: new Date().toISOString(), job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, driveSheetsId: j.driveSheetsId, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [] },
       pages: list.map(p => ({ id: p.id, fileId: p.fileId, ...meta(p) })) };
     const made = await drv("create_file", { title: `${safeName(j.name)} · ajjob ${j.id}.json`, parentId: root, textContent: JSON.stringify(data), contentMimeType: "application/json", disableConversionToGoogleType: true });
     const old = j.driveJsonId;
@@ -2225,7 +2396,7 @@ const APP_HOME = "https://aj-commercial-takeoff.vercel.app/";
 async function projectBlob() {
   const j = job, list = pages.filter(p => !p.example);
   const head = { app: "aj-takeoff", kind: "job-file", v: 1, savedAt: new Date().toISOString(),
-    job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, counts: j.counts || [], align: j.align || {} }, pages: [] };
+    job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [] }, pages: [] };
   let at = 0;
   for (const p of list) {
     const { fileId, ...m } = meta(p);
@@ -2549,7 +2720,8 @@ async function loadExamples() {
   const first = pages[0];
   first.ftPerPx = 8 / 100; first.scaleLabel = SCALES[3][0];
   const pts = [[1720, 1340], [1720, 900], [1100, 900], [1100, 500]];
-  first.runs.push({ id: "ex-run", name: "LP-1 home run", pts, px: polyLen(pts) });
+  exampleWires = [{ id: "ex-w1", conduit: "EMT", size: '3/4"', count: 5, gauge: "12", ins: "STR", ground: "", color: "#e8590c" }];
+  first.runs.push({ id: "ex-run", name: "LP-1 home run", pts, px: polyLen(pts), typeId: "ex-w1" });
   // a few example devices on the first sheet
   exampleCounts = [
     { id: "ex-A", base: "RC-1", tag: "A", color: "#ae3ec9", maker: "Lithonia", model: "LDN6 10/10 LO6AR", watts: "12", volts: "120-277", mount: "Recessed", desc: '6" LED downlight, 1000 lm, 3000K, 0-10V dimming, white trim. Or equal.' },
