@@ -110,6 +110,7 @@ button { cursor: pointer; }
 .stage { position: relative; width: 100%; height: 100%; overflow: hidden; }
 .sheet { position: absolute; transform-origin: 0 0; transition: transform .28s ease; touch-action: none; user-select: none; -webkit-user-select: none; }
 .sheet img { display: block; width: 100%; height: 100%; }
+.sheet canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .sheet svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .sheet.tooling svg { pointer-events: all; cursor: crosshair; }
 .sheet.free { transition: none; }
@@ -136,6 +137,11 @@ button { cursor: pointer; }
 .cmpbar { position: absolute; top: 10px; left: 10px; right: 130px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px 6px 12px; font-size: 13.5px; box-shadow: 0 4px 14px rgb(0 0 0 / .12); width: fit-content; max-width: calc(100% - 150px); }
 .cmpbar b { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .cmp-item { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.cmp-help { flex-basis: 100%; }
+.cmpbar .btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.file-acts { display: grid; gap: 8px; }
+.file-acts .btn { display: grid; justify-items: start; text-align: left; gap: 2px; padding: 10px 14px; font-size: 15px; font-weight: 600; }
+.file-acts .btn small { font-weight: 400; font-size: 13px; opacity: .8; }
 .chip { display: inline-block; width: 14px; height: 14px; border-radius: 3px; flex: none; }
 
 .toolhint { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; max-width: calc(100% - 24px);
@@ -313,6 +319,11 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <div class="brand">AJ Takeoff <small>Commercial</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
+    <button class="btn" id="fileBtn" type="button" title="Save this job to a file, open a job file, or email it (Ctrl+S saves)">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 2.5h9l2 2v9h-11z"/><path d="M5 2.5v4h5v-4M5 13.5v-4h6v4"/></svg>
+      Save / Open
+    </button>
+
     <div class="group">
       <button class="btn primary" id="uploadBtn" title="Upload PDFs or images (up to 120 pages)">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 11V2M4.5 5.5 8 2l3.5 3.5M2 11v3h12v-3"/></svg>
@@ -367,7 +378,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <div class="tab-list" id="tabList" role="tablist" aria-label="Open sheets"></div>
     </div>
     <section class="viewer" id="viewer">
-      <div class="stage" id="stage"><div class="sheet" id="sheet"><img id="sheetImg" alt="" draggable="false"><svg id="overlay" aria-hidden="true"></svg></div></div>
+      <div class="stage" id="stage"><div class="sheet" id="sheet"><img id="sheetImg" alt="" draggable="false"><canvas id="cmpCanvas" hidden></canvas><svg id="overlay" aria-hidden="true"></svg></div></div>
       <div class="selbar" id="selBar" hidden>
         <span id="selText"></span>
         <button class="btn sm warn" id="selDelete" type="button">Delete</button>
@@ -376,7 +387,10 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <div class="cmpbar" id="cmpBar" hidden>
         <b>Overlay</b><span id="cmpLegend" style="display:contents"></span>
         <span class="hint">Dark where they match</span>
+        <span id="cmpAlign" style="display:contents"></span>
+        <button class="btn sm" id="cmpReset" type="button" hidden>Reset fit</button>
         <button class="btn sm" id="cmpExit" type="button">Exit overlay</button>
+        <span class="hint cmp-help" id="cmpAlignHelp" hidden>Drag a corner square to stretch this sheet, or drag inside it to slide it. Arrow keys nudge it, Shift for bigger steps. The fit is saved with the job.</span>
       </div>
       <div class="toolhint" id="toolHint" hidden>
         <span id="toolHintText"></span>
@@ -487,6 +501,21 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
   </form>
 </div>
 
+<div class="modal" id="fileModal" hidden role="dialog" aria-modal="true" aria-labelledby="fileTitle">
+  <div class="modal-card">
+    <h2 id="fileTitle">Save, open or send a job</h2>
+    <p class="hint" id="fileIntro">A job file holds every sheet, count, run and scale in one file that ends in .ajtakeoff. Keep it anywhere, like your Google Drive, and open it in this app on any computer, tablet or phone.</p>
+    <div class="file-acts">
+      <button class="btn primary" type="button" id="fileSave">Save job to a file…<small>You pick the folder, like Google Drive</small></button>
+      <button class="btn" type="button" id="fileOpen">Open a job file…<small>From Google Drive, Downloads or an email</small></button>
+      <button class="btn" type="button" id="fileEmail">Email this job…<small>Sends the file and a link to open the app</small></button>
+    </div>
+    <p class="hint" id="fileWhere" hidden></p>
+    <div class="actions"><button class="btn" type="button" id="fileClose">Close</button></div>
+  </div>
+</div>
+<input type="file" id="projInput" hidden>
+
 <div class="modal" id="jobsModal" hidden role="dialog" aria-modal="true" aria-labelledby="jobsTitle">
   <div class="modal-card">
     <h2 id="jobsTitle">Jobs</h2>
@@ -506,6 +535,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       </div>
       <div class="actions">
         <button class="btn" type="button" id="jobsClose">Close</button>
+        <button class="btn" type="button" id="jobsOpenFile">Open a job file…</button>
         <button class="btn" type="button" id="jobNewToggle" hidden>Start a new job instead</button>
         <button class="btn primary" type="submit" id="jobSave">Start job</button>
       </div>
@@ -626,6 +656,8 @@ function busy(title, frac, text) {
 }
 
 async function addFiles(files) {
+  const proj = files.find(f => /\.ajtakeoff$/i.test(f.name));
+  if (proj) return importProject(proj);
   files = files.filter(f => f.type === "application/pdf" || /\.pdf$/i.test(f.name) || f.type.startsWith("image/"));
   if (!files.length) return toast("Choose PDF or image files.");
   if (pages.some(p => p.example)) { pages.forEach(p => URL.revokeObjectURL(p.url)); pages = []; current = 0; }
@@ -708,8 +740,8 @@ function renderSheet() {
   $("scaleBtn").textContent = p && p.ftPerPx ? `Scale ${p.scaleLabel}` : "Set scale";
   $("scaleBtn").classList.toggle("warn", !!p && !p.ftPerPx);
   if (!p) { img.removeAttribute("src"); $("pos").textContent = "–"; $("sheetNo").textContent = "Sheet –"; $("progress").textContent = ""; return; }
-  const src = cmp ? cmp.url : p.url;
-  if (img.getAttribute("src") !== src) img.src = src;
+  if (img.getAttribute("src") !== p.url) img.src = p.url;
+  paintCmp();
   applyZoom();
   $("pos").textContent = `${current + 1} / ${pages.length}`;
   $("sheetNo").textContent = `Sheet ${String(current + 1).padStart(3, "0")}`;
@@ -1103,7 +1135,8 @@ function label(g, x, y, text, cls) {
 function drawOverlay() {
   const svg = $("overlay"), p = pages[current];
   svg.replaceChildren();
-  if (!p || cmp) return;
+  if (!p) return;
+  if (cmp) return drawCmpHandles(svg);
   const ns = { "vector-effect": "non-scaling-stroke" };
   const ptsAttr = pts => pts.map(q => q.join(",")).join(" ");
   const dots = (g, pts, cls) => pts.forEach(q => g.appendChild(svgEl("circle", { cx: q[0], cy: q[1], r: 4 / k, class: "mk-dot " + (cls || ""), ...ns })));
@@ -1413,9 +1446,12 @@ function setRail(show) {
 $("railBtn").onclick = () => setRail(document.querySelector(".desk").classList.contains("no-rail"));
 
 /* Overlay: up to 3 sheets, each tinted its own color, multiplied together on white.
-   Lines that match on every sheet come out dark; lines on only one sheet keep that sheet's color. */
-let cmp = null; // {layers: [{id, color, label, on}], url}
-const CMP_COLORS = ["#e03131", "#1971c2", "#2f9e44"];
+   Lines that match on every sheet come out dark; lines on only one sheet keep that sheet's color.
+   Sheets 2 and 3 can be slid and stretched by their corners to line up with sheet 1; that fit is saved with the job. */
+let cmp = null; // {layers: [{id, color, label, on, r: {x, y, w, h} as fractions of sheet 1, tint}], W, H, adj: layer being lined up or null}
+let cmpDrag = null;
+const CMP_COLORS = ["#e03131", "#1971c2", "#2f9e44"], CMP_NAMES = ["red", "blue", "green"];
+const alignKey = L => cmp.layers[0].id + "|" + L.id;
 const tintCache = new Map();
 function fillCmpSelects() {
   for (let j = 0; j < 3; j++) {
@@ -1446,7 +1482,8 @@ $("cmpForm").addEventListener("submit", async e => {
   $("cmpModal").hidden = true;
   commitName(); closeCtx(); sel.clear();
   current = pages.findIndex(pg => pg.id === layers[0].id);
-  cmp = { layers, url: null };
+  cmp = { layers, W: 0, H: 0, adj: null };
+  layers.forEach((L, i) => { L.r = { x: 0, y: 0, w: 1, h: 1, ...(i && job && job.align ? job.align[alignKey(L)] : null) }; });
   await buildCmp();
 });
 async function tinted(pg, color, W, H) {
@@ -1474,19 +1511,99 @@ async function buildCmp() {
     const bmp = await createImageBitmap(base.blob);
     const sc = Math.min(1, 2400 / Math.max(bmp.width, bmp.height));
     const W = Math.round(bmp.width * sc), H = Math.round(bmp.height * sc);
-    const out = document.createElement("canvas"); out.width = W; out.height = H;
-    const x = out.getContext("2d");
-    x.fillStyle = "#fff"; x.fillRect(0, 0, W, H);
-    x.globalCompositeOperation = "multiply";
-    for (const L of cmp.layers) if (L.on) x.drawImage(await tinted(pages.find(pg => pg.id === L.id), L.color, W, H), 0, 0);
-    const blob = await canvasBlob(out);
-    if (!cmp) return;
-    if (cmp.url) URL.revokeObjectURL(cmp.url);
-    cmp.url = URL.createObjectURL(blob);
+    for (const L of cmp.layers) L.tint = await tinted(pages.find(pg => pg.id === L.id), L.color, W, H);
+    cmp.W = W; cmp.H = H;
   } catch (e) { toast("Those sheets couldn't be overlaid."); dropCmp(); }
   busy(null, null);
   renderAll();
 }
+// Drawn live on a canvas over the first sheet, so dragging a corner shows the result right away.
+function paintCmp() {
+  const c = $("cmpCanvas");
+  c.hidden = !cmp || !cmp.W;
+  if (c.hidden) return;
+  const { W, H } = cmp;
+  if (c.width !== W) c.width = W;
+  if (c.height !== H) c.height = H;
+  const x = c.getContext("2d");
+  x.globalCompositeOperation = "source-over"; x.fillStyle = "#fff"; x.fillRect(0, 0, W, H);
+  x.globalCompositeOperation = "multiply";
+  for (const L of cmp.layers) if (L.on && L.tint) x.drawImage(L.tint, L.r.x * W, L.r.y * H, L.r.w * W, L.r.h * H);
+  x.globalCompositeOperation = "source-over";
+}
+let paintQueued = false;
+function queuePaint() {
+  if (paintQueued) return;
+  paintQueued = true;
+  requestAnimationFrame(() => { paintQueued = false; paintCmp(); drawOverlay(); });
+}
+const sheetSize = () => { const img = $("sheetImg"); return [img.naturalWidth || 1, img.naturalHeight || 1]; };
+function cmpCorners(L) { // in sheet image pixels: top left, top right, bottom right, bottom left
+  const [iw, ih] = sheetSize(), x = L.r.x * iw, y = L.r.y * ih, w = L.r.w * iw, h = L.r.h * ih;
+  return [[x, y], [x + w, y], [x + w, y + h], [x, y + h]];
+}
+function drawCmpHandles(svg) {
+  if (!cmp || cmp.adj == null) return;
+  const L = cmp.layers[cmp.adj], c = cmpCorners(L), hs = 14 / k;
+  svg.appendChild(svgEl("rect", { x: c[0][0], y: c[0][1], width: c[2][0] - c[0][0], height: c[2][1] - c[0][1], fill: "none", stroke: L.color, "stroke-width": 2 / k, "stroke-dasharray": `${8 / k} ${5 / k}` }));
+  c.forEach(([x, y]) => svg.appendChild(svgEl("rect", { x: x - hs / 2, y: y - hs / 2, width: hs, height: hs, fill: "#fff", stroke: L.color, "stroke-width": 3 / k })));
+}
+function saveAlign(L) {
+  if (!job || !cmp) return;
+  job.align = job.align || {};
+  const f = L.r;
+  if (f.x === 0 && f.y === 0 && f.w === 1 && f.h === 1) delete job.align[alignKey(L)]; else job.align[alignKey(L)] = { ...f };
+  touchJob();
+}
+function cmpHit(e) { // which part of the sheet being lined up is under the pointer: a corner 0-3, -1 inside, null outside
+  const L = cmp.layers[cmp.adj], q = imgPoint(e), c = cmpCorners(L), reach = (e.pointerType === "mouse" ? 12 : 24) / k;
+  const corner = c.findIndex(p => dist(p, q) < reach);
+  if (corner >= 0) return corner;
+  return q[0] >= c[0][0] && q[0] <= c[2][0] && q[1] >= c[0][1] && q[1] <= c[2][1] ? -1 : null;
+}
+// on the whole viewer, not the sheet: the corner squares hang half off the sheet's edge
+$("viewer").addEventListener("pointerdown", e => {
+  if (!cmp || cmp.adj == null || e.button !== 0 || spaceDown || panMode || e.target.closest(".cmpbar, .selbar, .toolhint, button")) return;
+  const hit = cmpHit(e);
+  if (hit == null) return;
+  cmpDrag = { id: e.pointerId, corner: hit, start: imgPoint(e), r: { ...cmp.layers[cmp.adj].r } };
+  try { $("viewer").setPointerCapture(e.pointerId); } catch (_) {}
+  e.preventDefault();
+});
+$("viewer").addEventListener("pointermove", e => {
+  if (!cmp || cmp.adj == null) return;
+  if (!cmpDrag) {
+    if (e.pointerType === "mouse") { const h = cmpHit(e); $("stage").style.cursor = h == null ? "" : h < 0 ? "move" : h % 2 ? "nesw-resize" : "nwse-resize"; }
+    return;
+  }
+  if (e.pointerId !== cmpDrag.id) return;
+  const L = cmp.layers[cmp.adj], q = imgPoint(e), [iw, ih] = sheetSize();
+  const dx = (q[0] - cmpDrag.start[0]) / iw, dy = (q[1] - cmpDrag.start[1]) / ih, r0 = cmpDrag.r, c = cmpDrag.corner, MIN = 0.05;
+  if (c < 0) L.r = { ...r0, x: r0.x + dx, y: r0.y + dy };
+  else { // the opposite corner stays put
+    let l = r0.x, t = r0.y, rt = r0.x + r0.w, b = r0.y + r0.h;
+    if (c === 0 || c === 3) l = Math.min(l + dx, rt - MIN); else rt = Math.max(rt + dx, l + MIN);
+    if (c === 0 || c === 1) t = Math.min(t + dy, b - MIN); else b = Math.max(b + dy, t + MIN);
+    L.r = { x: l, y: t, w: rt - l, h: b - t };
+  }
+  queuePaint();
+});
+["pointerup", "pointercancel"].forEach(t => $("viewer").addEventListener(t, e => {
+  if (!cmpDrag || e.pointerId !== cmpDrag.id) return;
+  cmpDrag = null; saveAlign(cmp.layers[cmp.adj]);
+}));
+let alignSaveT = null;
+function nudgeCmp(dx, dy) {
+  const L = cmp.layers[cmp.adj], [iw, ih] = sheetSize();
+  L.r = { ...L.r, x: L.r.x + dx / iw, y: L.r.y + dy / ih };
+  queuePaint();
+  clearTimeout(alignSaveT); alignSaveT = setTimeout(() => saveAlign(L), 600);
+}
+$("cmpReset").onclick = () => {
+  if (!cmp || cmp.adj == null) return;
+  const L = cmp.layers[cmp.adj]; L.r = { x: 0, y: 0, w: 1, h: 1 };
+  saveAlign(L); paintCmp(); drawOverlay();
+};
 function renderCmpBar() {
   $("cmpBar").hidden = !cmp;
   if (!cmp) return;
@@ -1494,13 +1611,36 @@ function renderCmpBar() {
   cmp.layers.forEach(L => {
     const lab = document.createElement("label"); lab.className = "cmp-item";
     const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = L.on;
-    cb.onchange = () => { L.on = cb.checked; buildCmp(); };
+    cb.onchange = () => { L.on = cb.checked; paintCmp(); };
     const chip = document.createElement("span"); chip.className = "chip"; chip.style.background = L.color;
     const t = document.createElement("span"); t.textContent = L.label;
     lab.append(cb, chip, t); lg.appendChild(lab);
   });
+  const al = $("cmpAlign"); al.replaceChildren();
+  cmp.layers.forEach((L, i) => {
+    if (!i) return;
+    const b = document.createElement("button"); b.type = "button"; b.className = "btn sm";
+    b.textContent = `Line up ${CMP_NAMES[CMP_COLORS.indexOf(L.color)]}`;
+    b.title = `Slide and stretch the ${CMP_NAMES[CMP_COLORS.indexOf(L.color)]} sheet so it lines up with the red one`;
+    b.setAttribute("aria-pressed", cmp.adj === i ? "true" : "false");
+    b.onclick = () => setAdj(cmp.adj === i ? null : i);
+    al.appendChild(b);
+  });
+  $("cmpAlignHelp").hidden = $("cmpReset").hidden = cmp.adj == null;
 }
-function dropCmp() { if (!cmp) return; if (cmp.url) URL.revokeObjectURL(cmp.url); cmp = null; tintCache.clear(); }
+function setAdj(i) {
+  cmp.adj = i; cmpDrag = null; $("stage").style.cursor = "";
+  if (i != null) cmp.layers[i].on = true;
+  renderCmpBar(); paintCmp();
+  if (i != null && pages[current].zoom === "FULL" && fit) {
+    // shrink the sheet a little and sit it below the overlay bar, so all four corner squares can be grabbed
+    const top = $("cmpBar").getBoundingClientRect().bottom - $("stage").getBoundingClientRect().top + 12;
+    const z = Math.max(0.4, Math.min(0.9, (fit.H - top - 16) / fit.dh, (fit.W - 40) / fit.dw));
+    setView({ z, tx: (fit.W - fit.dw * z) / 2 - fit.left, ty: top - fit.top });
+  }
+  drawOverlay();
+}
+function dropCmp() { if (!cmp) return; cmp = null; cmpDrag = null; tintCache.clear(); $("cmpCanvas").hidden = true; $("stage").style.cursor = ""; }
 $("cmpExit").onclick = () => { dropCmp(); renderAll(); };
 document.addEventListener("pointerdown", e => { if (!$("ctxMenu").hidden && !e.target.closest("#ctxMenu")) closeCtx(); }, true);
 $("ctxMenu").addEventListener("keydown", e => {
@@ -1663,7 +1803,7 @@ $("stage").addEventListener("pointerdown", e => {
     touches.set(e.pointerId, [e.clientX, e.clientY]);
     if (touches.size === 1) panMoved = false;
     if (touches.size === 2) { // second finger: pinch and pan instead of whatever the first finger started
-      boxDrag = null; if (typeof pressT === "number") { clearTimeout(pressT); pressT = null; }
+      boxDrag = null; cmpDrag = null; if (typeof pressT === "number") { clearTimeout(pressT); pressT = null; }
       const [a, b] = [...touches.values()], v = viewOf(p);
       pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], v: { ...v } };
       panMoved = true; drawOverlay();
@@ -1762,17 +1902,24 @@ $("labelForm").addEventListener("submit", e => {
 document.addEventListener("keydown", e => {
   if (!$("ctxMenu").hidden) return;
   const typing = !!e.target.closest("input, select, textarea");
-  if (!$("scaleModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden) return;
+  if (!$("scaleModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden) return;
   if (!typing && (e.ctrlKey || e.metaKey) && !e.altKey) {
     const key = e.key.toLowerCase();
     if (key === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
     if (key === "y") { e.preventDefault(); redo(); return; }
+    if (key === "s") { e.preventDefault(); saveProject(true); return; }
   }
   if (!typing && !tool && sel.size) {
     if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteSel(); return; }
     if (e.key === "Escape") { setSel([]); return; }
   }
-  if (cmp && e.key === "Escape" && !typing) { dropCmp(); renderAll(); return; }
+  if (cmp && cmp.adj != null && !typing && e.key.startsWith("Arrow")) {
+    e.preventDefault();
+    const st = e.shiftKey ? 10 : 1, dir = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (dir) nudgeCmp(dir[0] * st, dir[1] * st);
+    return;
+  }
+  if (cmp && e.key === "Escape" && !typing) { if (cmp.adj != null) setAdj(null); else { dropCmp(); renderAll(); } return; }
   if (tool && !typing) {
     if (e.key === "Escape") { $("cancelToolBtn").click(); return; }
     if (e.key === "Enter" && tool === "run") { e.preventDefault(); finishRun(); return; }
@@ -1831,6 +1978,7 @@ function setDrive(state, text) {
   el.className = "drive " + ({ ok: "ok", busy: "busy", bad: "bad" }[state] || "");
   $("driveText").textContent = text || (state === "off" ? "Saved in this browser only" : "Saved in this browser");
   $("driveRetry").hidden = state !== "bad";
+  if (state === "off") $("jobsWhere").textContent = "Jobs are kept in this browser. To keep a copy in Google Drive, or open a job on another device, use Save / Open.";
 }
 $("driveRetry").onclick = () => { syncWanted = true; runSync(); };
 
@@ -1896,7 +2044,7 @@ async function runSync() {
     }
     if (job !== j) return;
     setDrive("busy", "Saving to Drive…");
-    const data = { app: "aj-takeoff", v: 1, savedAt: new Date().toISOString(), job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, driveSheetsId: j.driveSheetsId, counts: j.counts || [] },
+    const data = { app: "aj-takeoff", v: 1, savedAt: new Date().toISOString(), job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, driveSheetsId: j.driveSheetsId, counts: j.counts || [], align: j.align || {} },
       pages: list.map(p => ({ id: p.id, fileId: p.fileId, ...meta(p) })) };
     const made = await drv("create_file", { title: `${safeName(j.name)} · ajjob ${j.id}.json`, parentId: root, textContent: JSON.stringify(data), contentMimeType: "application/json", disableConversionToGoogleType: true });
     const old = j.driveJsonId;
@@ -1999,6 +2147,137 @@ async function pullJob(f) {
     toast(e && e.code ? driveMsg(e) + "." : "That job couldn't be opened from Drive.");
   }
 }
+
+/* ---------- job files ----------
+   One .ajtakeoff file holds a whole job: "AJTAKEOFF1\n", the header length as 10 digits and "\n",
+   a JSON header (job details, counts, overlay fits, every sheet's name, scale, runs and symbols),
+   then each sheet's image bytes back to back. The viewer keeps it wherever they like (Google Drive,
+   Downloads, email) and opens it here on any device. */
+const PROJ_MAGIC = "AJTAKEOFF1\n";
+const APP_HOME = "https://aj-commercial-takeoff.vercel.app/";
+async function projectBlob() {
+  const j = job, list = pages.filter(p => !p.example);
+  const head = { app: "aj-takeoff", kind: "job-file", v: 1, savedAt: new Date().toISOString(),
+    job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, counts: j.counts || [], align: j.align || {} }, pages: [] };
+  let at = 0;
+  for (const p of list) {
+    const { fileId, ...m } = meta(p);
+    head.pages.push({ id: p.id, ...m, at, size: p.blob.size, type: p.blob.type || "image/jpeg" });
+    at += p.blob.size;
+  }
+  const hj = new TextEncoder().encode(JSON.stringify(head));
+  return new Blob([PROJ_MAGIC, String(hj.length).padStart(10, "0"), "\n", hj, ...list.map(p => p.blob)], { type: "application/octet-stream" });
+}
+async function readProject(file) {
+  const top = new TextDecoder().decode(await file.slice(0, 22).arrayBuffer());
+  if (!top.startsWith(PROJ_MAGIC)) throw new Error("not a job file");
+  const n = parseInt(top.slice(11, 21), 10);
+  const head = JSON.parse(new TextDecoder().decode(await file.slice(22, 22 + n).arrayBuffer()));
+  if (head.app !== "aj-takeoff" || !head.job || !Array.isArray(head.pages)) throw new Error("not a job file");
+  const base = 22 + n;
+  return { head, bytes: pg => file.slice(base + pg.at, base + pg.at + pg.size).arrayBuffer() };
+}
+async function importProject(file) {
+  let pr;
+  try { pr = await readProject(file); } catch (e) { return toast("That isn't an AJ Takeoff job file. Job files end in .ajtakeoff."); }
+  const { head } = pr, n = head.pages.length;
+  $("fileModal").hidden = true; $("jobsModal").hidden = true;
+  try {
+    if (tool) setTool(null);
+    const old = (await getAll("pages")).filter(r => r.jobId === head.job.id);
+    const was = new Map(old.map(r => [r.id, r]));
+    const j = { ...newJobRecord({}), ...(jobs.find(x => x.id === head.job.id) || {}), ...head.job };
+    const rows = [];
+    for (let i = 0; i < n; i++) {
+      busy("Opening job file…", (i + 1) / n, `Sheet ${i + 1} of ${n}`);
+      const { at, size, type, ...m } = head.pages[i];
+      const blob = new Blob([await pr.bytes(head.pages[i])], { type: type || "image/jpeg" });
+      rows.push({ ...m, fileId: (was.get(m.id) || {}).fileId || null, jobId: j.id, order: i, blob });
+    }
+    await store(s => { old.forEach(r => s.delete(r.id)); rows.forEach(r => s.put(r)); });
+    await putJobLocal(j);
+    jobs = jobs.filter(x => x.id !== j.id).concat(j);
+    busy(null, null);
+    await openJob(j);
+    toast(`Opened ${j.name}: ${n} sheet${n === 1 ? "" : "s"}.`);
+  } catch (e) {
+    busy(null, null);
+    toast("That job file couldn't be opened. It may be damaged or not fully downloaded.");
+  }
+}
+function downloadFile(file) {
+  const a = document.createElement("a"), u = URL.createObjectURL(file);
+  a.href = u; a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(u), 60000);
+}
+function appLink() {
+  const h = location.hostname;
+  const own = location.protocol === "https:" && !/claude|anthropic|usercontent/i.test(h);
+  return (own ? location.origin + location.pathname : APP_HOME) + "?open=job";
+}
+async function packJob() {
+  if (!job || !pages.some(p => !p.example)) { toast("Upload plans first, then save the job."); return null; }
+  commitName();
+  busy("Packing the job file…", 0.5, job.name);
+  try { const blob = await projectBlob(); return new File([blob], safeName(job.name) + ".ajtakeoff", { type: "application/octet-stream" }); }
+  finally { busy(null, null); }
+}
+const fileHandles = {}; // job id -> the file the viewer picked this visit, so Ctrl+S saves over it
+function savedTo(msg) {
+  const w = $("fileWhere"); w.textContent = msg; w.hidden = false;
+  toast(msg);
+}
+async function saveProject(again) {
+  const file = await packJob();
+  if (!file) return;
+  if (window.showSaveFilePicker) {
+    try {
+      let h = again ? fileHandles[job.id] : null;
+      if (!h) h = await window.showSaveFilePicker({ id: "ajtakeoff", suggestedName: file.name, types: [{ description: "AJ Takeoff job", accept: { "application/octet-stream": [".ajtakeoff"] } }] });
+      const w = await h.createWritable(); await w.write(file); await w.close();
+      fileHandles[job.id] = h;
+      return savedTo(`Saved ${h.name} at ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`);
+    } catch (e) { if (e && e.name === "AbortError") return; } // not allowed here: fall back to a download
+  }
+  if (matchMedia("(pointer: coarse)").matches && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: job.name }); return savedTo("Saved. Pick Drive in that list to keep it in Google Drive."); }
+    catch (e) { if (e && e.name === "AbortError") return; }
+  }
+  downloadFile(file);
+  savedTo(`Saved to your Downloads folder as ${file.name}. Move it into your Google Drive folder to open it on other devices.`);
+}
+async function emailProject() {
+  const file = await packJob();
+  if (!file) return;
+  const subject = `Takeoff: ${job.name}`;
+  const body = `Here is the takeoff for ${job.name}.\n\n1. Download the attached file, ${file.name}.\n2. Open the AJ Takeoff app: ${appLink()}\n3. Tap "Open a job file" and pick the file you downloaded.\n`;
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: subject, text: body }); return savedTo("Sent. Pick your email app in that list."); }
+    catch (e) { if (e && e.name === "AbortError") return; }
+  }
+  downloadFile(file);
+  const a = document.createElement("a");
+  a.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  document.body.appendChild(a); a.click(); a.remove();
+  savedTo(`Your email opened with the link. Attach ${file.name} from your Downloads folder (paperclip button) before you send it.`);
+}
+function showFiles(sent) {
+  $("fileTitle").textContent = sent ? "Someone sent you a job" : "Save, open or send a job";
+  $("fileIntro").textContent = sent
+    ? "Download the .ajtakeoff file attached to the email, then tap Open a job file and pick it. Its drawings, counts and runs open right here."
+    : "A job file holds every sheet, count, run and scale in one file that ends in .ajtakeoff. Keep it anywhere, like your Google Drive, and open it in this app on any computer, tablet or phone.";
+  const none = !job || !pages.some(p => !p.example);
+  $("fileSave").disabled = $("fileEmail").disabled = none;
+  $("fileModal").hidden = false;
+  (sent || none ? $("fileOpen") : $("fileSave")).focus();
+}
+$("fileBtn").onclick = () => showFiles(false);
+$("fileClose").onclick = () => { $("fileModal").hidden = true; };
+$("fileModal").addEventListener("keydown", e => { if (e.key === "Escape") $("fileModal").hidden = true; });
+$("fileSave").onclick = () => saveProject(false);
+$("fileEmail").onclick = emailProject;
+$("fileOpen").onclick = $("jobsOpenFile").onclick = () => $("projInput").click();
+$("projInput").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) importProject(f); };
 
 /* ---------- jobs ---------- */
 // job: {id, name, customer, address, bidDate, created, updated}. null while showing the example sheets.
@@ -2179,6 +2458,10 @@ async function loadExamples() {
   const want = lsGet("aj-current-job");
   jobs.sort((a, b) => (b.updated || "").localeCompare(a.updated || ""));
   await openJob(jobs.find(j => j.id === want) || jobs[0] || null);
+  try {
+    const q = new URLSearchParams(location.search);
+    if (q.get("open") === "job") { showFiles(true); history.replaceState(null, "", location.pathname); }
+  } catch (e) {}
 })();
 </script>
 </body></html>
