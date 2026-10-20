@@ -244,6 +244,11 @@ button { cursor: pointer; }
 .modal textarea { min-height: 84px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 15px; resize: vertical; font-family: var(--font-ui); color: var(--fg); }
 .modal input[type="text"] { height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 15px; color: var(--fg); }
 .modal input[type="color"] { width: 44px; height: 38px; padding: 2px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.sched { display: grid; grid-template-columns: 90px 1fr auto; gap: 10px; align-items: end; }
+.sched.two { grid-template-columns: 1fr 1.4fr; }
+.sched.three { grid-template-columns: 1fr 1fr 1.2fr; }
+.sched input, .sched select { min-width: 0; width: 100%; box-sizing: border-box; }
+@media (max-width: 480px) { .sched, .sched.two { grid-template-columns: 1fr 1fr; } .sched .opt:has(#cntBase) { grid-column: 1 / -1; order: 3; } }
 .row2 { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
 .btn.danger { color: var(--warn); }
 
@@ -432,21 +437,21 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
           <button class="btn" id="panBtn" type="button" aria-pressed="false" title="Move around the sheet by dragging (or hold Space)" aria-label="Move around">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 1.5v13M1.5 8h13M8 1.5 6 3.5M8 1.5l2 2M8 14.5l-2-2M8 14.5l2-2M1.5 8l2-2M1.5 8l2 2M14.5 8l-2-2M14.5 8l-2 2"/></svg></button>
         </div>
-        <p class="empty">Scroll the mouse wheel to zoom in and out. To move around, hold the right mouse button and drag (Space or the wheel button work too), or turn on the arrows button. On a tablet, pinch with two fingers. Click a symbol to highlight it. Drag across the sheet to highlight everything in an area, then delete it all at once. Right-click a symbol for more.</p>
+        <p class="empty">Scroll the mouse wheel to zoom in and out. To move around, hold the right mouse button and drag (Space or the wheel button work too), or turn on the arrows button. On a tablet, pinch with two fingers. Click a symbol to highlight it, and drag it to move it (highlighted symbols move together). Drag across empty paper to highlight everything in an area, then delete it all at once. Right-click a symbol for more.</p>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <h2>Counts</h2>
-        <button class="btn sm primary" id="addCountBtn" type="button">+ Add count</button>
+        <button class="btn sm primary" id="addCountBtn" type="button">+ Add type</button>
       </div>
       <ul class="cnt-list" id="cntList"></ul>
-      <p class="empty" id="countsEmpty">No counts yet. Tap <b>+ Add count</b>, pick the fixture and type the engineer's description, then click the sheet wherever one goes. Pick a count from this list to keep adding it on any sheet.</p>
+      <p class="empty" id="countsEmpty">No fixture types yet. Pick a fixture in the toolbox (or tap <b>+ Add type</b>), fill in its type, model number and schedule info, then click the sheet wherever one goes. Pick a type from this list to keep adding it on any sheet.</p>
       <div class="totals" id="cntTotals" hidden>
         <div><span>This sheet</span><b id="cntSheet">0</b></div>
         <div><span>All sheets</span><b id="cntAll">0</b></div>
       </div>
       <div class="panel-sec" style="border-top:1px solid var(--line);padding-top:12px">
         <h2>Toolbox</h2>
-        <p class="empty" style="margin-top:-4px">Pick a fixture to add it as a count.</p>
+        <p class="empty" style="margin-top:-4px">Pick a fixture to set up its type from the lighting schedule.</p>
         <div class="tbx" id="toolbox"></div>
       </div>
       <h2>Sheet scale</h2>
@@ -545,18 +550,25 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="modal" id="countModal" hidden role="dialog" aria-modal="true" aria-labelledby="countTitle">
   <form class="modal-card" id="countForm" autocomplete="off">
-    <h2 id="countTitle">Add count</h2>
-    <div class="opt">
-      <label for="cntBase">Fixture or device</label>
-      <select id="cntBase"></select>
-    </div>
-    <div class="row2">
-      <div class="opt"><label for="cntTag">Type / tag on the plans</label><input type="text" id="cntTag" placeholder="e.g. A, F1, EM"></div>
+    <h2 id="countTitle">Fixture type</h2>
+    <p class="hint">Fill this in once from the lighting schedule. Every symbol you place for this type uses it.</p>
+    <div class="sched">
+      <div class="opt tag"><label for="cntTag">Type</label><input type="text" id="cntTag" placeholder="e.g. A"></div>
+      <div class="opt"><label for="cntBase">Fixture kind</label><select id="cntBase"></select></div>
       <div class="opt"><label for="cntColor">Color</label><input type="color" id="cntColor"></div>
     </div>
+    <div class="sched two">
+      <div class="opt"><label for="cntMaker">Manufacturer</label><input type="text" id="cntMaker" placeholder="e.g. Lithonia"></div>
+      <div class="opt"><label for="cntModel">Model / catalog number</label><input type="text" id="cntModel" placeholder="e.g. LDN6 35/10 LO6AR"></div>
+    </div>
+    <div class="sched three">
+      <div class="opt"><label for="cntWatts">Watts</label><input type="text" id="cntWatts" inputmode="decimal" placeholder="e.g. 12"></div>
+      <div class="opt"><label for="cntVolts">Volts</label><input type="text" id="cntVolts" placeholder="e.g. 120-277"></div>
+      <div class="opt"><label for="cntMount">Mounting</label><input type="text" id="cntMount" placeholder="e.g. Recessed"></div>
+    </div>
     <div class="opt">
-      <label for="cntDesc">Engineer's description</label>
-      <textarea id="cntDesc" placeholder='Copy it from the fixture schedule, e.g. 6" LED downlight, 1000 lm, 3000K, 0-10V dimming, white trim. Lithonia LDN6 or equal.'></textarea>
+      <label for="cntDesc">Description from the schedule</label>
+      <textarea id="cntDesc" placeholder='e.g. 6" LED downlight, 1000 lm, 3000K, 0-10V dimming, white trim. Or equal.'></textarea>
     </div>
     <div class="actions">
       <button class="btn danger" type="button" id="cntDelete" hidden>Delete count</button>
@@ -902,7 +914,7 @@ const DEVICES = {}; // id -> {id, label, model, group, shape, color}
 GROUPS.forEach(g => {
   g.items = [];
   g.types.forEach(t => (FIXTURES[t] || []).forEach(f => {
-    const d = { id: f.id, kind: KIND[t] || t, model: f.model, maker: f.manufacturer, group: g.key, shape: g.shape, color: PALETTE[g.items.length % PALETTE.length] };
+    const d = { id: f.id, kind: KIND[t] || t, model: f.model, maker: f.manufacturer, watts: f.wattage, volts: f.voltage, group: g.key, shape: g.shape, color: PALETTE[g.items.length % PALETTE.length] };
     g.items.push(d); DEVICES[f.id] = d;
   }));
 });
@@ -965,10 +977,15 @@ let exampleCounts = [];
 const countsList = () => job ? (job.counts || (job.counts = [])) : exampleCounts;
 function devInfo(t) {
   const c = countsList().find(c => c.id === t);
-  if (c) { const b = DEVICES[c.base] || Object.values(DEVICES)[0]; return { ...b, id: c.id, base: c.base, color: c.color || b.color, tag: c.tag || "", desc: c.desc || "", custom: true }; }
+  if (c) { const b = DEVICES[c.base] || Object.values(DEVICES)[0]; return { ...b, id: c.id, base: c.base, color: c.color || b.color, tag: c.tag || "", desc: c.desc || "", custom: true,
+    sMaker: c.maker || "", sModel: c.model || "", sWatts: c.watts || "", sVolts: c.volts || "", sMount: c.mount || "" }; }
   return DEVICES[t];
 }
 const nameOf = d => d.custom ? (d.tag ? `Type ${d.tag}` : d.kind) : `${d.id} ${d.kind}`;
+// one line for a fixture type: maker and model, then the schedule's description, watts, volts and mounting
+const specOf = d => d.custom
+  ? [[d.sMaker, d.sModel].filter(Boolean).join(" "), d.desc, d.sWatts && `${d.sWatts}${/w$/i.test(d.sWatts) ? "" : " W"}`, d.sVolts && `${d.sVolts}${/v$/i.test(d.sVolts) ? "" : " V"}`, d.sMount].filter(Boolean).join(" · ")
+  : `${d.maker} ${d.model}`;
 
 function renderCounts() {
   const p = pages[current];
@@ -995,7 +1012,7 @@ function renderCounts() {
     const tx = document.createElement("span"); tx.className = "cnt-txt";
     const nm = document.createElement("b"); nm.textContent = nameOf(d);
     const kind = document.createElement("span"); kind.textContent = d.custom ? ` · ${d.kind}` : "";
-    const ds = document.createElement("span"); ds.className = "d"; ds.textContent = d.custom ? (d.desc || "No description yet") : `${d.maker} ${d.model}`;
+    const ds = document.createElement("span"); ds.className = "d"; ds.textContent = d.custom ? (specOf(d) || "No schedule info yet. Tap the pencil to add it.") : specOf(d);
     tx.append(nm, kind, ds);
     const n = document.createElement("span"); n.className = "cnt-n"; n.innerHTML = `${nS}<small>of ${nA}</small>`;
     b.append(tx, n);
@@ -1024,15 +1041,17 @@ function openCount(id, base) {
   deleteArmed = false;
   const c = editingCount || {};
   const b = c.base || base || "RC-1";
-  $("countTitle").textContent = editingCount ? "Edit count" : "Add count";
+  $("countTitle").textContent = editingCount ? "Edit fixture type" : "New fixture type";
   $("cntBase").value = b;
   $("cntTag").value = c.tag || "";
   $("cntDesc").value = c.desc || "";
+  $("cntMaker").value = c.maker || ""; $("cntModel").value = c.model || "";
+  $("cntWatts").value = c.watts || ""; $("cntVolts").value = c.volts || ""; $("cntMount").value = c.mount || "";
   $("cntColor").value = c.color || PALETTE[list.length % PALETTE.length];
   $("cntDelete").hidden = !editingCount; $("cntDelete").textContent = "Delete count";
   $("cntSave").textContent = editingCount ? "Save" : "Save and place";
   $("countModal").hidden = false;
-  (editingCount ? $("cntDesc") : $("cntBase")).focus();
+  $("cntTag").focus();
 }
 $("addCountBtn").onclick = () => openCount(null);
 $("cntCancel").onclick = () => { $("countModal").hidden = true; };
@@ -1048,7 +1067,9 @@ $("cntDelete").onclick = () => {
 };
 $("countForm").addEventListener("submit", e => {
   e.preventDefault();
-  const fields = { base: $("cntBase").value, tag: $("cntTag").value.trim(), desc: $("cntDesc").value.trim(), color: $("cntColor").value };
+  const v = id => $(id).value.trim();
+  const fields = { base: $("cntBase").value, tag: v("cntTag"), desc: v("cntDesc"), color: $("cntColor").value,
+    maker: v("cntMaker"), model: v("cntModel"), watts: v("cntWatts"), volts: v("cntVolts"), mount: v("cntMount") };
   let c = editingCount;
   remember([]);
   if (c) Object.assign(c, fields);
@@ -1154,7 +1175,7 @@ function drawOverlay() {
     if (lit || v === hoverDev) g.appendChild(svgEl("circle", { cx: v.x, cy: v.y, r: 14 / k, class: "mk-glow" + (lit ? "" : " hover"), ...ns }));
     const e = shapeEl(d, v.x, v.y, 8 / k, "mk-dev");
     e.setAttribute("vector-effect", "non-scaling-stroke");
-    e.appendChild(svgEl("title", {}, d.custom ? `${nameOf(d)} · ${d.desc || d.kind}` : `${d.id} · ${d.maker} ${d.model}`));
+    e.appendChild(svgEl("title", {}, d.custom ? `${nameOf(d)} · ${specOf(d) || d.kind}` : `${d.id} · ${d.maker} ${d.model}`));
     g.appendChild(e);
     if (d.tag) g.appendChild(svgEl("text", { x: v.x + 10 / k, y: v.y - 6 / k, class: "mk-tag", "font-size": 11 / k, "stroke-width": 3 / k }, d.tag));
   }
@@ -1245,7 +1266,7 @@ function openCtx(e) {
   if (!sel.has(v)) { sel.clear(); sel.add(v); }
   ctxTarget = v;
   const isRun = !("t" in v), d = isRun ? null : devInfo(v.t);
-  $("ctxHead").textContent = sel.size > 1 ? `${sel.size} selected` : isRun ? `${v.name} · linear run` : d ? nameOf(d) + (d.desc ? " · " + d.desc : "") : "Symbol";
+  $("ctxHead").textContent = sel.size > 1 ? `${sel.size} selected` : isRun ? `${v.name} · linear run` : d ? nameOf(d) + (specOf(d) ? " · " + specOf(d) : "") : "Symbol";
   $("ctxDelete").textContent = sel.size > 1 ? `Delete all ${sel.size} selected` : "Delete";
   $("ctxMore").hidden = isRun;
   renderSel(); drawOverlay();
@@ -1319,7 +1340,8 @@ $("selDelete").onclick = deleteSel;
 $("selClear").onclick = () => setSel([]);
 $("sheet").addEventListener("pointerdown", e => {
   if (tool || cmp || e.button !== 0 || !pages[current]) return;
-  boxDrag = { start: imgPoint(e), cx: e.clientX, cy: e.clientY, id: e.pointerId, on: false, add: e.shiftKey, end: null };
+  // starting on a symbol drags it (and anything else highlighted) around; starting on empty paper draws a box
+  boxDrag = { start: imgPoint(e), cx: e.clientX, cy: e.clientY, id: e.pointerId, on: false, add: e.shiftKey, end: null, grab: e.shiftKey ? null : symbolAt(e), moving: null };
 });
 $("sheet").addEventListener("pointermove", e => {
   if (boxDrag && e.pointerId === boxDrag.id) {
@@ -1327,13 +1349,24 @@ $("sheet").addEventListener("pointermove", e => {
       boxDrag.on = true;
       try { $("sheet").setPointerCapture(e.pointerId); } catch (_) {}
       if (typeof pressT === "number") { clearTimeout(pressT); pressT = null; }
+      if (boxDrag.grab) {
+        const p = pages[current];
+        if (!sel.has(boxDrag.grab)) { sel.clear(); sel.add(boxDrag.grab); }
+        remember([p]);
+        boxDrag.moving = p.devices.filter(v => sel.has(v)).map(v => [v, v.x, v.y]);
+        renderSel();
+      }
     }
-    if (boxDrag.on) { boxDrag.end = imgPoint(e); drawOverlay(); }
+    if (boxDrag.on && boxDrag.moving) {
+      const q = imgPoint(e), dx = q[0] - boxDrag.start[0], dy = q[1] - boxDrag.start[1];
+      boxDrag.moving.forEach(([v, x, y]) => { v.x = x + dx; v.y = y + dy; });
+      drawOverlay();
+    } else if (boxDrag.on) { boxDrag.end = imgPoint(e); drawOverlay(); }
     return;
   }
   if (!tool && !cmp && e.pointerType === "mouse") {
     const h = symbolAt(e);
-    if (h !== hoverDev) { hoverDev = h; $("sheet").style.cursor = h ? "pointer" : ""; drawOverlay(); }
+    if (h !== hoverDev) { hoverDev = h; $("sheet").style.cursor = h ? "move" : ""; drawOverlay(); }
   }
 });
 $("sheet").addEventListener("pointerup", e => {
@@ -1341,6 +1374,7 @@ $("sheet").addEventListener("pointerup", e => {
   if (!b || e.pointerId !== b.id) return;
   if (longPressed) { longPressed = false; return; } // press-and-hold opened the menu instead
   const p = pages[current];
+  if (b.moving) { saveMeta(p); renderSel(); drawOverlay(); return; }
   if (b.on && b.end) {
     const x0 = Math.min(b.start[0], b.end[0]), x1 = Math.max(b.start[0], b.end[0]), y0 = Math.min(b.start[1], b.end[1]), y1 = Math.max(b.start[1], b.end[1]);
     const inside = q => q[0] >= x0 && q[0] <= x1 && q[1] >= y0 && q[1] <= y1;
@@ -1353,7 +1387,10 @@ $("sheet").addEventListener("pointerup", e => {
     setSel(hit ? [hit] : [], b.add);
   }
 });
-$("sheet").addEventListener("pointercancel", () => { if (boxDrag) { boxDrag = null; drawOverlay(); } });
+$("sheet").addEventListener("pointercancel", () => {
+  if (boxDrag && boxDrag.moving) { boxDrag.moving.forEach(([v, x, y]) => { v.x = x; v.y = y; }); undoStack.pop(); updHist(); }
+  if (boxDrag) { boxDrag = null; drawOverlay(); }
+});
 $("sheet").addEventListener("pointerleave", e => { if (e.pointerType === "mouse" && hoverDev && !boxDrag) { hoverDev = null; $("sheet").style.cursor = ""; drawOverlay(); } });
 
 /* Undo / Redo. Before each change, the sheets it touches (and the count list) are copied;
@@ -2434,7 +2471,7 @@ async function loadExamples() {
   first.runs.push({ id: "ex-run", name: "LP-1 home run", pts, px: polyLen(pts) });
   // a few example devices on the first sheet
   exampleCounts = [
-    { id: "ex-A", base: "RC-1", tag: "A", color: "#ae3ec9", desc: '6" LED downlight, 1000 lm, 3000K, 0-10V dimming, white trim. Lithonia LDN6 or equal.' },
+    { id: "ex-A", base: "RC-1", tag: "A", color: "#ae3ec9", maker: "Lithonia", model: "LDN6 10/10 LO6AR", watts: "12", volts: "120-277", mount: "Recessed", desc: '6" LED downlight, 1000 lm, 3000K, 0-10V dimming, white trim. Or equal.' },
     { id: "ex-B", base: "LN-1", tag: "B", color: "#2f9e44", desc: "4' LED wraparound, 4000 lm, 4000K, surface mount." }
   ];
   [[280, 255, "ex-B"], [460, 255, "ex-B"], [640, 255, "ex-B"], [280, 575, "ex-A"], [460, 575, "ex-A"], [640, 575, "ex-A"],
