@@ -77,11 +77,11 @@ button { cursor: pointer; }
 .corners button:hover { outline: 1px solid var(--accent); }
 
 /* Body */
-.desk { display: grid; grid-template-columns: 200px minmax(0, 1fr) 330px; min-height: 0; }
-@media (max-width: 1100px) { .desk { grid-template-columns: 160px minmax(0, 1fr) 290px; } }
-.desk.no-rail { grid-template-columns: minmax(0, 1fr) 330px; }
+.desk { display: grid; grid-template-columns: 150px minmax(0, 1fr) 248px; min-height: 0; }
+@media (max-width: 1100px) { .desk { grid-template-columns: 120px minmax(0, 1fr) 218px; } }
+.desk.no-rail { grid-template-columns: minmax(0, 1fr) 248px; }
 .desk.no-rail .rail { display: none; }
-@media (max-width: 1100px) { .desk.no-rail { grid-template-columns: minmax(0, 1fr) 290px; } }
+@media (max-width: 1100px) { .desk.no-rail { grid-template-columns: minmax(0, 1fr) 218px; } }
 .center { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; }
 
 /* Sheet tabs: shortcuts to the sheets you have open */
@@ -448,7 +448,6 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
           <button class="btn" id="panBtn" type="button" aria-pressed="false" title="Move around the sheet by dragging (or hold Space)" aria-label="Move around">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 1.5v13M1.5 8h13M8 1.5 6 3.5M8 1.5l2 2M8 14.5l-2-2M8 14.5l2-2M1.5 8l2-2M1.5 8l2 2M14.5 8l-2-2M14.5 8l-2 2"/></svg></button>
         </div>
-        <p class="empty">Scroll the mouse wheel to zoom in and out. To move around, hold the right mouse button and drag (Space or the wheel button work too), or turn on the arrows button. On a tablet, pinch with two fingers. Click a symbol to highlight it, and drag it to move it (highlighted symbols move together). Drag across empty paper to highlight everything in an area, then delete it all at once. Right-click a symbol for more.</p>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <h2>Conduit &amp; wire</h2>
@@ -1279,6 +1278,7 @@ function drawOverlay() {
   const m = (tool === "measure" || tool === "calibrate") && live.length ? live : (lastMeasure && lastMeasure.pageId === p.id ? lastMeasure.pts : null);
   if (m && m.length) {
     if (m.length === 2) {
+      if (lastMeasure && m === lastMeasure.pts && sel.has(lastMeasure)) g.appendChild(svgEl("polyline", { points: ptsAttr(m), class: "mk-glow-run", ...ns }));
       g.appendChild(svgEl("line", { x1: m[0][0], y1: m[0][1], x2: m[1][0], y2: m[1][1], class: "mk-meas", ...ns }));
       if (tool !== "calibrate" && p.ftPerPx) label(g, (m[0][0] + m[1][0]) / 2, (m[0][1] + m[1][1]) / 2, fmtFt(dist(m[0], m[1]) * p.ftPerPx), "meas");
     }
@@ -1351,10 +1351,10 @@ function openCtx(e) {
   if (!v) { toast("Right-click right on a symbol to delete it or add more. Hold the right button and drag to move around."); return; }
   if (!sel.has(v)) { sel.clear(); sel.add(v); }
   ctxTarget = v;
-  const isRun = !("t" in v), d = isRun ? null : devInfo(v.t);
-  $("ctxHead").textContent = sel.size > 1 ? `${sel.size} selected` : isRun ? `${v.name} · linear run` : d ? nameOf(d) + (specOf(d) ? " · " + specOf(d) : "") : "Symbol";
+  const isMeas = v === lastMeasure, isRun = !isMeas && !("t" in v), d = isRun || isMeas ? null : devInfo(v.t);
+  $("ctxHead").textContent = sel.size > 1 ? `${sel.size} selected` : isMeas ? `Measurement · ${fmtFt(dist(...v.pts) * pages[current].ftPerPx)}` : isRun ? `${v.name} · linear run` : d ? nameOf(d) + (specOf(d) ? " · " + specOf(d) : "") : "Symbol";
   $("ctxDelete").textContent = sel.size > 1 ? `Delete all ${sel.size} selected` : "Delete";
-  $("ctxMore").hidden = false;
+  $("ctxMore").hidden = isMeas;
   $("ctxMore").textContent = isRun ? "Continue this run" : "Add more of this count";
   renderSel(); drawOverlay();
   const m = $("ctxMenu"); m.hidden = false;
@@ -1396,6 +1396,8 @@ function runAt(e) {
   const q = imgPoint(e);
   let best = null, bd = 8 / k;
   p.runs.forEach(r => { for (let i = 1; i < r.pts.length; i++) { const dd = segDist(q, r.pts[i - 1], r.pts[i]); if (dd < bd) { bd = dd; best = r; } } });
+  // the measurement left on the sheet can be picked too, so it can be deleted
+  if (!best && tool !== "measure" && lastMeasure && lastMeasure.pageId === p.id && lastMeasure.pts.length === 2 && segDist(q, ...lastMeasure.pts) < bd) best = lastMeasure;
   return best;
 }
 function setSel(items, add) {
@@ -1406,12 +1408,12 @@ function setSel(items, add) {
 }
 function renderSel() {
   const p = pages[current];
-  if (p) [...sel].forEach(x => { if (!p.devices.includes(x) && !p.runs.includes(x)) sel.delete(x); });
+  if (p) [...sel].forEach(x => { if (!p.devices.includes(x) && !p.runs.includes(x) && !(x === lastMeasure && x.pageId === p.id)) sel.delete(x); });
   const n = sel.size;
   $("selBar").hidden = !n || !!tool || !!cmp;
   if (!n) return;
-  let d = 0, r = 0; sel.forEach(x => "t" in x ? d++ : r++);
-  $("selText").textContent = [d && `${d} symbol${d > 1 ? "s" : ""}`, r && `${r} run${r > 1 ? "s" : ""}`].filter(Boolean).join(" and ") + " highlighted";
+  let d = 0, r = 0, m = 0; sel.forEach(x => x === lastMeasure ? m++ : "t" in x ? d++ : r++);
+  $("selText").textContent = [d && `${d} symbol${d > 1 ? "s" : ""}`, r && `${r} run${r > 1 ? "s" : ""}`, m && "the measurement"].filter(Boolean).join(" and ") + " highlighted";
   $("selDelete").textContent = n > 1 ? `Delete all ${n}` : "Delete";
 }
 function deleteSel() {
@@ -1419,10 +1421,12 @@ function deleteSel() {
   const n = sel.size;
   remember();
   p.devices = p.devices.filter(v => !sel.has(v)); p.runs = p.runs.filter(r => !sel.has(r));
+  const measOnly = n === 1 && sel.has(lastMeasure);
+  if (sel.has(lastMeasure)) lastMeasure = null;
   placed = placed.filter(v => !sel.has(v));
   sel.clear(); hoverDev = null; saveMeta(p);
   renderSel(); renderRuns(); renderCounts(); drawOverlay(); updateHint();
-  toast(`Deleted ${n}. Press Undo to bring ${n > 1 ? "them" : "it"} back.`);
+  toast(measOnly ? "Measurement deleted." : `Deleted ${n}. Press Undo to bring ${n > 1 ? "them" : "it"} back.`);
 }
 $("selDelete").onclick = deleteSel;
 $("selClear").onclick = () => setSel([]);
@@ -1467,6 +1471,7 @@ $("sheet").addEventListener("pointerup", e => {
     const x0 = Math.min(b.start[0], b.end[0]), x1 = Math.max(b.start[0], b.end[0]), y0 = Math.min(b.start[1], b.end[1]), y1 = Math.max(b.start[1], b.end[1]);
     const inside = q => q[0] >= x0 && q[0] <= x1 && q[1] >= y0 && q[1] <= y1;
     const items = [...p.devices.filter(v => inside([v.x, v.y])), ...p.runs.filter(r => r.pts.every(inside))];
+    if (lastMeasure && lastMeasure.pageId === p.id && lastMeasure.pts.length === 2 && lastMeasure.pts.every(inside)) items.push(lastMeasure);
     if (b.add) items.forEach(x => sel.add(x)); else sel.clear(), items.forEach(x => sel.add(x));
     renderSel(); drawOverlay();
     if (!items.length) toast("Nothing in that box. Drag across the symbols you want to highlight.");
