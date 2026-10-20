@@ -167,6 +167,10 @@ button { cursor: pointer; }
 .run { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; }
 .run select { grid-column: 1 / -1; min-width: 0; height: 28px; font-size: 13px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); padding: 0 6px; margin-top: -2px; }
 .wire-swatch { width: 22px; height: 0; border-top: 4px solid; border-radius: 2px; flex: none; }
+.amp-box { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+.amp-box .sched { grid-template-columns: 1fr 1.6fr; }
+.wire-fill { font-size: 13px; color: var(--muted); }
+.wire-fill.over { color: #c92a2a; font-weight: 600; }
 .wire-prev { font-family: var(--font-mono); font-weight: 600; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 6px; }
 .run input { min-width: 0; height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); font-size: 14px; }
 .run .lf { font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -622,6 +626,13 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
   <form class="modal-card" id="wireForm" autocomplete="off">
     <h2 id="wireTitle">New run type</h2>
     <p class="hint">Pick the conduit and the wire in it. Every run you draw with this type adds to its totals.</p>
+    <div class="amp-box">
+      <div class="sched">
+        <div class="opt"><label for="wMat">Wire metal</label><select id="wMat"><option value="CU">Copper</option><option value="AL">Aluminum</option></select></div>
+        <div class="opt"><label for="wAmps">Pick by amps</label><select id="wAmps"></select></div>
+      </div>
+      <p class="hint" style="margin:0">Fills in the wire, ground and conduit size from NEC 310.16 at 75°C and 250.122. You can change any of it after.</p>
+    </div>
     <div class="sched two">
       <div class="opt"><label for="wConduit">Conduit</label><select id="wConduit"></select></div>
       <div class="opt"><label for="wSize">Conduit size</label><select id="wSize"></select></div>
@@ -631,11 +642,13 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <div class="opt"><label for="wGauge">Wire size</label><select id="wGauge"></select></div>
       <div class="opt"><label for="wIns">Wire type</label><select id="wIns"></select></div>
     </div>
-    <div class="sched two">
+    <div class="sched three">
       <div class="opt"><label for="wGround">Ground wire</label><select id="wGround"></select></div>
+      <div class="opt"><label for="wSets">Parallel sets</label><input type="number" id="wSets" min="1" max="12" step="1" inputmode="numeric"></div>
       <div class="opt"><label for="wColor">Line color</label><input type="color" id="wColor"></div>
     </div>
     <div class="wire-prev" id="wirePrev" aria-live="polite"></div>
+    <p class="wire-fill" id="wireFill"></p>
     <div class="actions">
       <button class="btn danger" type="button" id="wireDelete" hidden>Delete type</button>
       <span class="spacer"></span>
@@ -1789,14 +1802,59 @@ const CONDUITS = ["EMT", "PVC Sch 40", "PVC Sch 80", "Rigid (RMC)", "IMC", "Flex
 const CSIZES = ['1/2"', '3/4"', '1"', '1-1/4"', '1-1/2"', '2"', '2-1/2"', '3"', '3-1/2"', '4"'];
 const GAUGES = ["14", "12", "10", "8", "6", "4", "3", "2", "1", "1/0", "2/0", "3/0", "4/0", "250", "300", "350", "400", "500", "600", "750"];
 const INSUL = ["STR", "SOL", "THHN STR", "THHN SOL", "XHHW", "XHHW-2 AL", "USE-2", "Bare"];
+// NEC 310.16, 75°C column: allowable ampacity by size
+const AMPACITY = {
+  CU: { "14": 20, "12": 25, "10": 35, "8": 50, "6": 65, "4": 85, "3": 100, "2": 115, "1": 130, "1/0": 150, "2/0": 175, "3/0": 200, "4/0": 230,
+        "250": 255, "300": 285, "350": 310, "400": 335, "500": 380, "600": 420, "750": 475 },
+  AL: { "12": 20, "10": 30, "8": 40, "6": 50, "4": 65, "3": 75, "2": 90, "1": 100, "1/0": 120, "2/0": 135, "3/0": 155, "4/0": 180,
+        "250": 205, "300": 230, "350": 250, "400": 270, "500": 310, "600": 340, "750": 385 }
+};
+const SMALL_LIMIT = { CU: { "14": 15, "12": 20, "10": 30 }, AL: { "12": 15, "10": 25 } }; // 240.4(D) breaker limits for small wire
+// NEC 250.122 equipment ground by breaker size: [up to amps, copper, aluminum]
+const EGC = [[15, "14", "12"], [20, "12", "10"], [60, "10", "8"], [100, "8", "6"], [200, "6", "4"], [300, "4", "2"], [400, "3", "1"], [500, "2", "1/0"],
+  [600, "1", "2/0"], [800, "1/0", "3/0"], [1000, "2/0", "4/0"], [1200, "3/0", "250"], [1600, "4/0", "350"], [2000, "250", "400"]];
+const AMP_LIST = {
+  CU: [20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200, 225, 250, 300, 350, 380],
+  AL: [100, 110, 125, 150, 175, 200, 225, 250, 300, 310]
+};
+const AMP_BIG = { CU: [400, 450, 500, 600, 700, 800, 1000, 1200, 1600, 2000], AL: [350, 400, 450, 500, 600, 800, 1000, 1200, 1600, 2000] };
+// Chapter 9 Table 5 wire areas (sq in) for THHN/THWN-2 and XHHW-2, and Table 4 EMT total inside areas
+const AREA_THHN = { "14": .0097, "12": .0133, "10": .0211, "8": .0366, "6": .0507, "4": .0824, "3": .0973, "2": .1158, "1": .1562, "1/0": .1855, "2/0": .2223, "3/0": .2679, "4/0": .3237,
+  "250": .3970, "300": .4608, "350": .5242, "400": .5863, "500": .7073, "600": .8676, "750": 1.0496 };
+const AREA_XHHW = { "14": .0139, "12": .0181, "10": .0243, "8": .0437, "6": .0590, "4": .0814, "3": .0962, "2": .1146, "1": .1534, "1/0": .1825, "2/0": .2190, "3/0": .2642, "4/0": .3197,
+  "250": .3904, "300": .4536, "350": .5166, "400": .5782, "500": .6984, "600": .8709, "750": 1.0532 };
+const EMT_AREA = { '1/2"': .304, '3/4"': .533, '1"': .864, '1-1/4"': 1.496, '1-1/2"': 2.036, '2"': 3.356, '2-1/2"': 5.858, '3"': 8.846, '3-1/2"': 11.545, '4"': 14.753 };
+const ampOf = (mat, g) => Math.min(AMPACITY[mat][g] || 0, SMALL_LIMIT[mat][g] || Infinity);
+function sizeForAmps(mat, amps) { // smallest wire per set, using parallel sets (1/0 and up) past 500 kcmil
+  const sizes = GAUGES.filter(g => AMPACITY[mat][g]); // in wire-size order (object keys like "250" would sort first)
+  const single = sizes.find(g => ampOf(mat, g) >= amps);
+  if (single && AMPACITY[mat][single] <= AMPACITY[mat]["500"]) return { gauge: single, sets: 1 };
+  let sets = Math.ceil(amps / AMPACITY[mat]["500"]);
+  const gauge = sizes.slice(sizes.indexOf("1/0")).find(g => AMPACITY[mat][g] * sets >= amps) || "500";
+  return { gauge, sets };
+}
+const egcFor = (mat, amps) => { const row = EGC.find(x => amps <= x[0]) || EGC[EGC.length - 1]; return mat === "AL" ? row[2] : row[1]; };
+function fillOf(w) { // share of the conduit's inside area used, by EMT sizes
+  if (["MC cable", "No conduit"].includes(w.conduit)) return null;
+  const tbl = /XHHW|USE/.test(w.ins) ? AREA_XHHW : AREA_THHN;
+  const area = (tbl[w.gauge] || 0) * w.count + (w.ground ? tbl[w.ground] || 0 : 0);
+  const n = w.count + (w.ground ? 1 : 0);
+  return { used: area / (EMT_AREA[w.size] || 1), max: n === 1 ? .53 : n === 2 ? .31 : .40 };
+}
+function conduitFor(w) {
+  const sz = CSIZES.find(c => { const f = fillOf({ ...w, size: c }); return f && f.used <= f.max; });
+  return sz || CSIZES[CSIZES.length - 1];
+}
 const gaugeTxt = g => /^\d{3}$/.test(g) ? `${g} kcmil` : `#${g}`;
 function wireLabel(w) {
   if (!w) return "No type";
+  const sets = w.sets > 1 ? `${w.sets} sets of ` : "", amps = w.amps ? `${w.amps}A ${w.mat === "AL" ? "AL" : "CU"} · ` : "";
   const pipe = w.conduit === "No conduit" ? "" : w.conduit === "MC cable" ? "MC cable" : `${w.size} ${w.conduit}`;
   const wire = `${w.count}x ${gaugeTxt(w.gauge)} ${w.ins}` + (w.ground ? ` + ${gaugeTxt(w.ground)} GND` : "");
-  return pipe ? `${pipe} · ${wire}` : wire;
+  return amps + sets + (pipe ? `${pipe} · ${wire}` : wire);
 }
-const wireTotal = w => (w.count || 0) + (w.ground ? 1 : 0);
+const wireTotal = w => ((w.count || 0) + (w.ground ? 1 : 0)) * (w.sets || 1);
+const pipeRuns = w => w.sets || 1; // each parallel set is its own conduit
 function renderWires() {
   const ul = $("wireList"), list = wiresList();
   ul.replaceChildren();
@@ -1812,7 +1870,7 @@ function renderWires() {
     const tx = document.createElement("span"); tx.className = "cnt-txt";
     const nm = document.createElement("b"); nm.textContent = wireLabel(w);
     const ds = document.createElement("span"); ds.className = "d";
-    ds.textContent = lf ? `${fmtLF(lf)} of conduit · ${fmtLF(lf * wireTotal(w))} of wire` : "Nothing drawn yet";
+    ds.textContent = lf ? `${fmtLF(lf * pipeRuns(w))} of conduit · ${fmtLF(lf * wireTotal(w))} of wire` : "Nothing drawn yet";
     tx.append(nm, ds);
     b.append(sw, tx);
     b.onclick = () => startRunType(w.id);
@@ -1843,24 +1901,50 @@ function continueRun(r) {
 let editingWire = null;
 const fillSel = (id, opts, lab) => { $(id).innerHTML = opts.map(o => `<option value="${o.replace(/"/g, "&quot;")}">${(lab ? lab(o) : o).replace(/"/g, "&quot;")}</option>`).join(""); };
 fillSel("wConduit", CONDUITS); fillSel("wSize", CSIZES); fillSel("wGauge", GAUGES, gaugeTxt); fillSel("wIns", INSUL);
-$("wGround").innerHTML = `<option value="">No separate ground</option>` + GAUGES.slice(0, 12).map(g => `<option value="${g}">${gaugeTxt(g)} ground</option>`).join("");
+$("wGround").innerHTML = `<option value="">No separate ground</option>` + GAUGES.map(g => `<option value="${g}">${gaugeTxt(g)} ground</option>`).join("");
+function fillAmps() {
+  const mat = $("wMat").value, opt = a => `<option value="${a}">${a} A · ${(sz => (sz.sets > 1 ? sz.sets + " sets of " : "") + gaugeTxt(sz.gauge))(sizeForAmps(mat, a))}</option>`;
+  $("wAmps").innerHTML = `<option value="">Choose amps…</option>` + AMP_LIST[mat].map(opt).join("") +
+    `<optgroup label="Bigger: parallel sets">` + AMP_BIG[mat].map(opt).join("") + `</optgroup>`;
+}
 function wireFields() {
   return { conduit: $("wConduit").value, size: $("wSize").value, count: Math.max(1, Math.min(40, parseInt($("wCount").value, 10) || 1)),
-    gauge: $("wGauge").value, ins: $("wIns").value, ground: $("wGround").value, color: $("wColor").value };
+    gauge: $("wGauge").value, ins: $("wIns").value, ground: $("wGround").value, color: $("wColor").value,
+    sets: Math.max(1, Math.min(12, parseInt($("wSets").value, 10) || 1)), mat: $("wMat").value, amps: parseInt($("wAmps").value, 10) || null };
 }
 function wirePreview() {
   $("wSize").disabled = ["MC cable", "No conduit"].includes($("wConduit").value);
-  $("wirePrev").textContent = wireLabel(wireFields());
+  const w = wireFields();
+  $("wirePrev").textContent = wireLabel(w);
+  const f = fillOf(w), el = $("wireFill");
+  el.className = "wire-fill" + (f && f.used > f.max ? " over" : "");
+  el.textContent = !f ? "" : `Conduit fill about ${Math.round(f.used * 100)}% (EMT sizes; ${Math.round(f.max * 100)}% allowed)` +
+    (f.used > f.max ? `. Too full: try ${conduitFor(w)}.` : ".");
 }
-["wConduit", "wSize", "wCount", "wGauge", "wIns", "wGround"].forEach(id => $(id).addEventListener("input", wirePreview));
+["wConduit", "wSize", "wCount", "wGauge", "wIns", "wGround", "wSets"].forEach(id => $(id).addEventListener("input", wirePreview));
+// changing the wire by hand means it no longer matches the picked amps
+["wGauge", "wSets"].forEach(id => $(id).addEventListener("input", () => { $("wAmps").value = ""; wirePreview(); }));
+$("wMat").addEventListener("input", () => { const a = $("wAmps").value; fillAmps(); if (a && AMP_LIST[$("wMat").value].concat(AMP_BIG[$("wMat").value]).includes(+a)) { $("wAmps").value = a; pickAmps(); } else wirePreview(); });
+function pickAmps() {
+  const mat = $("wMat").value, amps = parseInt($("wAmps").value, 10);
+  if (!amps) return wirePreview();
+  const { gauge, sets } = sizeForAmps(mat, amps);
+  $("wGauge").value = gauge; $("wSets").value = sets; $("wGround").value = egcFor(mat, amps);
+  if (mat === "AL") $("wIns").value = "XHHW-2 AL"; else if ($("wIns").value === "XHHW-2 AL") $("wIns").value = "THHN STR";
+  if (parseInt($("wCount").value, 10) < 2) $("wCount").value = 3;
+  if (!["MC cable", "No conduit"].includes($("wConduit").value)) $("wSize").value = conduitFor(wireFields());
+  wirePreview();
+}
+$("wAmps").addEventListener("input", pickAmps);
 function openWire(id) {
   if (!pages.length) return;
   if (tool) setTool(null);
   const list = wiresList();
   editingWire = id ? list.find(w => w.id === id) : null;
   const last = list[list.length - 1];
-  const w = editingWire || { conduit: "EMT", size: '3/4"', count: 5, gauge: "12", ins: "STR", ground: "", ...(last ? { conduit: last.conduit, ins: last.ins } : {}) };
+  const w = editingWire || { conduit: "EMT", size: '3/4"', count: 5, gauge: "12", ins: "STR", ground: "", sets: 1, mat: "CU", amps: null, ...(last ? { conduit: last.conduit, ins: last.ins, mat: last.mat || "CU" } : {}) };
   $("wireTitle").textContent = editingWire ? "Edit run type" : "New run type";
+  $("wMat").value = w.mat || "CU"; fillAmps(); $("wAmps").value = w.amps || ""; $("wSets").value = w.sets || 1;
   $("wConduit").value = w.conduit; $("wSize").value = w.size; $("wCount").value = w.count; $("wGauge").value = w.gauge; $("wIns").value = w.ins; $("wGround").value = w.ground || "";
   $("wColor").value = w.color || PALETTE[(list.length + 3) % PALETTE.length];
   $("wireDelete").hidden = !editingWire;
