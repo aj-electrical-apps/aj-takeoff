@@ -140,7 +140,7 @@ button { cursor: pointer; }
 .cmp-help { flex-basis: 100%; }
 .cmpbar .btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
 .file-acts { display: grid; gap: 8px; }
-.file-acts .btn { display: grid; justify-items: start; text-align: left; gap: 2px; padding: 10px 14px; font-size: 15px; font-weight: 600; }
+.file-acts .btn { height: auto; min-height: 0; line-height: 1.3; display: grid; justify-items: start; text-align: left; gap: 2px; padding: 10px 14px; font-size: 15px; font-weight: 600; }
 .file-acts .btn small { font-weight: 400; font-size: 13px; opacity: .8; }
 .chip { display: inline-block; width: 14px; height: 14px; border-radius: 3px; flex: none; }
 
@@ -504,6 +504,20 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <button class="btn primary" type="submit">Overlay</button>
     </div>
   </form>
+</div>
+
+<div class="modal" id="startModal" hidden role="dialog" aria-modal="true" aria-labelledby="startTitle">
+  <div class="modal-card">
+    <h2 id="startTitle">AJ Takeoff</h2>
+    <p class="hint">What would you like to do?</p>
+    <div class="file-acts">
+      <button class="btn primary" type="button" id="startNew">New job<small>Name it, then upload the plans</small></button>
+      <button class="btn" type="button" id="startOpenFile">Open a job file…<small>A job you saved to Google Drive or got by email</small></button>
+    </div>
+    <p class="sub-h" id="startRecentHead" hidden>Open an existing job on this device</p>
+    <ul class="job-list" id="startRecent"></ul>
+    <div class="actions"><button class="btn" type="button" id="startClose">Look around the example</button></div>
+  </div>
 </div>
 
 <div class="modal" id="fileModal" hidden role="dialog" aria-modal="true" aria-labelledby="fileTitle">
@@ -1939,7 +1953,7 @@ $("labelForm").addEventListener("submit", e => {
 document.addEventListener("keydown", e => {
   if (!$("ctxMenu").hidden) return;
   const typing = !!e.target.closest("input, select, textarea");
-  if (!$("scaleModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden) return;
+  if (!$("scaleModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden) return;
   if (!typing && (e.ctrlKey || e.metaKey) && !e.altKey) {
     const key = e.key.toLowerCase();
     if (key === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
@@ -2316,6 +2330,31 @@ $("fileEmail").onclick = emailProject;
 $("fileOpen").onclick = $("jobsOpenFile").onclick = () => $("projInput").click();
 $("projInput").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) importProject(f); };
 
+/* ---------- start screen: shown each time the app opens ---------- */
+async function showStart() {
+  const counts = await sheetCounts();
+  const list = [...jobs].sort((a, b) => (b.updated || "").localeCompare(a.updated || ""));
+  const ul = $("startRecent"); ul.replaceChildren();
+  list.forEach(j => {
+    const li = document.createElement("li");
+    const b = document.createElement("button"); b.type = "button"; b.className = "job-row";
+    b.innerHTML = `<span><span class="jt"></span><br><span class="jm"></span></span><span class="js"></span>`;
+    b.querySelector(".jt").textContent = j.name;
+    b.querySelector(".jm").textContent = [j.customer, j.updated && "Last worked on " + new Date(j.updated).toLocaleDateString()].filter(Boolean).join(" · ");
+    b.querySelector(".js").textContent = `${counts[j.id] || 0} sheets`;
+    b.onclick = async () => { $("startModal").hidden = true; if (!job || job.id !== j.id) await openJob(j); };
+    li.appendChild(b); ul.appendChild(li);
+  });
+  $("startRecentHead").hidden = !list.length;
+  $("startClose").textContent = job ? `Keep working on ${job.name}` : "Look around the example";
+  $("startModal").hidden = false;
+  $("startNew").focus();
+}
+$("startNew").onclick = () => { $("startModal").hidden = true; showJobs("new"); };
+$("startOpenFile").onclick = () => { $("startModal").hidden = true; $("projInput").click(); };
+$("startClose").onclick = () => { $("startModal").hidden = true; };
+$("startModal").addEventListener("keydown", e => { if (e.key === "Escape") $("startModal").hidden = true; });
+
 /* ---------- jobs ---------- */
 // job: {id, name, customer, address, bidDate, created, updated}. null while showing the example sheets.
 let job = null, jobs = [];
@@ -2497,8 +2536,9 @@ async function loadExamples() {
   await openJob(jobs.find(j => j.id === want) || jobs[0] || null);
   try {
     const q = new URLSearchParams(location.search);
-    if (q.get("open") === "job") { showFiles(true); history.replaceState(null, "", location.pathname); }
+    if (q.get("open") === "job") { showFiles(true); history.replaceState(null, "", location.pathname); return; }
   } catch (e) {}
+  showStart();
 })();
 </script>
 </body></html>
