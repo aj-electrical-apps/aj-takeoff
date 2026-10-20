@@ -324,6 +324,10 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <div class="brand">AJ Takeoff <small>Commercial</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
+    <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 3v10M3 8h10"/></svg>
+      New job
+    </button>
     <button class="btn" id="fileBtn" type="button" title="Save this job to a file, open a job file, or email it (Ctrl+S saves)">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 2.5h9l2 2v9h-11z"/><path d="M5 2.5v4h5v-4M5 13.5v-4h6v4"/></svg>
       Save / Open
@@ -517,6 +521,18 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <p class="sub-h" id="startRecentHead" hidden>Open an existing job on this device</p>
     <ul class="job-list" id="startRecent"></ul>
     <div class="actions"><button class="btn" type="button" id="startClose">Look around the example</button></div>
+  </div>
+</div>
+
+<div class="modal" id="newModal" hidden role="dialog" aria-modal="true" aria-labelledby="newTitle">
+  <div class="modal-card">
+    <h2 id="newTitle">Save this job first?</h2>
+    <p class="hint" id="newWhy"></p>
+    <div class="file-acts">
+      <button class="btn primary" type="button" id="newSave">Save to Drive, then start new<small id="newSaveSub">You pick the folder, like Google Drive</small></button>
+      <button class="btn" type="button" id="newSkip">Don't save, start new<small>It stays on this device and in your job list</small></button>
+    </div>
+    <div class="actions"><button class="btn" type="button" id="newCancel">Cancel</button></div>
   </div>
 </div>
 
@@ -1953,7 +1969,7 @@ $("labelForm").addEventListener("submit", e => {
 document.addEventListener("keydown", e => {
   if (!$("ctxMenu").hidden) return;
   const typing = !!e.target.closest("input, select, textarea");
-  if (!$("scaleModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden) return;
+  if (!$("scaleModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden) return;
   if (!typing && (e.ctrlKey || e.metaKey) && !e.altKey) {
     const key = e.key.toLowerCase();
     if (key === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
@@ -2280,22 +2296,24 @@ function savedTo(msg) {
 }
 async function saveProject(again) {
   const file = await packJob();
-  if (!file) return;
+  if (!file) return false;
   if (window.showSaveFilePicker) {
     try {
       let h = again ? fileHandles[job.id] : null;
       if (!h) h = await window.showSaveFilePicker({ id: "ajtakeoff", suggestedName: file.name, types: [{ description: "AJ Takeoff job", accept: { "application/octet-stream": [".ajtakeoff"] } }] });
       const w = await h.createWritable(); await w.write(file); await w.close();
       fileHandles[job.id] = h;
-      return savedTo(`Saved ${h.name} at ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`);
-    } catch (e) { if (e && e.name === "AbortError") return; } // not allowed here: fall back to a download
+      savedTo(`Saved ${h.name} at ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`);
+      return true;
+    } catch (e) { if (e && e.name === "AbortError") return false; } // not allowed here: fall back to a download
   }
   if (matchMedia("(pointer: coarse)").matches && navigator.canShare && navigator.canShare({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: job.name }); return savedTo("Saved. Pick Drive in that list to keep it in Google Drive."); }
-    catch (e) { if (e && e.name === "AbortError") return; }
+    try { await navigator.share({ files: [file], title: job.name }); savedTo("Saved. Pick Drive in that list to keep it in Google Drive."); return true; }
+    catch (e) { if (e && e.name === "AbortError") return false; }
   }
   downloadFile(file);
   savedTo(`Saved to your Downloads folder as ${file.name}. Move it into your Google Drive folder to open it on other devices.`);
+  return true;
 }
 async function emailProject() {
   const file = await packJob();
@@ -2329,6 +2347,30 @@ $("fileSave").onclick = () => saveProject(false);
 $("fileEmail").onclick = emailProject;
 $("fileOpen").onclick = $("jobsOpenFile").onclick = () => $("projInput").click();
 $("projInput").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) importProject(f); };
+
+/* ---------- New job: offer to save the open job to Drive first ---------- */
+$("newJobBtn").onclick = async () => {
+  if (tool) setTool(null);
+  if (!job || !pages.some(p => !p.example)) return showJobs("new");
+  commitName();
+  const viaConnector = !!(await mcpReady);
+  $("newWhy").textContent = `Before starting a new job, do you want to save ${job.name} to Google Drive? Either way it stays in your job list on this device.`;
+  $("newSaveSub").textContent = viaConnector ? "Saves to the AJ Takeoff Jobs folder in your Google Drive" : "You pick the folder, like Google Drive";
+  $("newModal").hidden = false; $("newSave").focus();
+};
+$("newSave").onclick = async () => {
+  $("newModal").hidden = true;
+  let ok;
+  if (await mcpReady) { // inside Claude: the Google Drive connector saves it
+    syncWanted = true; await runSync();
+    ok = $("driveStatus").className.indexOf("bad") < 0;
+    if (!ok) toast("Couldn't save to Google Drive, so the new job wasn't started. Try again, or pick Don't save.");
+  } else ok = await saveProject(false);
+  if (ok) showJobs("new");
+};
+$("newSkip").onclick = () => { $("newModal").hidden = true; showJobs("new"); };
+$("newCancel").onclick = () => { $("newModal").hidden = true; };
+$("newModal").addEventListener("keydown", e => { if (e.key === "Escape") $("newModal").hidden = true; });
 
 /* ---------- start screen: shown each time the app opens ---------- */
 async function showStart() {
