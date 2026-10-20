@@ -5,8 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
 <title>AJ Commercial Takeoff</title>
-</head>
-<body>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap">
@@ -420,7 +418,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
           <button class="btn" id="panBtn" type="button" aria-pressed="false" title="Move around the sheet by dragging (or hold Space)" aria-label="Move around">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 1.5v13M1.5 8h13M8 1.5 6 3.5M8 1.5l2 2M8 14.5l-2-2M8 14.5l2-2M1.5 8l2-2M1.5 8l2 2M14.5 8l-2-2M14.5 8l-2 2"/></svg></button>
         </div>
-        <p class="empty">Scroll the mouse wheel to zoom in and out. To move around, hold Space or the wheel button and drag, or turn on the arrows button. On a tablet, pinch with two fingers. Click a symbol to highlight it. Drag across the sheet to highlight everything in an area, then delete it all at once. Right-click a symbol for more.</p>
+        <p class="empty">Scroll the mouse wheel to zoom in and out. To move around, hold the right mouse button and drag (Space or the wheel button work too), or turn on the arrows button. On a tablet, pinch with two fingers. Click a symbol to highlight it. Drag across the sheet to highlight everything in an area, then delete it all at once. Right-click a symbol for more.</p>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <h2>Counts</h2>
@@ -1210,7 +1208,7 @@ function symbolAt(e) {
 function openCtx(e) {
   if (cmp) return;
   const v = symbolAt(e) || runAt(e);
-  if (!v) { toast("Right-click right on a symbol to delete it or add more."); return; }
+  if (!v) { toast("Right-click right on a symbol to delete it or add more. Hold the right button and drag to move around."); return; }
   if (!sel.has(v)) { sel.clear(); sel.add(v); }
   ctxTarget = v;
   const isRun = !("t" in v), d = isRun ? null : devInfo(v.t);
@@ -1225,7 +1223,8 @@ function openCtx(e) {
   $("ctxDelete").focus();
 }
 function closeCtx() { if ($("ctxMenu").hidden) return; $("ctxMenu").hidden = true; ctxTarget = null; drawOverlay(); }
-$("sheet").addEventListener("contextmenu", e => { e.preventDefault(); if (pressT === "fired") return; openCtx(e); });
+// right mouse button is handled on release (drag pans, a still click opens the menu); this keeps the keyboard menu key working
+$("sheet").addEventListener("contextmenu", e => { e.preventDefault(); if (pressT === "fired" || rightBtn) return; openCtx(e); });
 $("sheet").addEventListener("pointerdown", e => {
   if (e.pointerType === "mouse") return;
   clearTimeout(pressT); pressAt = [e.clientX, e.clientY];
@@ -1653,7 +1652,7 @@ $("zoomIn").onclick = () => zoomCenter(1.4);
 $("zoomOut").onclick = () => zoomCenter(1 / 1.4);
 $("zoomFit").onclick = () => setZoom("FULL");
 
-let spaceDown = false, panMode = false, pan = null, panMoved = false;
+let spaceDown = false, panMode = false, pan = null, panMoved = false, rightBtn = false;
 const touches = new Map();
 let pinch = null;
 function setPanMode(on) { panMode = on; $("panBtn").setAttribute("aria-pressed", on ? "true" : "false"); $("stage").classList.toggle("can-pan", on || spaceDown); }
@@ -1672,10 +1671,12 @@ $("stage").addEventListener("pointerdown", e => {
     }
     return;
   }
-  const want = e.button === 1 || (e.button === 0 && (spaceDown || panMode));
+  if (e.button === 2) { rightBtn = true; closeCtx(); }
+  const want = e.button === 1 || e.button === 2 || (e.button === 0 && (spaceDown || panMode));
   if (!want) { panMoved = false; return; }
   e.preventDefault(); e.stopPropagation();
-  pan = { id: e.pointerId, x: e.clientX, y: e.clientY, v: { ...viewOf(p) } }; panMoved = true;
+  // a right-button press only counts as a pan once it moves; until then it may be a click for the menu
+  pan = { id: e.pointerId, x: e.clientX, y: e.clientY, v: { ...viewOf(p) }, right: e.button === 2, moved: e.button !== 2 }; panMoved = e.button !== 2;
   try { $("stage").setPointerCapture(e.pointerId); } catch (_) {}
   $("stage").classList.add("panning");
 }, true);
@@ -1694,19 +1695,27 @@ $("stage").addEventListener("pointermove", e => {
   if (touches.has(e.pointerId)) touches.set(e.pointerId, [e.clientX, e.clientY]);
   if (!pan || e.pointerId !== pan.id) return;
   const dx = e.clientX - pan.x, dy = e.clientY - pan.y;
+  if (!pan.moved) { if (Math.hypot(dx, dy) < 5) return; pan.moved = true; }
   setView({ z: pan.v.z, tx: pan.v.tx + dx, ty: pan.v.ty + dy });
   e.stopPropagation();
 }, true);
 function endPointer(e) {
   touches.delete(e.pointerId);
   if (pinch && touches.size < 2) { pinch = null; e.stopPropagation(); }
-  if (pan && e.pointerId === pan.id) { pan = null; $("stage").classList.remove("panning"); e.stopPropagation(); }
+  if (pan && e.pointerId === pan.id) {
+    const still = pan.right && !pan.moved && e.type === "pointerup";
+    pan = null; $("stage").classList.remove("panning"); e.stopPropagation();
+    const under = document.elementFromPoint(e.clientX, e.clientY);
+    if (still && under && under.closest("#sheet")) openCtx(e);
+  }
+  if (rightBtn) setTimeout(() => { rightBtn = false; }, 300); // outlast the contextmenu event that follows the release on Windows
 }
 $("stage").addEventListener("pointerup", endPointer, true);
 $("stage").addEventListener("pointercancel", endPointer, true);
 // a drag that moved the sheet isn't also a click on it
 $("stage").addEventListener("click", e => { if (panMoved) { panMoved = false; e.stopPropagation(); e.preventDefault(); } }, true);
 $("stage").addEventListener("auxclick", e => { if (e.button === 1) e.preventDefault(); });
+$("stage").addEventListener("contextmenu", e => e.preventDefault());
 $("stage").addEventListener("mousedown", e => { if (e.button === 1) e.preventDefault(); });
 addEventListener("keydown", e => {
   if (e.code !== "Space" || e.repeat || e.target.closest("input, select, textarea, button")) return;
@@ -2172,6 +2181,4 @@ async function loadExamples() {
   await openJob(jobs.find(j => j.id === want) || jobs[0] || null);
 })();
 </script>
-
-</body>
-</html>
+</body></html>
