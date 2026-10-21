@@ -639,6 +639,22 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
   </form>
 </div>
 
+<div class="modal" id="ampModal" hidden role="dialog" aria-modal="true" aria-labelledby="ampTitle">
+  <form class="modal-card" id="ampForm" autocomplete="off">
+    <h2 id="ampTitle">Water heater</h2>
+    <p class="hint">Pick the amps and voltage, then click the sheet to place it. The same amps and voltage add to the same count.</p>
+    <div class="sched two">
+      <div class="opt"><label for="ampAmps">Amps</label><select id="ampAmps"></select></div>
+      <div class="opt"><label for="ampVolts">Voltage</label><select id="ampVolts"></select></div>
+    </div>
+    <div class="actions">
+      <span class="spacer"></span>
+      <button class="btn" type="button" id="ampCancel">Cancel</button>
+      <button class="btn primary" type="submit" id="ampSave">Place it</button>
+    </div>
+  </form>
+</div>
+
 <div class="modal" id="wireModal" hidden role="dialog" aria-modal="true" aria-labelledby="wireTitle">
   <form class="modal-card" id="wireForm" autocomplete="off">
     <h2 id="wireTitle">New run type</h2>
@@ -890,6 +906,25 @@ function applyZoom() {
 $("sheetImg").addEventListener("load", applyZoom);
 new ResizeObserver(applyZoom).observe($("stage"));
 
+// Items taken out of the toolbox. Older jobs may still have them placed, so they keep drawing.
+const RETIRED = {
+  receptacle_240v:[
+    {id:'240-30',manufacturer:'Hubbell',model:'HBL9430, 30A receptacle, NEMA 6-30R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'48 in',sym1:'30A'},
+    {id:'240-50',manufacturer:'Hubbell',model:'HBL9450, 50A receptacle, NEMA 6-50R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'48 in',sym1:'50A'},
+    {id:'RNG-50',manufacturer:'Hubbell',model:'HBL9450FR, range 50A, NEMA 14-50R',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'18 in',sym1:'RANGE',sym2:'50A'},
+    {id:'RV-30',manufacturer:'Hubbell',model:'HBL9330, RV 30A, NEMA TT-30R',wattage:null,voltage:'120V',lumens:null,mountingHeight:'48 in',sym1:'RV',sym2:'30A'},
+    {id:'RV-50',manufacturer:'Hubbell',model:'HBL9450RV, RV 50A, NEMA 14-50R',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'48 in',sym1:'RV',sym2:'50A'},
+    {id:'WLD-30',manufacturer:'Hubbell',model:'HBL9330W, welder 30A, NEMA 6-30R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'48 in',sym1:'WELD',sym2:'30A'},
+    {id:'WLD-50',manufacturer:'Hubbell',model:'HBL9450W, welder 50A, NEMA 6-50R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'48 in',sym1:'WELD',sym2:'50A'},
+    {id:'WH-30',manufacturer:'Hubbell',model:'HBL9330WH, water heater 30A',wattage:null,voltage:'240V',lumens:null,mountingHeight:'48 in',sym1:'WH',sym2:'30A'}
+  ],
+  ev_charger:[
+    {id:'EV-50',manufacturer:'Siemens',model:'VersiCharge, EV charger 50A',wattage:null,voltage:'240V',lumens:null,mountingHeight:'18 in'}
+  ],
+  junction_box:[
+    {id:'JB-1',manufacturer:'Generic',model:'4-11/16 sq, pull box',wattage:null,voltage:null,lumens:null,mountingHeight:'varies'}
+  ]
+};
 const FIXTURES = {
   high_bay:[
     {id:'HB-1',manufacturer:'Lithonia',model:'IBG 24L, 120W',wattage:120,voltage:'120-277V',lumens:18000,mountingHeight:'16 ft',size:'standard'},
@@ -933,18 +968,15 @@ const FIXTURES = {
   weatherproof_receptacle:[
     {id:'WP-R1',manufacturer:'Taymac',model:'MM410, in-use cover, WR GFCI 20A',wattage:null,voltage:'120V',lumens:null,mountingHeight:'18 in'}
   ],
-  receptacle_240v:[
-    {id:'240-30',manufacturer:'Hubbell',model:'HBL9430, 30A receptacle, NEMA 6-30R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'48 in',sym1:'30A'},
-    {id:'240-50',manufacturer:'Hubbell',model:'HBL9450, 50A receptacle, NEMA 6-50R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'48 in',sym1:'50A'},
-    {id:'RNG-50',manufacturer:'Hubbell',model:'HBL9450FR, range 50A, NEMA 14-50R',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'18 in',sym1:'RANGE',sym2:'50A'},
-    {id:'RV-30',manufacturer:'Hubbell',model:'HBL9330, RV 30A, NEMA TT-30R',wattage:null,voltage:'120V',lumens:null,mountingHeight:'48 in',sym1:'RV',sym2:'30A'},
-    {id:'RV-50',manufacturer:'Hubbell',model:'HBL9450RV, RV 50A, NEMA 14-50R',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'48 in',sym1:'RV',sym2:'50A'},
-    {id:'WLD-30',manufacturer:'Hubbell',model:'HBL9330W, welder 30A, NEMA 6-30R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'48 in',sym1:'WELD',sym2:'30A'},
-    {id:'WLD-50',manufacturer:'Hubbell',model:'HBL9450W, welder 50A, NEMA 6-50R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'48 in',sym1:'WELD',sym2:'50A'},
-    {id:'WH-30',manufacturer:'Hubbell',model:'HBL9330WH, water heater 30A',wattage:null,voltage:'240V',lumens:null,mountingHeight:'48 in',sym1:'WH',sym2:'30A'}
-  ],
-  ev_charger:[
-    {id:'EV-50',manufacturer:'Siemens',model:'VersiCharge, EV charger 50A',wattage:null,voltage:'240V',lumens:null,mountingHeight:'18 in'}
+  special:[
+    {id:'WH',manufacturer:'',model:'Water heater',ask:true},
+    {id:'RNG',manufacturer:'',model:'Range',ask:true},
+    {id:'DRY',manufacturer:'',model:'Dryer',ask:true},
+    {id:'WLD',manufacturer:'',model:'Welder',ask:true},
+    {id:'PLS',manufacturer:'',model:'Plasma cutter',ask:true},
+    {id:'FLC',manufacturer:'',model:'Forklift charger',ask:true},
+    {id:'DD',manufacturer:'',model:'Dedicated drop',ask:true},
+    {id:'JB',manufacturer:'',model:'Junction box',ask:true}
   ],
   switch:[
     {id:'SW-1',manufacturer:'Leviton',model:'1451, single-pole',wattage:null,voltage:'120/277V',lumens:null,mountingHeight:'48 in',way:1},
@@ -982,9 +1014,6 @@ const FIXTURES = {
     {id:'SVC-UG200',manufacturer:'Utility',model:'Underground service, 200A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'200A'},
     {id:'SVC-UG400',manufacturer:'Utility',model:'Underground service, 400A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'400A'}
   ],
-  junction_box:[
-    {id:'JB-1',manufacturer:'Generic',model:'4-11/16 sq, pull box',wattage:null,voltage:null,lumens:null,mountingHeight:'varies'}
-  ],
   fan:[
     {id:'FAN-1',manufacturer:'Big Ass Fans',model:'Basic 6, agricultural ceiling fan',wattage:750,voltage:'120-240V',lumens:null,mountingHeight:'14 ft',size:'large',symbolType:'ceiling'},
     {id:'FAN-3',manufacturer:'Generic',model:'Standard 52 in ceiling fan',wattage:75,voltage:'120V',lumens:null,mountingHeight:'9 ft',size:'small',symbolType:'ceiling'},
@@ -997,23 +1026,29 @@ const FIXTURES = {
 const GROUPS = [
   { key: "lights", name: "Lights", shape: "circle", types: ["high_bay", "linear_light", "recessed_light", "wall_pack", "sconce", "barn_light", "uplight", "flood_light"] },
   { key: "switches", name: "Switches", shape: "triangle", types: ["switch", "occupancy_switch"] },
-  { key: "recept", name: "Receptacles", shape: "square", types: ["duplex_receptacle", "quad_receptacle", "gfci_receptacle", "weatherproof_receptacle", "receptacle_240v", "ev_charger"] },
+  { key: "recept", name: "Receptacles", shape: "square", types: ["duplex_receptacle", "quad_receptacle", "gfci_receptacle", "weatherproof_receptacle"] },
+  { key: "special", name: "240V & special", shape: "square", types: ["special"] },
   { key: "fans", name: "Fans", shape: "diamond", types: ["fan"] },
-  { key: "gear", name: "Panels & gear", shape: "hexagon", types: ["panel", "disconnect", "meter", "service_overhead", "service_underground", "junction_box"] }
+  { key: "gear", name: "Panels & gear", shape: "hexagon", types: ["panel", "disconnect", "meter", "service_overhead", "service_underground"] }
 ];
 const KIND = { high_bay: "High bay", linear_light: "Linear", recessed_light: "Recessed can", wall_pack: "Wall pack", sconce: "Sconce", barn_light: "Barn light",
   uplight: "Uplight", flood_light: "Flood", duplex_receptacle: "Duplex", quad_receptacle: "Quad", gfci_receptacle: "GFCI", weatherproof_receptacle: "Weatherproof GFCI",
-  receptacle_240v: "240V / special", ev_charger: "EV charger", switch: "Switch", occupancy_switch: "Occupancy sensor", fan: "Fan", panel: "Panel",
+  receptacle_240v: "240V / special", ev_charger: "EV charger", special: "Special", switch: "Switch", occupancy_switch: "Occupancy sensor", fan: "Fan", panel: "Panel",
   disconnect: "Disconnect", meter: "Meter base", service_overhead: "Overhead service", service_underground: "Underground service", junction_box: "Junction box" };
 const PALETTE = ["#f2b705", "#e8590c", "#2f9e44", "#1c7ed6", "#ae3ec9", "#e64980", "#15aabf", "#82c91e", "#7048e8", "#a5672a", "#fa5252", "#495057", "#ffd8a8", "#99e9f2", "#d0bfff"];
 const DEVICES = {}; // id -> {id, label, model, group, shape, color}
 GROUPS.forEach(g => {
   g.items = [];
   g.types.forEach(t => (FIXTURES[t] || []).forEach(f => {
-    const d = { id: f.id, kind: KIND[t] || t, model: f.model, maker: f.manufacturer, watts: f.wattage, volts: f.voltage, group: g.key, shape: g.shape, color: PALETTE[g.items.length % PALETTE.length] };
+    const d = f.ask ? { id: f.id, kind: f.model, model: "Pick amps and volts", maker: "", ask: true, group: g.key, shape: g.shape, color: PALETTE[g.items.length % PALETTE.length] }
+      : { id: f.id, kind: KIND[t] || t, model: f.model, maker: f.manufacturer, watts: f.wattage, volts: f.voltage, group: g.key, shape: g.shape, color: PALETTE[g.items.length % PALETTE.length] };
     g.items.push(d); DEVICES[f.id] = d;
   }));
 });
+Object.entries(RETIRED).forEach(([t, list]) => list.forEach((f, i) => {
+  const g = t === "junction_box" ? GROUPS.find(g => g.key === "gear") : GROUPS.find(g => g.key === "special");
+  DEVICES[f.id] = { id: f.id, kind: KIND[t] || t, model: f.model, maker: f.manufacturer, volts: f.voltage, group: g.key, shape: g.shape, color: PALETTE[(i + 8) % PALETTE.length] };
+}));
 
 // One shape drawer for the toolbox swatches and the marks on the sheet. r = half size.
 function shapeEl(d, cx, cy, r, cls) {
@@ -1056,10 +1091,10 @@ function buildToolbox() {
       b.setAttribute("aria-pressed", "false"); b.title = `${d.maker} ${d.model}`;
       b.appendChild(swatch(d));
       const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = d.kind;
-      const sm = document.createElement("small"); sm.textContent = `${d.id} · ${d.model}`; nm.appendChild(sm);
+      const sm = document.createElement("small"); sm.textContent = d.ask ? d.model : `${d.id} · ${d.model}`; nm.appendChild(sm);
       const ct = document.createElement("span"); ct.className = "ct";
       b.append(nm, ct);
-      b.onclick = () => openCount(null, d.id);
+      b.onclick = () => d.ask ? openAmps(d.id) : openCount(null, d.id);
       wrap.appendChild(b);
     });
     det.appendChild(wrap); box.appendChild(det);
@@ -1074,13 +1109,14 @@ const countsList = () => job ? (job.counts || (job.counts = [])) : exampleCounts
 function devInfo(t) {
   const c = countsList().find(c => c.id === t);
   if (c) { const b = DEVICES[c.base] || Object.values(DEVICES)[0]; return { ...b, id: c.id, base: c.base, color: c.color || b.color, tag: c.tag || "", desc: c.desc || "", custom: true,
-    sMaker: c.maker || "", sModel: c.model || "", sWatts: c.watts || "", sVolts: c.volts || "", sMount: c.mount || "" }; }
+    sMaker: c.maker || "", sModel: c.model || "", sWatts: c.watts || "", sVolts: c.volts || "", sMount: c.mount || "", amps: c.amps || "" }; }
   return DEVICES[t];
 }
-const nameOf = d => d.custom ? (d.tag ? `Type ${d.tag}` : d.kind) : `${d.id} ${d.kind}`;
+const ampsLine = d => [d.amps && `${d.amps}A`, d.sVolts].filter(Boolean).join(" ");
+const nameOf = d => d.custom ? (d.tag ? `Type ${d.tag}` : d.amps ? `${d.kind} ${ampsLine(d)}` : d.kind) : `${d.id} ${d.kind}`;
 // one line for a fixture type: maker and model, then the schedule's description, watts, volts and mounting
 const specOf = d => d.custom
-  ? [[d.sMaker, d.sModel].filter(Boolean).join(" "), d.desc, d.sWatts && `${d.sWatts}${/w$/i.test(d.sWatts) ? "" : " W"}`, d.sVolts && `${d.sVolts}${/v$/i.test(d.sVolts) ? "" : " V"}`, d.sMount].filter(Boolean).join(" · ")
+  ? [[d.sMaker, d.sModel].filter(Boolean).join(" "), d.desc, d.sWatts && `${d.sWatts}${/w$/i.test(d.sWatts) ? "" : " W"}`, d.amps ? (d.tag && ampsLine(d)) : d.sVolts && `${d.sVolts}${/v$/i.test(d.sVolts) ? "" : " V"}`, d.sMount].filter(Boolean).join(" · ")
   : `${d.maker} ${d.model}`;
 
 function renderCounts() {
@@ -1107,8 +1143,8 @@ function renderCounts() {
     b.appendChild(swatch(d));
     const tx = document.createElement("span"); tx.className = "cnt-txt";
     const nm = document.createElement("b"); nm.textContent = nameOf(d);
-    const kind = document.createElement("span"); kind.textContent = d.custom ? ` · ${d.kind}` : "";
-    const ds = document.createElement("span"); ds.className = "d"; ds.textContent = d.custom ? (specOf(d) || "No schedule info yet. Tap the pencil to add it.") : specOf(d);
+    const kind = document.createElement("span"); kind.textContent = d.custom && !(d.amps && !d.tag) ? ` · ${d.kind}` : "";
+    const ds = document.createElement("span"); ds.className = "d"; ds.textContent = d.custom ? (specOf(d) || (d.amps ? "Tap the pencil to add a make and model" : "No schedule info yet. Tap the pencil to add it.")) : specOf(d);
     tx.append(nm, kind, ds);
     const n = document.createElement("span"); n.className = "cnt-n"; n.innerHTML = `${nS}<small>of ${nA}</small>`;
     b.append(tx, n);
@@ -1150,6 +1186,40 @@ function openCount(id, base) {
   $("cntTag").focus();
 }
 $("addCountBtn").onclick = () => openCount(null);
+
+/* 240V and special items: ask the amps and voltage, then place. Each amps + voltage pair is its own count. */
+const ASK_AMPS = [15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200, 225, 250, 300, 350, 400];
+const ASK_VOLTS = ["120V", "208V", "240V", "277V", "480V", "120/208V 3-phase", "120/240V", "208V 3-phase", "240V 3-phase", "277/480V 3-phase", "480V 3-phase"];
+$("ampAmps").innerHTML = ASK_AMPS.map(a => `<option value="${a}">${a} A</option>`).join("");
+$("ampVolts").innerHTML = ASK_VOLTS.map(v => `<option>${v}</option>`).join("");
+let ampBase = null;
+const ASK_DEFAULT = { WH: [30, "240V"], RNG: [50, "120/240V"], DRY: [30, "120/240V"], WLD: [50, "240V"], PLS: [40, "240V"], FLC: [30, "480V 3-phase"], DD: [20, "120V"], JB: [20, "120V"] };
+function openAmps(base) {
+  if (!pages.length) return;
+  if (tool) setTool(null);
+  ampBase = base;
+  const last = countsList().filter(c => c.base === base && c.amps).pop();
+  const [a, v] = last ? [last.amps, last.volts] : ASK_DEFAULT[base] || [20, "120V"];
+  $("ampTitle").textContent = DEVICES[base].kind;
+  $("ampAmps").value = String(a); $("ampVolts").value = v;
+  $("ampModal").hidden = false; $("ampAmps").focus();
+}
+$("ampCancel").onclick = () => { $("ampModal").hidden = true; };
+$("ampModal").addEventListener("keydown", e => { if (e.key === "Escape") $("ampModal").hidden = true; });
+$("ampForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const amps = $("ampAmps").value, volts = $("ampVolts").value, list = countsList();
+  let c = list.find(c => c.base === ampBase && String(c.amps) === amps && c.volts === volts);
+  if (!c) {
+    remember([]);
+    c = { id: uid(), base: ampBase, tag: "", desc: "", color: PALETTE[list.length % PALETTE.length], maker: "", model: "", watts: "", volts, mount: "", amps };
+    list.push(c);
+    if (job) { job.updated = new Date().toISOString(); saveJob(job); }
+  }
+  $("ampModal").hidden = true;
+  renderCounts(); drawOverlay();
+  setTool("place", c.id);
+});
 $("cntCancel").onclick = () => { $("countModal").hidden = true; };
 $("countModal").addEventListener("keydown", e => { if (e.key === "Escape") $("countModal").hidden = true; });
 $("cntDelete").onclick = () => {
@@ -2247,7 +2317,7 @@ $("labelForm").addEventListener("submit", e => {
 document.addEventListener("keydown", e => {
   if (!$("ctxMenu").hidden) return;
   const typing = !!e.target.closest("input, select, textarea");
-  if (!$("scaleModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden || !$("wireModal").hidden || !$("sendModal").hidden) return;
+  if (!$("scaleModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden || !$("wireModal").hidden || !$("sendModal").hidden || !$("ampModal").hidden) return;
   if (!typing && (e.ctrlKey || e.metaKey) && !e.altKey) {
     const key = e.key.toLowerCase();
     if (key === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
