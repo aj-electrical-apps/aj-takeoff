@@ -1422,16 +1422,18 @@ const feedOf = () => job ? (job.feed || (job.feed = {})) : exampleFeed;
 const FEED_GROUPS = ["ceil", "open", "ext", "emer", "fans", "sw", "ctl", "rcp", "spec", "rmt", "lights", "switches", "recept", "special"];
 const feedable = d => !!d && FEED_GROUPS.includes(d.group) && !d.drop;
 function feedPreset(d) {
-  if (d.kindName === "Pole light") return { method: "conduit", conduit: "PVC Sch 40", size: '1"', gauge: "8", wires: 3, ft: 500 };
   if (d.kindName === "Dedicated drop") return { method: "conduit", conduit: "EMT", size: '3/4"', gauge: "12", wires: 3, ft: 100 };
-  // bigger amps get the wire size for those amps (NEC 310.16), still 25' of MC to start
-  const amps = parseInt(d.amps, 10), g = amps > 20 && typeof sizeForAmps === "function" ? sizeForAmps("CU", amps).gauge : "12";
-  return { method: "mc", conduit: "EMT", size: '3/4"', gauge: g, wires: 2, ft: 25 };
+  // pole lights and specialty receptacles start empty: Jonathan fills those in per job
+  if (d.kindName === "Pole light" || ["spec", "special"].includes(d.group)) {
+    const amps = parseInt(d.amps, 10), g = amps > 20 && typeof sizeForAmps === "function" ? sizeForAmps("CU", amps).gauge : "12";
+    return { method: "conduit", conduit: "EMT", size: '3/4"', gauge: g, wires: 3, ft: 0 };
+  }
+  return { method: "mc", conduit: "EMT", size: '3/4"', gauge: "12", wires: 2, ft: 25 };
 }
 const feedFor = d => ({ ...feedPreset(d), ...(feedOf()[d.id] || {}) });
 const FEED_METHODS = { mc: "MC cable", mclv: "MC with low-voltage", conduit: "Conduit and wire" };
 const mcName = f => `${f.gauge}/${f.wires} MC cable${f.method === "mclv" ? " with low-voltage pair" : ""}`;
-const feedText = f => f.method === "conduit" ? `${f.ft}' of ${f.size} ${f.conduit} with ${f.wires}x ${gaugeTxt(f.gauge)} each` : `${f.ft}' of ${mcName(f)} each`;
+const feedText = f => !f.ft ? "not set yet, click to add" : f.method === "conduit" ? `${f.ft}' of ${f.size} ${f.conduit} with ${f.wires}x ${gaugeTxt(f.gauge)} each` : `${f.ft}' of ${mcName(f)} each`;
 let feedOpen = null; // count sheet row whose wiring editor is open
 const extraOf = () => job ? (job.extra || (job.extra = {})) : exampleExtra;
 let tsView = "count";
@@ -1471,7 +1473,7 @@ function takeoffRows() {
       if (w.ground) add(`${w.id}:g`, `${gaugeTxt(w.ground)} ground ${mat}`, `${sets} ground${sets > 1 ? "s" : ""} × ${fmtLF(lf)} · ${wireLabel(w)}`, lf * sets, `${gaugeTxt(w.ground)} ${mat === "AL" ? "aluminum" : "copper"} ground wire`);
     }
   });
-  counts.filter(c => c.feed).forEach(c => {
+  counts.filter(c => c.feed && c.feed.ft).forEach(c => {
     const f = c.feed, base = c.qty * f.ft, sub = `${c.qty} × ${f.ft}' for ${c.name}`;
     if (f.method === "conduit") {
       foot.push({ key: `feed:${c.id}:c`, label: `${f.size} ${f.conduit}`, sub, base, pct: +ex[`feed:${c.id}:c`] || 0, sup: `${f.size} ${f.conduit} conduit`, color: c.color });
@@ -1520,7 +1522,7 @@ function renderTakeoff() {
       <label>${f.method === "conduit" ? "Wires" : "Conductors"}<input type="number" data-f="wires" min="1" max="12" value="${f.wires}"></label>
       ${f.method === "conduit" ? `<label>Conduit<select data-f="conduit">${opt(CONDUITS.filter(x => !["MC cable", "No conduit"].includes(x)), f.conduit)}</select></label>
       <label>Size<select data-f="size">${opt(CSIZES, f.size)}</select></label>` : ""}
-      <label>Avg feet per fixture<input type="number" data-f="ft" min="1" max="5000" value="${f.ft}"></label>
+      <label>Avg feet per fixture<input type="number" data-f="ft" min="0" max="5000" value="${f.ft}"></label>
       <button class="btn sm" type="button" data-f="done">Done</button></div></td></tr>`; };
     bySection(counts).forEach(sec => h += `<tr class="sec"><td colspan="4">${esc(sec.title)}</td></tr>` + sec.rows.map(c => `<tr><td><span class="sw" style="background:${c.color}"></span>${esc(c.name)}${c.what ? `<small>${esc(c.what)}</small>` : ""}<small>${esc(c.by.map(x => `${x[0]}: ${x[1]}`).join(" · "))}</small>${c.feed ? `<button type="button" class="feed-btn no-print" data-id="${esc(c.id)}">Wiring: ${esc(feedText(c.feed))} ✎</button>` : ""}</td><td class="n">${c.qty}</td><td></td><td class="n"><b>${c.qty}</b></td></tr>` + (c.feed && feedOpen === c.id ? editor(c) : "")).join(""));
     if (foot.length) h += `<tr class="sec"><td colspan="4">Conduit and wire footage</td></tr>` + foot.map(f => `<tr><td><span class="sw" style="background:${f.color}"></span>${esc(f.label)}<small>${esc(f.sub)}</small></td><td class="n">${fmtLF(f.base)}</td><td class="n"><input type="number" class="ts-pct" min="0" max="100" step="1" data-key="${esc(f.key)}" value="${f.pct || ""}" placeholder="0" aria-label="Extra percent for ${esc(f.label)}"> %</td><td class="n"><b>${f.total.toLocaleString()} LF</b></td></tr>`).join("");
@@ -1530,7 +1532,7 @@ function renderTakeoff() {
       const id = el.closest(".feed-grid").dataset.id;
       if (el.dataset.f === "done") { el.onclick = () => { feedOpen = null; renderTakeoff(); }; return; }
       el.onchange = () => {
-        const fd = feedOf(), k = el.dataset.f, v = el.type === "number" ? Math.max(1, parseInt(el.value, 10) || 1) : el.value;
+        const fd = feedOf(), k = el.dataset.f, v = el.type === "number" ? Math.max(k === "ft" ? 0 : 1, parseInt(el.value, 10) || 0) : el.value;
         fd[id] = { ...(fd[id] || {}), [k]: v };
         if (k === "method") fd[id].wires = v === "conduit" ? 3 : 2;
         if (job) saveJob(job);
