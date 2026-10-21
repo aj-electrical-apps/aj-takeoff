@@ -141,6 +141,8 @@ button { cursor: pointer; }
 .cmpbar .btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
 .file-acts { display: grid; gap: 8px; }
 .file-acts .btn { height: auto; min-height: 0; line-height: 1.3; display: grid; justify-items: start; text-align: left; gap: 2px; padding: 10px 14px; font-size: 15px; font-weight: 600; }
+.file-acts a.btn { text-decoration: none; color: var(--ink); cursor: pointer; }
+.file-acts a.btn.primary { color: var(--accent-fg); }
 .file-acts .btn small { font-weight: 400; font-size: 13px; opacity: .8; }
 .chip { display: inline-block; width: 14px; height: 14px; border-radius: 3px; flex: none; }
 
@@ -548,15 +550,31 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
   </div>
 </div>
 
+<div class="modal" id="sendModal" hidden role="dialog" aria-modal="true" aria-labelledby="sendTitle">
+  <div class="modal-card">
+    <h2 id="sendTitle">Send this job</h2>
+    <p class="hint">The job is uploaded. Whoever clicks this link gets the app with the job already open, on any computer, tablet or phone.</p>
+    <div class="file-acts">
+      <a class="btn primary" id="sendGmail" target="_blank" rel="noopener">Email it with Gmail<small>Opens a new Gmail email with the link in it</small></a>
+      <a class="btn" id="sendOutlook" target="_blank" rel="noopener">Email it with Outlook<small>Opens a new Outlook email with the link in it</small></a>
+      <a class="btn" id="sendMail">Email it with my email app<small>Like Outlook on this computer, or Mail</small></a>
+    </div>
+    <div class="opt"><label for="sendLink">Or copy the link</label>
+      <div style="display:flex;gap:8px"><input id="sendLink" readonly style="flex:1;min-width:0"><button class="btn" type="button" id="sendCopy">Copy</button></div></div>
+    <div class="actions"><button class="btn" type="button" id="sendClose">Done</button></div>
+  </div>
+</div>
+
 <div class="modal" id="fileModal" hidden role="dialog" aria-modal="true" aria-labelledby="fileTitle">
   <div class="modal-card">
     <h2 id="fileTitle">Save, open or send a job</h2>
     <p class="hint" id="fileIntro">A job file holds every sheet, count, run and scale in one file that ends in .ajtakeoff. Keep it anywhere, like your Google Drive, and open it in this app on any computer, tablet or phone.</p>
     <div class="file-acts">
-      <button class="btn primary" type="button" id="fileSave">Save job to a file…<small>You pick the folder, like Google Drive</small></button>
+      <button class="btn primary" type="button" id="fileSave">Save job to Google Drive…<small>Pick Google Drive in the Save window</small></button>
       <button class="btn" type="button" id="fileOpen">Open a job file…<small>From Google Drive, Downloads or an email</small></button>
-      <button class="btn" type="button" id="fileEmail">Email this job…<small>Sends the file and a link to open the app</small></button>
+      <button class="btn" type="button" id="fileEmail">Email this job…<small>Sends a link that opens the job in the app</small></button>
     </div>
+    <p class="hint" id="driveTip">Don't see Google Drive in the Save window? Install <a href="https://www.google.com/drive/download/" target="_blank" rel="noopener">Google Drive for desktop</a> once, and it shows up there as Google Drive.</p>
     <p class="hint" id="fileWhere" hidden></p>
     <div class="actions"><button class="btn" type="button" id="fileClose">Close</button></div>
   </div>
@@ -2229,7 +2247,7 @@ $("labelForm").addEventListener("submit", e => {
 document.addEventListener("keydown", e => {
   if (!$("ctxMenu").hidden) return;
   const typing = !!e.target.closest("input, select, textarea");
-  if (!$("scaleModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden || !$("wireModal").hidden) return;
+  if (!$("scaleModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden || !$("wireModal").hidden || !$("sendModal").hidden) return;
   if (!typing && (e.ctrlKey || e.metaKey) && !e.altKey) {
     const key = e.key.toLowerCase();
     if (key === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
@@ -2575,20 +2593,73 @@ async function saveProject(again) {
   savedTo(`Saved to your Downloads folder as ${file.name}. Move it into your Google Drive folder to open it on other devices.`);
   return true;
 }
+/* Email a job: the file goes up to the website's file storage (Vercel Blob) and the email carries a link.
+   The link is this app with ?job=<file address>, so clicking it opens the app and loads the job. */
+const SHARE_HOST = /\.public\.blob\.vercel-storage\.com$/;
+const onOwnSite = () => location.protocol === "https:" && !/claude|anthropic|usercontent/i.test(location.hostname);
+let blobClient = null;
+async function uploadJobFile(file, progress) {
+  blobClient = blobClient || await import("./blob-client.js");
+  const r = await blobClient.upload(`jobs/${file.name}`, file, {
+    access: "public", handleUploadUrl: "/api/share-upload", contentType: "application/octet-stream",
+    multipart: file.size > 20e6, onUploadProgress: e => progress(e.percentage / 100)
+  });
+  return r.url;
+}
 async function emailProject() {
+  if (!onOwnSite()) return toast("Emailing a job link works on your AJ Takeoff website. Open the job there and try again.");
   const file = await packJob();
   if (!file) return;
-  const subject = `Takeoff: ${job.name}`;
-  const body = `Here is the takeoff for ${job.name}.\n\n1. Download the attached file, ${file.name}.\n2. Open the AJ Takeoff app: ${appLink()}\n3. Tap "Open a job file" and pick the file you downloaded.\n`;
-  if (navigator.canShare && navigator.canShare({ files: [file] })) {
-    try { await navigator.share({ files: [file], title: subject, text: body }); return savedTo("Sent. Pick your email app in that list."); }
-    catch (e) { if (e && e.name === "AbortError") return; }
+  $("fileModal").hidden = true;
+  const title = "Uploading the job so it can be sent…";
+  let url;
+  try {
+    busy(title, 0, file.name);
+    url = await uploadJobFile(file, f => busy(title, f, `${Math.round(f * 100)}%`));
+  } catch (e) {
+    busy(null, null);
+    return toast(/token|store|BLOB|40[0-9]|50[0-9]/i.test(String(e && e.message)) ? "Sending isn't switched on yet: the website's file storage needs to be set up." : "The upload didn't finish. Check your internet and try again.");
   }
-  downloadFile(file);
-  const a = document.createElement("a");
-  a.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-  document.body.appendChild(a); a.click(); a.remove();
-  savedTo(`Your email opened with the link. Attach ${file.name} from your Downloads folder (paperclip button) before you send it.`);
+  busy(null, null);
+  showSend(url);
+}
+const jobLink = url => `${location.origin}${location.pathname}?job=${encodeURIComponent(url)}`;
+function showSend(url) {
+  const link = jobLink(url), enc = encodeURIComponent, subject = `Takeoff: ${job.name}`;
+  const body = `Here is the takeoff for ${job.name}. Click this link to open it in the AJ Takeoff app:\n\n${link}\n`;
+  $("sendLink").value = link;
+  $("sendGmail").href = `https://mail.google.com/mail/?view=cm&fs=1&su=${enc(subject)}&body=${enc(body)}`;
+  $("sendOutlook").href = `https://outlook.office.com/mail/deeplink/compose?subject=${enc(subject)}&body=${enc(body)}`;
+  $("sendMail").href = `mailto:?subject=${enc(subject)}&body=${enc(body)}`;
+  $("sendModal").hidden = false; $("sendGmail").focus();
+}
+$("sendCopy").onclick = async () => {
+  try { await navigator.clipboard.writeText($("sendLink").value); toast("Link copied. Paste it into any email or text."); }
+  catch (e) { $("sendLink").select(); toast("Press Ctrl+C to copy the link."); }
+};
+$("sendClose").onclick = () => { $("sendModal").hidden = true; };
+$("sendModal").addEventListener("keydown", e => { if (e.key === "Escape") $("sendModal").hidden = true; });
+async function openSharedJob(raw) {
+  let url;
+  try { url = new URL(raw); } catch (e) { return toast("That job link is broken."); }
+  if (url.protocol !== "https:" || !SHARE_HOST.test(url.hostname)) return toast("That link isn't an AJ Takeoff job link.");
+  const title = "Opening the job you were sent…";
+  busy(title, 0);
+  try {
+    const res = await fetch(url.href);
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const total = +res.headers.get("content-length") || 0, parts = [];
+    let got = 0;
+    if (res.body && total) {
+      const rd = res.body.getReader();
+      for (;;) { const { done, value } = await rd.read(); if (done) break; parts.push(value); got += value.length; busy(title, got / total, `${Math.round(got / total * 100)}%`); }
+    } else parts.push(await res.arrayBuffer());
+    busy(null, null);
+    await importProject(new File(parts, decodeURIComponent(url.pathname.split("/").pop() || "job.ajtakeoff"), { type: "application/octet-stream" }));
+  } catch (e) {
+    busy(null, null);
+    toast("Couldn't download that job. The link may be old, or the internet dropped. Try the link again.");
+  }
 }
 function showFiles(sent) {
   $("fileTitle").textContent = sent ? "Someone sent you a job" : "Save, open or send a job";
@@ -2839,6 +2910,7 @@ async function loadExamples() {
   await openJob(jobs.find(j => j.id === want) || jobs[0] || null);
   try {
     const q = new URLSearchParams(location.search);
+    if (q.get("job")) { const u = q.get("job"); history.replaceState(null, "", location.pathname); openSharedJob(u); return; }
     if (q.get("open") === "job") { showFiles(true); history.replaceState(null, "", location.pathname); return; }
   } catch (e) {}
   showStart();
