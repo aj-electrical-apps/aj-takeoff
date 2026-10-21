@@ -169,6 +169,7 @@ button { cursor: pointer; }
 .run { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; }
 .run select { grid-column: 1 / -1; min-width: 0; height: 28px; font-size: 13px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); padding: 0 6px; margin-top: -2px; }
 .wire-swatch { width: 22px; height: 0; border-top: 4px solid; border-radius: 2px; flex: none; }
+#ampForm:not(.m-amps) .ask-amps, #ampForm:not(.m-fan) .ask-fan, #ampForm:not(.m-drop) .ask-drop { display: none; }
 #wireForm.ug .wire-only, #wireForm:not(.ug) .ug-only { display: none; }
 .amp-box { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 .amp-box .sched { grid-template-columns: 1fr 1.6fr; }
@@ -686,10 +687,16 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 <div class="modal" id="ampModal" hidden role="dialog" aria-modal="true" aria-labelledby="ampTitle">
   <form class="modal-card" id="ampForm" autocomplete="off">
     <h2 id="ampTitle">Water heater</h2>
-    <p class="hint">Pick the amps and voltage, then click the sheet to place it. The same amps, voltage and label add to the same count.</p>
-    <div class="sched two">
+    <p class="hint" id="ampHint"></p>
+    <div class="opt ask-fan"><label for="askFan">Kind of fan</label><select id="askFan"><option>Wall exhaust fan</option><option>Standard ceiling fan</option><option>Big Ass Fan</option><option>Bathroom exhaust fan</option><option>Louvers</option></select></div>
+    <div class="sched two ask-amps">
       <div class="opt"><label for="ampAmps">Amps</label><select id="ampAmps"></select></div>
       <div class="opt"><label for="ampVolts">Voltage</label><select id="ampVolts"></select></div>
+    </div>
+    <div class="sched three ask-drop">
+      <div class="opt"><label for="dropConduit">Conduit</label><select id="dropConduit"></select></div>
+      <div class="opt"><label for="dropSize">Size</label><select id="dropSize"></select></div>
+      <div class="opt"><label for="dropLen">Length (ft)</label><input type="number" id="dropLen" min="1" max="500" step="1" inputmode="numeric"></div>
     </div>
     <div class="opt"><label for="ampLabel">Label or description</label><input type="text" id="ampLabel" placeholder="e.g. LP-1, or Shop welder by bay door"></div>
     <div class="actions">
@@ -959,6 +966,13 @@ new ResizeObserver(applyZoom).observe($("stage"));
 
 // Items taken out of the toolbox. Older jobs may still have them placed, so they keep drawing.
 const RETIRED = {
+  fan:[
+    {id:'FAN-1',manufacturer:'Big Ass Fans',model:'Basic 6, agricultural ceiling fan',wattage:750,voltage:'120-240V',lumens:null,mountingHeight:'14 ft',size:'large',symbolType:'ceiling'},
+    {id:'FAN-3',manufacturer:'Generic',model:'Standard 52 in ceiling fan',wattage:75,voltage:'120V',lumens:null,mountingHeight:'9 ft',size:'small',symbolType:'ceiling'},
+    {id:'FAN-5',manufacturer:'Generic',model:'Standard 52 in ceiling fan, exterior / wet-rated',wattage:75,voltage:'120V',lumens:null,mountingHeight:'9 ft',size:'small',symbolType:'ceiling'},
+    {id:'FAN-2',manufacturer:'Multifan',model:'Wall exhaust fan, 24 in',wattage:370,voltage:'120-240V',lumens:null,mountingHeight:'8 ft',symbolType:'exhaust'},
+    {id:'FAN-4',manufacturer:'Broan',model:'Can-style exhaust fan, ceiling mount',wattage:80,voltage:'120V',lumens:null,mountingHeight:'ceiling',symbolType:'can_exhaust'}
+  ],
   panel:[
     {id:'PNL-M200',manufacturer:'Square D',model:'QO130M200, main panel 200A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'MAIN',sym2:'200A'},
     {id:'PNL-M400',manufacturer:'Square D',model:'QO142M400, main panel 400A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'MAIN',sym2:'400A'},
@@ -1061,6 +1075,16 @@ const FIXTURES = {
   occupancy_switch:[
     {id:'OCC-1',manufacturer:'Leviton',model:'ODC10, occupancy / motion, wall mount',wattage:null,voltage:'120/277V',lumens:null,mountingHeight:'48 in'}
   ],
+  fan_ask:[
+    {id:'FAN',manufacturer:'',model:'Fan',ask:'fan'}
+  ],
+  contactor:[
+    {id:'LC',manufacturer:'',model:'Lighting contactor',ask:'amps'}
+  ],
+  fire_alarm:[
+    {id:'FACP',manufacturer:'',model:'Fire alarm panel',ask:'label'},
+    {id:'FADROP',manufacturer:'',model:'Conduit drop',ask:'drop'}
+  ],
   gear_ask:[
     {id:'PNL',manufacturer:'',model:'Panel',ask:true},
     {id:'SVC',manufacturer:'',model:'Service entrance',ask:true},
@@ -1069,23 +1093,17 @@ const FIXTURES = {
   meter:[
     {id:'MTR-200',manufacturer:'Utility',model:'Meter base, 200A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'60 in'},
     {id:'MTR-400',manufacturer:'Utility',model:'Meter base, 400A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'60 in'}
-  ],
-  fan:[
-    {id:'FAN-1',manufacturer:'Big Ass Fans',model:'Basic 6, agricultural ceiling fan',wattage:750,voltage:'120-240V',lumens:null,mountingHeight:'14 ft',size:'large',symbolType:'ceiling'},
-    {id:'FAN-3',manufacturer:'Generic',model:'Standard 52 in ceiling fan',wattage:75,voltage:'120V',lumens:null,mountingHeight:'9 ft',size:'small',symbolType:'ceiling'},
-    {id:'FAN-5',manufacturer:'Generic',model:'Standard 52 in ceiling fan, exterior / wet-rated',wattage:75,voltage:'120V',lumens:null,mountingHeight:'9 ft',size:'small',symbolType:'ceiling'},
-    {id:'FAN-2',manufacturer:'Multifan',model:'Wall exhaust fan, 24 in',wattage:370,voltage:'120-240V',lumens:null,mountingHeight:'8 ft',symbolType:'exhaust'},
-    {id:'FAN-4',manufacturer:'Broan',model:'Can-style exhaust fan, ceiling mount',wattage:80,voltage:'120V',lumens:null,mountingHeight:'ceiling',symbolType:'can_exhaust'}
   ]
 };
+const ASK_HINT = { amps: "Pick amps and volts", fan: "Pick the kind of fan", drop: "Pick conduit and length", label: "Add a label" };
 // Shapes tell the family apart, colors tell the items apart.
 const GROUPS = [
-  { key: "lights", name: "Lights", shape: "circle", types: ["high_bay", "linear_light", "recessed_light", "wall_pack", "sconce", "barn_light", "uplight", "flood_light"] },
-  { key: "switches", name: "Switches", shape: "triangle", types: ["switch", "occupancy_switch"] },
+  { key: "lights", name: "Lights", shape: "circle", types: ["high_bay", "linear_light", "recessed_light", "wall_pack", "sconce", "barn_light", "uplight", "flood_light", "fan_ask"] },
+  { key: "switches", name: "Switches", shape: "triangle", types: ["switch", "occupancy_switch", "contactor"] },
   { key: "recept", name: "Receptacles", shape: "square", types: ["duplex_receptacle", "quad_receptacle", "gfci_receptacle", "weatherproof_receptacle"] },
   { key: "special", name: "240V & special", shape: "square", types: ["special"] },
-  { key: "fans", name: "Fans", shape: "diamond", types: ["fan"] },
-  { key: "gear", name: "Panels & gear", shape: "hexagon", types: ["gear_ask", "meter"] }
+  { key: "gear", name: "Panels & gear", shape: "hexagon", types: ["gear_ask", "meter"] },
+  { key: "fire", name: "Fire alarm", shape: "diamond", types: ["fire_alarm"] }
 ];
 const KIND = { high_bay: "High bay", linear_light: "Linear", recessed_light: "Recessed can", wall_pack: "Wall pack", sconce: "Sconce", barn_light: "Barn light",
   uplight: "Uplight", flood_light: "Flood", duplex_receptacle: "Duplex", quad_receptacle: "Quad", gfci_receptacle: "GFCI", weatherproof_receptacle: "Weatherproof GFCI",
@@ -1096,13 +1114,13 @@ const DEVICES = {}; // id -> {id, label, model, group, shape, color}
 GROUPS.forEach(g => {
   g.items = [];
   g.types.forEach(t => (FIXTURES[t] || []).forEach(f => {
-    const d = f.ask ? { id: f.id, kind: f.model, model: "Pick amps and volts", maker: "", ask: true, group: g.key, shape: g.shape, color: PALETTE[g.items.length % PALETTE.length] }
+    const d = f.ask ? { id: f.id, kind: f.model, model: ASK_HINT[f.ask === true ? "amps" : f.ask], maker: "", ask: f.ask === true ? "amps" : f.ask, group: g.key, shape: g.shape, color: PALETTE[g.items.length % PALETTE.length] }
       : { id: f.id, kind: KIND[t] || t, model: f.model, maker: f.manufacturer, watts: f.wattage, volts: f.voltage, group: g.key, shape: g.shape, color: PALETTE[g.items.length % PALETTE.length] };
     g.items.push(d); DEVICES[f.id] = d;
   }));
 });
 Object.entries(RETIRED).forEach(([t, list]) => list.forEach((f, i) => {
-  const g = GROUPS.find(g => g.key === (["receptacle_240v", "ev_charger"].includes(t) ? "special" : "gear"));
+  const g = GROUPS.find(g => g.key === (["receptacle_240v", "ev_charger"].includes(t) ? "special" : t === "fan" ? "lights" : "gear"));
   DEVICES[f.id] = { id: f.id, kind: KIND[t] || t, model: f.model, maker: f.manufacturer, volts: f.voltage, group: g.key, shape: g.shape, color: PALETTE[(i + 8) % PALETTE.length] };
 }));
 
@@ -1165,11 +1183,15 @@ const countsList = () => job ? (job.counts || (job.counts = [])) : exampleCounts
 function devInfo(t) {
   const c = countsList().find(c => c.id === t);
   if (c) { const b = DEVICES[c.base] || Object.values(DEVICES)[0]; return { ...b, id: c.id, base: c.base, color: c.color || b.color, tag: c.tag || "", desc: c.desc || "", custom: true,
-    sMaker: c.maker || "", sModel: c.model || "", sWatts: c.watts || "", sVolts: c.volts || "", sMount: c.mount || "", amps: c.amps || "", label: c.label || "" }; }
+    sMaker: c.maker || "", sModel: c.model || "", sWatts: c.watts || "", sVolts: c.volts || "", sMount: c.mount || "", amps: c.amps || "", label: c.label || "", fanKind: c.fanKind || "", drop: c.drop || null }; }
   return DEVICES[t];
 }
 const ampsLine = d => [d.amps && `${d.amps}A`, d.sVolts].filter(Boolean).join(" ");
-const nameOf = d => d.custom ? (d.tag ? `Type ${d.tag}` : d.amps ? `${d.kind}${d.label ? " " + d.label : ""} ${ampsLine(d)}` : d.kind) : `${d.id} ${d.kind}`;
+const nameOf = d => !d.custom ? `${d.id} ${d.kind}` : d.tag ? `Type ${d.tag}`
+  : d.amps ? `${d.kind}${d.label ? " " + d.label : ""} ${ampsLine(d)}`
+  : d.fanKind ? `${d.fanKind}${d.label ? " " + d.label : ""}`
+  : d.drop ? `Conduit drop${d.label ? " " + d.label : ""} · ${d.drop.len}' ${d.drop.size} ${d.drop.conduit}`
+  : d.label ? `${d.kind} ${d.label}` : d.kind;
 // one line for a fixture type: maker and model, then the schedule's description, watts, volts and mounting
 const specOf = d => d.custom
   ? [[d.sMaker, d.sModel].filter(Boolean).join(" "), d.desc, d.sWatts && `${d.sWatts}${/w$/i.test(d.sWatts) ? "" : " W"}`, d.amps ? (d.tag && ampsLine(d)) : d.sVolts && `${d.sVolts}${/v$/i.test(d.sVolts) ? "" : " V"}`, d.sMount].filter(Boolean).join(" · ")
@@ -1244,22 +1266,45 @@ function openCount(id, base) {
 }
 $("addCountBtn").onclick = () => openCount(null);
 
-/* 240V and special items: ask the amps and voltage, then place. Each amps + voltage pair is its own count. */
+/* Items that ask before placing: amps + voltage (240V, gear, contactor), kind of fan, fire alarm conduit drop, or just a label.
+   Each different answer is its own count; the same answer adds to the same count. */
 const ASK_AMPS = [15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200, 225, 250, 300, 350, 400, 600, 800, 1000, 1200, 1600, 2000];
 const ASK_VOLTS = ["120V", "208V", "240V", "277V", "480V", "120/208V 3-phase", "120/240V", "208V 3-phase", "240V 3-phase", "277/480V 3-phase", "480V 3-phase"];
 $("ampAmps").innerHTML = ASK_AMPS.map(a => `<option value="${a}">${a} A</option>`).join("");
 $("ampVolts").innerHTML = ASK_VOLTS.map(v => `<option>${v}</option>`).join("");
 let ampBase = null;
-const ASK_DEFAULT = { WH: [30, "240V"], RNG: [50, "120/240V"], DRY: [30, "120/240V"], WLD: [50, "240V"], PLS: [40, "240V"], FLC: [30, "480V 3-phase"], DD: [20, "120V"], JB: [20, "120V"], PNL: [200, "120/240V"], SVC: [200, "120/240V"], DISC: [60, "240V"] };
+const ASK_DEFAULT = { WH: [30, "240V"], RNG: [50, "120/240V"], DRY: [30, "120/240V"], WLD: [50, "240V"], PLS: [40, "240V"], FLC: [30, "480V 3-phase"], DD: [20, "120V"], JB: [20, "120V"], PNL: [200, "120/240V"], SVC: [200, "120/240V"], DISC: [60, "240V"], LC: [30, "277V"] };
+const ASK_TEXT = { amps: "Pick the amps and voltage, then click the sheet to place it. The same amps, voltage and label add to the same count.",
+  fan: "Pick the kind of fan, then click the sheet to place it. Each kind gets its own count.",
+  drop: "Each drop you place adds this much conduit to the count sheet and the supplier list.",
+  label: "Add a label if you want one, then click the sheet to place it." };
+const askAnswer = () => {
+  const m = DEVICES[ampBase].ask, label = $("ampLabel").value.trim();
+  if (m === "amps") return { amps: $("ampAmps").value, volts: $("ampVolts").value, label };
+  if (m === "fan") return { fanKind: $("askFan").value, label };
+  if (m === "drop") return { drop: { conduit: $("dropConduit").value, size: $("dropSize").value, len: Math.max(1, Math.min(500, parseInt($("dropLen").value, 10) || 10)) }, label };
+  return { label };
+};
+const sameAnswer = (c, a) => ["amps", "volts", "fanKind"].every(k => String(c[k] || "") === String(a[k] || "")) && (c.label || "") === a.label && JSON.stringify(c.drop || null) === JSON.stringify(a.drop || null);
 function openAmps(base) {
   if (!pages.length) return;
   if (tool) setTool(null);
   ampBase = base;
-  const last = countsList().filter(c => c.base === base && c.amps).pop();
-  const [a, v] = last ? [last.amps, last.volts] : ASK_DEFAULT[base] || [20, "120V"];
+  if (!$("dropConduit").options.length) { // the conduit lists are defined further down the page
+    $("dropConduit").innerHTML = CONDUITS.filter(c => c !== "No conduit").map(c => `<option>${c}</option>`).join("");
+    $("dropSize").innerHTML = CSIZES.map(c => `<option>${c.replace(/"/g, "&quot;")}</option>`).join("");
+  }
+  const m = DEVICES[base].ask, last = countsList().filter(c => c.base === base).pop() || {};
+  $("ampForm").className = "modal-card m-" + m;
   $("ampTitle").textContent = DEVICES[base].kind;
+  $("ampHint").textContent = ASK_TEXT[m];
+  const [a, v] = last.amps ? [last.amps, last.volts] : ASK_DEFAULT[base] || [20, "120V"];
   $("ampAmps").value = String(a); $("ampVolts").value = v; $("ampLabel").value = "";
-  $("ampModal").hidden = false; $("ampAmps").focus();
+  if (last.fanKind) $("askFan").value = last.fanKind;
+  const dr = last.drop || { conduit: "EMT", size: '3/4"', len: 10 };
+  $("dropConduit").value = dr.conduit; $("dropSize").value = dr.size; $("dropLen").value = dr.len;
+  $("ampModal").hidden = false;
+  ({ amps: $("ampAmps"), fan: $("askFan"), drop: $("dropLen"), label: $("ampLabel") })[m].focus();
 }
 $("ampCancel").onclick = () => { $("ampModal").hidden = true; };
 $("ampModal").addEventListener("keydown", e => { if (e.key === "Escape") $("ampModal").hidden = true; });
@@ -1279,7 +1324,7 @@ function takeoffRows() {
     const by = pages.map((pg, i) => [sheetName(pg, i), countOn(pg, d.id)]).filter(x => x[1]);
     const qty = by.reduce((t, x) => t + x[1], 0);
     if (!qty) return;
-    const what = d.custom ? [d.kind !== nameOf(d) && !nameOf(d).startsWith(d.kind) ? d.kind : "", [d.sMaker, d.sModel].filter(Boolean).join(" "), d.sMount && `Mount ${d.sMount}`].filter(Boolean).join(" · ") : `${d.maker} ${d.model}`;
+    const what = d.custom ? [d.kind !== nameOf(d) && !d.fanKind && !nameOf(d).startsWith(d.kind) ? d.kind : "", [d.sMaker, d.sModel].filter(Boolean).join(" "), d.sMount && `Mount ${d.sMount}`].filter(Boolean).join(" · ") : `${d.maker} ${d.model}`;
     counts.push({ name: nameOf(d), what, qty, by, color: d.color, group: d.group });
   });
   const lfOf = id => pages.reduce((t, pg) => t + (pg.ftPerPx ? pg.runs.filter(r => (r.typeId || null) === id).reduce((a, r) => a + r.px * pg.ftPerPx, 0) : 0), 0);
@@ -1299,13 +1344,21 @@ function takeoffRows() {
       if (w.ground) add(`${w.id}:g`, `${gaugeTxt(w.ground)} ground ${mat}`, `${sets} ground${sets > 1 ? "s" : ""} × ${fmtLF(lf)} · ${wireLabel(w)}`, lf * sets, `${gaugeTxt(w.ground)} ${mat === "AL" ? "aluminum" : "copper"} ground wire`);
     }
   });
+  const drops = new Map();
+  countsList().forEach(c => {
+    if (!c.drop) return;
+    const n = pages.reduce((t, pg) => t + countOn(pg, c.id), 0); if (!n) return;
+    const key = `drop:${c.drop.size}|${c.drop.conduit}`, cur = drops.get(key) || { size: c.drop.size, conduit: c.drop.conduit, n: 0, lf: 0, parts: [] };
+    cur.n += n; cur.lf += n * c.drop.len; cur.parts.push(`${n} × ${c.drop.len}'`); drops.set(key, cur);
+  });
+  drops.forEach((d, key) => foot.push({ key, label: `${d.size} ${d.conduit} fire alarm drops`, sub: `${d.parts.join(" + ")} drops`, base: d.lf, pct: +ex[key] || 0, sup: `${d.size} ${d.conduit} conduit`, color: "#c92a2a" }));
   const loose = lfOf(null);
   if (loose) foot.push({ key: "none:r", label: "Runs with no type", sub: "Give these runs a conduit & wire type to put them on the supplier sheet", base: loose, pct: +ex["none:r"] || 0, sup: null, color: "#888" });
   foot.forEach(f => { f.total = Math.ceil(f.base * (1 + f.pct / 100)); });
   return { counts, foot };
 }
 // counts broken out by section, in toolbox order
-const SECTION = { lights: "Lights", switches: "Switching", recept: "Outlets", special: "240V, welder plugs and special", fans: "Fans", gear: "Gear and disconnects" };
+const SECTION = { lights: "Lights and fans", switches: "Switching", recept: "Outlets", special: "240V, welder plugs and special", gear: "Gear and disconnects", fire: "Fire alarm" };
 const bySection = counts => GROUPS.map(g => ({ title: SECTION[g.key] || g.name, rows: counts.filter(c => c.group === g.key) }))
   .concat([{ title: "Other", rows: counts.filter(c => !GROUPS.some(g => g.key === c.group)) }]).filter(sec => sec.rows.length);
 function supplierRows() {
@@ -1383,11 +1436,11 @@ $("tsPrint").onclick = () => {
 
 $("ampForm").addEventListener("submit", e => {
   e.preventDefault();
-  const amps = $("ampAmps").value, volts = $("ampVolts").value, label = $("ampLabel").value.trim(), list = countsList();
-  let c = list.find(c => c.base === ampBase && String(c.amps) === amps && c.volts === volts && (c.label || "") === label);
+  const ans = askAnswer(), list = countsList();
+  let c = list.find(c => c.base === ampBase && sameAnswer(c, ans));
   if (!c) {
     remember([]);
-    c = { id: uid(), base: ampBase, tag: "", desc: "", color: PALETTE[list.length % PALETTE.length], maker: "", model: "", watts: "", volts, mount: "", amps, label };
+    c = { id: uid(), base: ampBase, tag: "", desc: "", color: PALETTE[list.length % PALETTE.length], maker: "", model: "", watts: "", volts: "", mount: "", amps: "", ...ans };
     list.push(c);
     if (job) { job.updated = new Date().toISOString(); saveJob(job); }
   }
