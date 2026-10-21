@@ -265,6 +265,28 @@ button { cursor: pointer; }
 .modal { position: fixed; inset: 0; z-index: 25; display: grid; place-items: center; background: rgb(0 0 0 / .35); padding: 16px; }
 .modal-card { width: min(460px, 100%); max-height: 100%; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 14px; }
 .modal-card h2 { margin: 0; font-size: 20px; text-wrap: balance; }
+.modal-card.wide { width: min(980px, 100%); }
+.ts-tabs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.ts-tabs .btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.ts-all { display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 14px; }
+.ts-pct { width: 64px; text-align: right; font-family: var(--font-mono); }
+.ts-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.ts-table th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.ts-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.ts-table td.n, .ts-table th.n { text-align: right; font-family: var(--font-mono); white-space: nowrap; }
+.ts-table tr.sec td { font-weight: 600; background: var(--bg); padding-top: 10px; }
+.ts-table small { display: block; color: var(--muted); font-size: 12px; }
+.ts-table .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+.ts-wrap { overflow-x: auto; }
+.ts-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 14px; }
+@media print {
+  body.print-ts { background: #fff !important; }
+  body.print-ts > *:not(#takeoffModal) { display: none !important; }
+  body.print-ts #takeoffModal { position: static; background: none; padding: 0; display: block; }
+  body.print-ts #takeoffModal .modal-card { width: 100%; max-height: none; border: 0; padding: 0; overflow: visible; background: #fff; color: #000; }
+  body.print-ts .no-print { display: none !important; }
+  body.print-ts .ts-table td, body.print-ts .ts-table th { border-color: #999; color: #000; }
+}
 .modal-card p { margin: 0; }
 .opt { display: grid; gap: 6px; }
 .opt > label, .opt > .lbl { font-weight: 600; }
@@ -340,6 +362,10 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <button class="btn" id="fileBtn" type="button" title="Save this job to a file, open a job file, or email it (Ctrl+S saves)">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 2.5h9l2 2v9h-11z"/><path d="M5 2.5v4h5v-4M5 13.5v-4h6v4"/></svg>
       Save / Open
+    </button>
+    <button class="btn" id="takeoffBtn" type="button" title="Count sheet with extra % on footage, and the material list for your supplier">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3.5 1.5h9v13h-9z"/><path d="M6 5h4.5M6 8h4.5M6 11h3"/></svg>
+      Count sheet
     </button>
 
     <div class="group">
@@ -629,6 +655,30 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <button class="btn primary" type="submit" id="cntSave">Save and place</button>
     </div>
   </form>
+</div>
+
+<div class="modal" id="takeoffModal" hidden role="dialog" aria-modal="true" aria-labelledby="tsTitle">
+  <div class="modal-card wide">
+    <div class="ts-head">
+      <h2 id="tsTitle">Count sheet</h2>
+      <div id="tsJob"></div>
+    </div>
+    <div class="ts-tabs no-print">
+      <button class="btn" type="button" id="tsCountTab" aria-pressed="true">Count sheet</button>
+      <button class="btn" type="button" id="tsSupTab" aria-pressed="false">Supplier sheet</button>
+      <label class="ts-all" id="tsAllBox"><span>Add to all footage</span><input type="number" id="tsAll" class="ts-pct" min="0" max="100" step="1" placeholder="%"><span>%</span><button class="btn sm" type="button" id="tsAllSet">Apply</button></label>
+    </div>
+    <p class="hint no-print" id="tsHint"></p>
+    <div class="ts-wrap"><table class="ts-table" id="tsTable"></table></div>
+    <p class="hint" id="tsEmpty" hidden>Nothing placed or drawn yet. Place symbols and draw runs on your sheets, then come back here.</p>
+    <div class="actions no-print">
+      <button class="btn" type="button" id="tsCopy">Copy</button>
+      <a class="btn" id="tsEmail" style="text-decoration:none;color:inherit">Email</a>
+      <button class="btn" type="button" id="tsPrint">Print or save PDF</button>
+      <span class="spacer"></span>
+      <button class="btn primary" type="button" id="tsClose">Done</button>
+    </div>
+  </div>
 </div>
 
 <div class="modal" id="ampModal" hidden role="dialog" aria-modal="true" aria-labelledby="ampTitle">
@@ -1199,6 +1249,117 @@ function openAmps(base) {
 }
 $("ampCancel").onclick = () => { $("ampModal").hidden = true; };
 $("ampModal").addEventListener("keydown", e => { if (e.key === "Escape") $("ampModal").hidden = true; });
+/* ---------- count sheet and supplier sheet ----------
+   Count sheet: every count and every footage line from all sheets, with an extra % box on each footage line.
+   Supplier sheet: the same material added up by item, using the footage with the extra % in it. */
+let exampleExtra = {};
+const extraOf = () => job ? (job.extra || (job.extra = {})) : exampleExtra;
+let tsView = "count";
+const esc = t => String(t).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
+const sheetName = (pg, i) => pg.name || `Sheet ${String(i + 1).padStart(3, "0")}`;
+function takeoffRows() {
+  const counts = [], foot = [];
+  const items = countsList().map(c => devInfo(c.id));
+  const legacy = Object.values(DEVICES).filter(d => pages.some(pg => countOn(pg, d.id)));
+  [...items, ...legacy].forEach(d => {
+    const by = pages.map((pg, i) => [sheetName(pg, i), countOn(pg, d.id)]).filter(x => x[1]);
+    const qty = by.reduce((t, x) => t + x[1], 0);
+    if (!qty) return;
+    const what = d.custom ? [d.kind !== nameOf(d) && !nameOf(d).startsWith(d.kind) ? d.kind : "", [d.sMaker, d.sModel].filter(Boolean).join(" "), d.sMount && `Mount ${d.sMount}`].filter(Boolean).join(" · ") : `${d.maker} ${d.model}`;
+    counts.push({ name: nameOf(d), what, qty, by, color: d.color });
+  });
+  const lfOf = id => pages.reduce((t, pg) => t + (pg.ftPerPx ? pg.runs.filter(r => (r.typeId || null) === id).reduce((a, r) => a + r.px * pg.ftPerPx, 0) : 0), 0);
+  const ex = extraOf();
+  wiresList().forEach(w => {
+    const lf = lfOf(w.id);
+    if (!lf) return;
+    const sets = w.sets || 1, mat = w.mat === "AL" || /AL/.test(w.ins) ? "AL" : "CU";
+    const add = (key, label, sub, base, sup) => foot.push({ key, label, sub, base, pct: +ex[key] || 0, sup, color: w.color });
+    if (w.conduit === "MC cable") add(`${w.id}:c`, `MC cable ${w.count}x ${gaugeTxt(w.gauge)}${w.ground ? " + GND" : ""}`, wireLabel(w), lf * sets, `MC cable, ${w.count}/${gaugeTxt(w.gauge)}${w.ground ? ` with ${gaugeTxt(w.ground)} ground` : ""}`);
+    else {
+      if (w.conduit !== "No conduit") add(`${w.id}:c`, `${w.size} ${w.conduit}`, wireLabel(w), lf * sets, `${w.size} ${w.conduit} conduit`);
+      add(`${w.id}:w`, `${gaugeTxt(w.gauge)} ${w.ins} ${mat}`, `${w.count * sets} wires × ${fmtLF(lf)} · ${wireLabel(w)}`, lf * w.count * sets, `${gaugeTxt(w.gauge)} ${w.ins} ${mat === "AL" ? "aluminum" : "copper"} wire`);
+      if (w.ground) add(`${w.id}:g`, `${gaugeTxt(w.ground)} ground ${mat}`, `${sets} ground${sets > 1 ? "s" : ""} × ${fmtLF(lf)} · ${wireLabel(w)}`, lf * sets, `${gaugeTxt(w.ground)} ${mat === "AL" ? "aluminum" : "copper"} ground wire`);
+    }
+  });
+  const loose = lfOf(null);
+  if (loose) foot.push({ key: "none:r", label: "Runs with no type", sub: "Give these runs a conduit & wire type to put them on the supplier sheet", base: loose, pct: +ex["none:r"] || 0, sup: null, color: "#888" });
+  foot.forEach(f => { f.total = Math.ceil(f.base * (1 + f.pct / 100)); });
+  return { counts, foot };
+}
+function supplierRows() {
+  const { counts, foot } = takeoffRows(), mat = new Map();
+  foot.filter(f => f.sup).forEach(f => mat.set(f.sup, (mat.get(f.sup) || 0) + f.total));
+  return { counts, mat: [...mat].map(([name, lf]) => ({ name, lf })) };
+}
+function renderTakeoff() {
+  const t = $("tsTable"), sup = tsView === "sup";
+  $("tsCountTab").setAttribute("aria-pressed", !sup); $("tsSupTab").setAttribute("aria-pressed", sup);
+  $("tsTitle").textContent = sup ? "Material list" : "Count sheet";
+  $("tsAllBox").hidden = sup;
+  $("tsJob").innerHTML = `<b>${esc(job ? job.name : "Example job")}</b> · ${new Date().toLocaleDateString()}<br>AJ Electrical`;
+  $("tsHint").textContent = sup ? "This list uses the footage with your extra % added. Send it with Email, Copy, or Print." : "Type an extra % on any footage line for waste and makeup. The supplier sheet uses the new totals.";
+  const { counts, foot } = takeoffRows();
+  $("tsEmpty").hidden = !!(counts.length || foot.length);
+  if (!sup) {
+    let h = `<thead><tr><th>Item</th><th class="n">Qty / measured</th><th class="n">Extra %</th><th class="n">Total</th></tr></thead><tbody>`;
+    if (counts.length) h += `<tr class="sec"><td colspan="4">Counts</td></tr>` + counts.map(c => `<tr><td><span class="sw" style="background:${c.color}"></span>${esc(c.name)}${c.what ? `<small>${esc(c.what)}</small>` : ""}<small>${esc(c.by.map(x => `${x[0]}: ${x[1]}`).join(" · "))}</small></td><td class="n">${c.qty}</td><td></td><td class="n"><b>${c.qty}</b></td></tr>`).join("");
+    if (foot.length) h += `<tr class="sec"><td colspan="4">Footage</td></tr>` + foot.map(f => `<tr><td><span class="sw" style="background:${f.color}"></span>${esc(f.label)}<small>${esc(f.sub)}</small></td><td class="n">${fmtLF(f.base)}</td><td class="n"><input type="number" class="ts-pct" min="0" max="100" step="1" data-key="${esc(f.key)}" value="${f.pct || ""}" placeholder="0" aria-label="Extra percent for ${esc(f.label)}"> %</td><td class="n"><b>${f.total.toLocaleString()} LF</b></td></tr>`).join("");
+    t.innerHTML = h + `</tbody>`;
+    t.querySelectorAll("input.ts-pct").forEach(inp => inp.onchange = () => {
+      const v = Math.max(0, Math.min(100, +inp.value || 0)), ex = extraOf();
+      if (v) ex[inp.dataset.key] = v; else delete ex[inp.dataset.key];
+      if (job) saveJob(job);
+      renderTakeoff();
+    });
+  } else {
+    const { mat } = supplierRows();
+    let h = `<thead><tr><th>Material</th><th class="n">Quantity</th></tr></thead><tbody>`;
+    if (counts.length) h += `<tr class="sec"><td colspan="2">Devices and fixtures</td></tr>` + counts.map(c => `<tr><td>${esc(c.name)}${c.what ? `<small>${esc(c.what)}</small>` : ""}</td><td class="n">${c.qty} ea</td></tr>`).join("");
+    if (mat.length) h += `<tr class="sec"><td colspan="2">Conduit and wire</td></tr>` + mat.map(m => `<tr><td>${esc(m.name)}</td><td class="n">${m.lf.toLocaleString()} ft</td></tr>`).join("");
+    t.innerHTML = h + `</tbody>`;
+  }
+}
+function takeoffText() {
+  const { counts, mat } = supplierRows(), name = job ? job.name : "Example job";
+  const lines = [`Material list: ${name}`, `AJ Electrical · ${new Date().toLocaleDateString()}`, ""];
+  if (counts.length) { lines.push("DEVICES AND FIXTURES"); counts.forEach(c => lines.push(`${c.qty} ea  ${c.name}${c.what ? ` (${c.what})` : ""}`)); lines.push(""); }
+  if (mat.length) { lines.push("CONDUIT AND WIRE"); mat.forEach(m => lines.push(`${m.lf.toLocaleString()} ft  ${m.name}`)); }
+  return lines.join("\n");
+}
+function openTakeoff(view) {
+  if (tool) setTool(null);
+  tsView = view || tsView;
+  renderTakeoff();
+  $("takeoffModal").hidden = false; $("tsClose").focus();
+}
+$("takeoffBtn").onclick = () => openTakeoff("count");
+$("tsCountTab").onclick = () => { tsView = "count"; renderTakeoff(); };
+$("tsSupTab").onclick = () => { tsView = "sup"; renderTakeoff(); };
+$("tsAllSet").onclick = () => {
+  const v = Math.max(0, Math.min(100, +$("tsAll").value || 0)), ex = extraOf();
+  takeoffRows().foot.forEach(f => { if (v) ex[f.key] = v; else delete ex[f.key]; });
+  if (job) saveJob(job);
+  renderTakeoff(); toast(v ? `Added ${v}% to every footage line.` : "Extra % cleared on every footage line.");
+};
+$("tsAll").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("tsAllSet").click(); } });
+$("tsClose").onclick = () => { $("takeoffModal").hidden = true; };
+$("takeoffModal").addEventListener("keydown", e => { if (e.key === "Escape") $("takeoffModal").hidden = true; });
+$("tsCopy").onclick = async () => {
+  try { await navigator.clipboard.writeText(takeoffText()); toast("Material list copied. Paste it into an email or text."); }
+  catch (e) { toast("Couldn't copy here. Use Email or Print instead."); }
+};
+$("tsEmail").onclick = () => {
+  $("tsEmail").href = `mailto:?subject=${encodeURIComponent(`Material list: ${job ? job.name : "Example job"}`)}&body=${encodeURIComponent(takeoffText())}`;
+};
+$("tsPrint").onclick = () => {
+  document.body.classList.add("print-ts");
+  const done = () => { document.body.classList.remove("print-ts"); window.removeEventListener("afterprint", done); };
+  window.addEventListener("afterprint", done);
+  try { window.print(); } catch (e) { done(); toast("Printing isn't allowed here. Use Copy or Email."); }
+  setTimeout(done, 60000);
+};
+
 $("ampForm").addEventListener("submit", e => {
   e.preventDefault();
   const amps = $("ampAmps").value, volts = $("ampVolts").value, list = countsList();
@@ -2312,7 +2473,7 @@ $("labelForm").addEventListener("submit", e => {
 document.addEventListener("keydown", e => {
   if (!$("ctxMenu").hidden) return;
   const typing = !!e.target.closest("input, select, textarea");
-  if (!$("scaleModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden || !$("wireModal").hidden || !$("sendModal").hidden || !$("ampModal").hidden) return;
+  if (!$("scaleModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden || !$("wireModal").hidden || !$("sendModal").hidden || !$("ampModal").hidden || !$("takeoffModal").hidden) return;
   if (!typing && (e.ctrlKey || e.metaKey) && !e.altKey) {
     const key = e.key.toLowerCase();
     if (key === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
@@ -2454,7 +2615,7 @@ async function runSync() {
     }
     if (job !== j) return;
     setDrive("busy", "Saving to Drive…");
-    const data = { app: "aj-takeoff", v: 1, savedAt: new Date().toISOString(), job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, driveSheetsId: j.driveSheetsId, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [] },
+    const data = { app: "aj-takeoff", v: 1, savedAt: new Date().toISOString(), job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, driveSheetsId: j.driveSheetsId, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [], extra: j.extra || {} },
       pages: list.map(p => ({ id: p.id, fileId: p.fileId, ...meta(p) })) };
     const made = await drv("create_file", { title: `${safeName(j.name)} · ajjob ${j.id}.json`, parentId: root, textContent: JSON.stringify(data), contentMimeType: "application/json", disableConversionToGoogleType: true });
     const old = j.driveJsonId;
@@ -2568,7 +2729,7 @@ const APP_HOME = "https://aj-commercial-takeoff.vercel.app/";
 async function projectBlob() {
   const j = job, list = pages.filter(p => !p.example);
   const head = { app: "aj-takeoff", kind: "job-file", v: 1, savedAt: new Date().toISOString(),
-    job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [] }, pages: [] };
+    job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [], extra: j.extra || {} }, pages: [] };
   let at = 0;
   for (const p of list) {
     const { fileId, ...m } = meta(p);
