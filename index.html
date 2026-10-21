@@ -611,24 +611,16 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 <div class="modal" id="countModal" hidden role="dialog" aria-modal="true" aria-labelledby="countTitle">
   <form class="modal-card" id="countForm" autocomplete="off">
     <h2 id="countTitle">Fixture type</h2>
-    <p class="hint">Fill this in once from the lighting schedule. Every symbol you place for this type uses it.</p>
+    <p class="hint">Every symbol you place for this type uses it.</p>
     <div class="sched">
       <div class="opt tag"><label for="cntTag">Type</label><input type="text" id="cntTag" placeholder="e.g. A"></div>
       <div class="opt"><label for="cntBase">Fixture kind</label><select id="cntBase"></select></div>
       <div class="opt"><label for="cntColor">Color</label><input type="color" id="cntColor"></div>
     </div>
-    <div class="sched two">
-      <div class="opt"><label for="cntMaker">Manufacturer</label><input type="text" id="cntMaker" placeholder="e.g. Lithonia"></div>
-      <div class="opt"><label for="cntModel">Model / catalog number</label><input type="text" id="cntModel" placeholder="e.g. LDN6 35/10 LO6AR"></div>
-    </div>
-    <div class="sched three">
-      <div class="opt"><label for="cntWatts">Watts</label><input type="text" id="cntWatts" inputmode="decimal" placeholder="e.g. 12"></div>
-      <div class="opt"><label for="cntVolts">Volts</label><input type="text" id="cntVolts" placeholder="e.g. 120-277"></div>
-      <div class="opt"><label for="cntMount">Mounting</label><input type="text" id="cntMount" placeholder="e.g. Recessed"></div>
-    </div>
     <div class="opt">
-      <label for="cntDesc">Description from the schedule</label>
-      <textarea id="cntDesc" placeholder='e.g. 6" LED downlight, 1000 lm, 3000K, 0-10V dimming, white trim. Or equal.'></textarea>
+      <label for="cntMount">Mounting height</label>
+      <input type="text" id="cntMount" list="mountList" placeholder="e.g. 16 ft">
+      <datalist id="mountList"><option>Recessed</option><option>Ceiling</option><option>7 ft</option><option>8 ft</option><option>9 ft</option><option>10 ft</option><option>12 ft</option><option>14 ft</option><option>16 ft</option><option>18 ft</option><option>20 ft</option><option>24 ft</option><option>30 ft</option><option>Pole</option><option>Grade</option></datalist>
     </div>
     <div class="actions">
       <button class="btn danger" type="button" id="cntDelete" hidden>Delete count</button>
@@ -1144,7 +1136,7 @@ function renderCounts() {
     const tx = document.createElement("span"); tx.className = "cnt-txt";
     const nm = document.createElement("b"); nm.textContent = nameOf(d);
     const kind = document.createElement("span"); kind.textContent = d.custom && !(d.amps && !d.tag) ? ` · ${d.kind}` : "";
-    const ds = document.createElement("span"); ds.className = "d"; ds.textContent = d.custom ? (specOf(d) || (d.amps ? "Tap the pencil to add a make and model" : "No schedule info yet. Tap the pencil to add it.")) : specOf(d);
+    const ds = document.createElement("span"); ds.className = "d"; ds.textContent = d.custom ? (specOf(d) || "Tap the pencil to add a mounting height") : specOf(d);
     tx.append(nm, kind, ds);
     const n = document.createElement("span"); n.className = "cnt-n"; n.innerHTML = `${nS}<small>of ${nA}</small>`;
     b.append(tx, n);
@@ -1164,7 +1156,10 @@ function renderCounts() {
 /* Add / edit a count */
 let editingCount = null, deleteArmed = false;
 $("cntBase").innerHTML = GROUPS.map(g => `<optgroup label="${g.name}">` +
-  g.items.map(d => `<option value="${d.id}">${d.kind} · ${d.id} · ${d.model.replace(/"/g, "&quot;")}</option>`).join("") + `</optgroup>`).join("");
+  g.items.filter((d, i) => g.items.findIndex(x => x.kind === d.kind) === i).map(d => `<option value="${d.id}">${d.kind}</option>`).join("") + `</optgroup>`).join("");
+// the list shows each kind once, so a base like HB-2 selects its kind's first entry
+const kindOption = id => $("cntBase").querySelector(`option[value="${id}"]`) ? id
+  : (Object.values(DEVICES).find(d => d.kind === (DEVICES[id] || {}).kind && $("cntBase").querySelector(`option[value="${d.id}"]`)) || { id: "RC-1" }).id;
 function openCount(id, base) {
   if (!pages.length) return;
   if (tool) setTool(null);
@@ -1174,11 +1169,9 @@ function openCount(id, base) {
   const c = editingCount || {};
   const b = c.base || base || "RC-1";
   $("countTitle").textContent = editingCount ? "Edit fixture type" : "New fixture type";
-  $("cntBase").value = b;
+  $("cntBase").value = kindOption(b);
   $("cntTag").value = c.tag || "";
-  $("cntDesc").value = c.desc || "";
-  $("cntMaker").value = c.maker || ""; $("cntModel").value = c.model || "";
-  $("cntWatts").value = c.watts || ""; $("cntVolts").value = c.volts || ""; $("cntMount").value = c.mount || "";
+  $("cntMount").value = c.mount || "";
   $("cntColor").value = c.color || PALETTE[list.length % PALETTE.length];
   $("cntDelete").hidden = !editingCount; $("cntDelete").textContent = "Delete count";
   $("cntSave").textContent = editingCount ? "Save" : "Save and place";
@@ -1234,12 +1227,14 @@ $("cntDelete").onclick = () => {
 $("countForm").addEventListener("submit", e => {
   e.preventDefault();
   const v = id => $(id).value.trim();
-  const fields = { base: $("cntBase").value, tag: v("cntTag"), desc: v("cntDesc"), color: $("cntColor").value,
-    maker: v("cntMaker"), model: v("cntModel"), watts: v("cntWatts"), volts: v("cntVolts"), mount: v("cntMount") };
+  // older types may still carry maker, model, watts, volts and a description; those stay as they were
+  const fields = { tag: v("cntTag"), color: $("cntColor").value, mount: v("cntMount") };
+  const keepBase = editingCount && DEVICES[editingCount.base] && DEVICES[editingCount.base].kind === DEVICES[$("cntBase").value].kind;
+  fields.base = keepBase ? editingCount.base : $("cntBase").value;
   let c = editingCount;
   remember([]);
   if (c) Object.assign(c, fields);
-  else { c = { id: uid(), ...fields }; countsList().push(c); }
+  else { c = { id: uid(), desc: "", maker: "", model: "", watts: "", volts: "", ...fields }; countsList().push(c); }
   if (job) { job.updated = new Date().toISOString(); saveJob(job); }
   $("countModal").hidden = true;
   renderCounts(); drawOverlay();
