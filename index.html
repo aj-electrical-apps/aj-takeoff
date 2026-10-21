@@ -172,7 +172,7 @@ button { cursor: pointer; }
 .ask-em { display: flex; gap: 8px; align-items: center; }
 #ampForm:not(.m-amps) .ask-amps, #ampForm:not(.m-fan) .ask-fan, #ampForm:not(.m-drop) .ask-drop, #ampForm:not(.m-cat) .ask-cat,
 #ampForm:not(.m-em) .ask-em, #ampForm:not(.m-mount) .ask-mount { display: none; }
-#wireForm.ug .wire-only, #wireForm:not(.ug) .ug-only { display: none; }
+#wireForm.ug .wire-only, #wireForm:not(.ug) .ug-only, #wireForm.jh .wire-only, #wireForm.jh .pipe-row, #wireForm:not(.jh) .jh-only { display: none; }
 .amp-box { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 .amp-box .sched { grid-template-columns: 1fr 1.6fr; }
 .wire-fill { font-size: 13px; color: var(--muted); }
@@ -725,7 +725,8 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <h2 id="wireTitle">New run type</h2>
     <p class="hint">Pick the conduit and the wire in it. Every run you draw with this type adds to its totals.</p>
     <div class="opt"><label for="wLabel">Label</label><input type="text" id="wLabel" placeholder="e.g. Feeder to LP-1, or Parking lot lights"></div>
-    <div class="opt"><label for="wKind">What is this run</label><select id="wKind"><option value="wire">Conduit with wire</option><option value="ug">Conduit only, underground</option></select></div>
+    <div class="opt"><label for="wKind">What is this run</label><select id="wKind"><option value="wire">Conduit with wire</option><option value="ug">Conduit only, underground</option><option value="jhook">J-hook run (low voltage)</option></select></div>
+    <div class="opt jh-only"><label for="wHook">J-hook every (feet)</label><input type="number" id="wHook" min="1" max="20" step="0.5" inputmode="decimal"></div>
     <div class="sched two ug-only">
       <div class="opt"><label for="wDepth">Dig depth</label><select id="wDepth"></select></div>
       <div class="opt"><label for="wFill">Backfill</label><select id="wFill"><option value="None">None, dirt back in</option><option value="Gravel">Gravel</option><option value="Concrete">Concrete</option><option value="Sand">Sand</option></select></div>
@@ -737,7 +738,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       </div>
       <p class="hint" style="margin:0">Fills in the wire, ground and conduit size from NEC 310.16 at 75°C and 250.122. You can change any of it after.</p>
     </div>
-    <div class="sched two">
+    <div class="sched two pipe-row">
       <div class="opt"><label for="wConduit">Conduit</label><select id="wConduit"></select></div>
       <div class="opt"><label for="wSize">Conduit size</label><select id="wSize"></select></div>
     </div>
@@ -1153,7 +1154,7 @@ const CATS = [
   { key: "spec", fam: "recept", shape: "square", name: "Specialty receptacles", amps: "all", types: ["Twist-lock", "Equipment receptacle", "Welder", "Range", "Dryer", "RV", "EV charging outlet", "Water heater", "Plasma cutter", "Forklift charger", "Dedicated drop"] },
   { key: "rmt", fam: "recept", shape: "square", name: "Receptacle mounting", types: ["Wall box", "Floor box", "Poke-through", "Surface box", "Ceiling box", "Junction box"] },
   { key: "lv", fam: "lowv", shape: "diamond", name: "Low-voltage / communications", types: ["Data outlet", "Telephone outlet", "Coax outlet", "Wireless access point", "Camera", "Card reader", "Door contact", "Request-to-exit device", "Speaker", "Intercom"] },
-  { key: "lvp", fam: "lowv", shape: "diamond", name: "Low-voltage pathways", drop: ["Empty conduit stub-up", "Conduit with pull string"], types: ["Empty conduit stub-up", "Conduit with pull string", "Sleeve", "J-hook", "Cable tray"] },
+  { key: "lvp", fam: "lowv", shape: "diamond", name: "Low-voltage pathways", drop: ["Empty conduit stub-up", "Conduit with pull string"], types: ["Empty conduit stub-up", "Conduit with pull string", "Sleeve", "Cable tray"] },
   { key: "fa", fam: "fire", shape: "diamond", name: "Fire alarm", drop: ["Conduit drop"], types: ["Pull station", "Horn/strobe", "Strobe", "Smoke detector", "Heat detector", "Duct detector", "Monitor module", "Control module", "Fire alarm panel", "Conduit drop"] },
   { key: "gr", fam: "gear", shape: "hexagon", name: "Panels & gear", amps: "all", types: ["Panel", "Service entrance", "Disconnect", "Meter base", "Transformer"] }
 ];
@@ -1215,6 +1216,17 @@ function buildToolbox() {
       b.onclick = () => openAmps(d.id);
       wrap.appendChild(b);
     });
+    if (fk === "lowv") {
+      const b = document.createElement("button"); b.type = "button"; b.className = "dev"; b.id = "jhookBtn";
+      b.title = "Draw a J-hook run; hooks are counted every 5 feet";
+      const sv = document.createElementNS("http://www.w3.org/2000/svg", "svg"); sv.setAttribute("viewBox", "-10 -10 20 20"); sv.setAttribute("aria-hidden", "true");
+      sv.innerHTML = `<path d="M-8 6 L8 -6" stroke="currentColor" stroke-width="2" stroke-dasharray="3 2"/>`;
+      const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = "J-hook run";
+      const sm = document.createElement("small"); sm.textContent = "Draw it, hooks every 5'"; nm.appendChild(sm);
+      b.append(sv, nm, document.createElement("span"));
+      b.onclick = () => { const w = wiresList().find(isJH); if (w) startRunType(w.id); else { openWire(null); $("wKind").value = "jhook"; $("wHook").value = 5; $("wColor").value = "#7048e8"; $("wLabel").value = ""; wirePreview(); } };
+      wrap.appendChild(b);
+    }
     det.appendChild(wrap); box.appendChild(det);
   });
 }
@@ -1443,6 +1455,12 @@ function takeoffRows() {
     if (!lf) return;
     const sets = w.sets || 1, mat = w.mat === "AL" || /AL/.test(w.ins) ? "AL" : "CU";
     const add = (key, label, sub, base, sup) => foot.push({ key, label, sub, base, pct: +ex[key] || 0, sup, color: w.color });
+    if (isJH(w)) {
+      const by = pages.map((pg, i) => [sheetName(pg, i), pg.runs.filter(r => r.typeId === w.id).reduce((a, r) => a + hooksOn(r.px, pg, w), 0)]).filter(x => x[1]);
+      counts.push({ id: w.id, feed: null, name: `J-hooks${w.label ? " · " + w.label : ""}`, what: `One every ${w.interval || 5}' along ${fmtLF(lf)} of runs`, qty: by.reduce((t, x) => t + x[1], 0), by, color: w.color, group: "lvp" });
+      add(`${w.id}:j`, `J-hook run length${w.label ? " · " + w.label : ""}`, `Hooks every ${w.interval || 5}'`, lf, null);
+      return;
+    }
     if (isUG(w)) {
       add(`${w.id}:c`, `${w.size} ${w.conduit}`, wireLabel(w), lf, `${w.size} ${w.conduit} conduit`);
       add(`${w.id}:t`, `Trench ${trenchLabel(w)}`, `Dig length for ${w.size} ${w.conduit}`, lf, null);
@@ -2324,12 +2342,13 @@ function wireLabel(w) {
 }
 function wireSpec(w) {
   if (isUG(w)) return `${w.size} ${w.conduit} underground · ${trenchLabel(w)}`;
+  if (isJH(w)) return `J-hooks every ${w.interval || 5}'`;
   const sets = w.sets > 1 ? `${w.sets} sets of ` : "", amps = w.amps ? `${w.amps}A ${w.mat === "AL" ? "AL" : "CU"} · ` : "";
   const pipe = w.conduit === "No conduit" ? "" : w.conduit === "MC cable" ? "MC cable" : `${w.size} ${w.conduit}`;
   const wire = `${w.count}x ${gaugeTxt(w.gauge)} ${w.ins}` + (w.ground ? ` + ${gaugeTxt(w.ground)} GND` : "");
   return amps + sets + (pipe ? `${pipe} · ${wire}` : wire);
 }
-const wireTotal = w => isUG(w) ? 0 : ((w.count || 0) + (w.ground ? 1 : 0)) * (w.sets || 1);
+const wireTotal = w => isUG(w) || isJH(w) ? 0 : ((w.count || 0) + (w.ground ? 1 : 0)) * (w.sets || 1);
 const pipeRuns = w => w.sets || 1; // each parallel set is its own conduit
 function renderWires() {
   const ul = $("wireList"), list = wiresList();
@@ -2346,7 +2365,7 @@ function renderWires() {
     const tx = document.createElement("span"); tx.className = "cnt-txt";
     const nm = document.createElement("b"); nm.textContent = wireLabel(w);
     const ds = document.createElement("span"); ds.className = "d";
-    ds.textContent = !lf ? "Nothing drawn yet" : isUG(w) ? `${fmtLF(lf)} of conduit and trench` : `${fmtLF(lf * pipeRuns(w))} of conduit · ${fmtLF(lf * wireTotal(w))} of wire`;
+    ds.textContent = !lf ? "Nothing drawn yet" : isJH(w) ? `${fmtLF(lf)} · ${hooksOf(w)} J-hooks` : isUG(w) ? `${fmtLF(lf)} of conduit and trench` : `${fmtLF(lf * pipeRuns(w))} of conduit · ${fmtLF(lf * wireTotal(w))} of wire`;
     tx.append(nm, ds);
     b.append(sw, tx);
     b.onclick = () => startRunType(w.id);
@@ -2386,8 +2405,13 @@ function fillAmps() {
 const DEPTHS = [6, 12, 18, 24, 30, 36, 42, 48, 60];
 $("wDepth").innerHTML = DEPTHS.map(d => `<option value="${d}">${d} in</option>`).join("");
 const isUG = w => w && w.kind === "ug";
+const isJH = w => w && w.kind === "jhook";
+// J-hooks on one run: one every interval along it, rounded up, plus the one at the start
+const hooksOn = (pxLen, pg, w) => pg.ftPerPx ? Math.ceil(pxLen * pg.ftPerPx / (w.interval || 5)) + 1 : 0;
+const hooksOf = w => pages.reduce((t, pg) => t + pg.runs.filter(r => r.typeId === w.id).reduce((a, r) => a + hooksOn(r.px, pg, w), 0), 0);
 function wireFields() {
   const label = $("wLabel").value.trim();
+  if ($("wKind").value === "jhook") return { label, kind: "jhook", interval: Math.max(1, Math.min(20, +$("wHook").value || 5)), conduit: "No conduit", size: "", count: 0, gauge: "", ins: "", ground: "", color: $("wColor").value, sets: 1, mat: "CU", amps: null };
   if ($("wKind").value === "ug") return { label, kind: "ug", conduit: $("wConduit").value, size: $("wSize").value, count: 0, gauge: "", ins: "", ground: "", color: $("wColor").value,
     sets: 1, mat: "CU", amps: null, depth: +$("wDepth").value, backfill: $("wFill").value };
   return { label, kind: "wire", conduit: $("wConduit").value, size: $("wSize").value, count: Math.max(1, Math.min(40, parseInt($("wCount").value, 10) || 1)),
@@ -2396,6 +2420,7 @@ function wireFields() {
 }
 function wirePreview() {
   $("wireForm").classList.toggle("ug", $("wKind").value === "ug");
+  $("wireForm").classList.toggle("jh", $("wKind").value === "jhook");
   $("wSize").disabled = ["MC cable", "No conduit"].includes($("wConduit").value);
   const w = wireFields();
   $("wirePrev").textContent = wireLabel(w);
@@ -2436,7 +2461,7 @@ function openWire(id) {
   $("wMat").value = w.mat || "CU"; fillAmps(); $("wAmps").value = w.amps || ""; $("wSets").value = w.sets || 1;
   $("wConduit").value = w.conduit; $("wSize").value = w.size; $("wCount").value = w.count; $("wGauge").value = w.gauge; $("wIns").value = w.ins; $("wGround").value = w.ground || "";
   $("wColor").value = w.color || PALETTE[(list.length + 3) % PALETTE.length];
-  $("wLabel").value = w.label || ""; $("wKind").value = isUG(w) ? "ug" : "wire"; $("wDepth").value = String(w.depth || 24); $("wFill").value = w.backfill || "None";
+  $("wLabel").value = w.label || ""; $("wKind").value = isUG(w) ? "ug" : isJH(w) ? "jhook" : "wire"; $("wHook").value = w.interval || 5; $("wDepth").value = String(w.depth || 24); $("wFill").value = w.backfill || "None";
   if (isUG(w)) { $("wCount").value = 3; $("wGauge").value = "12"; $("wIns").value = "STR"; }
   $("wireDelete").hidden = !editingWire;
   $("wireSave").textContent = editingWire ? "Save" : "Save and draw";
