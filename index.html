@@ -121,16 +121,16 @@ button { cursor: pointer; }
 .zoomrow .zl { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .zoomrow .btn { justify-content: center; padding: 0 6px; }
 .btn.tool.hand[aria-pressed="true"], .zoomrow .btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
-.mk-run { fill: none; stroke: var(--mark-run); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
-.mk-draft { fill: none; stroke: var(--mark-run); stroke-width: 2.5; stroke-dasharray: 8 5; }
+.mk-run { fill: none; stroke: var(--mark-run); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
+.mk-draft { fill: none; stroke: var(--mark-run); stroke-width: 1.5; stroke-dasharray: 8 5; }
 .mk-meas { fill: none; stroke: var(--mark-measure); stroke-width: 2.5; }
-.mk-dot { fill: var(--mark-halo); stroke: var(--mark-run); stroke-width: 2; }
+.mk-dot { fill: var(--mark-halo); stroke: var(--mark-run); stroke-width: 1.25; }
 .mk-dot.meas { stroke: var(--mark-measure); }
 .mk-label { font-family: var(--font-mono); font-weight: 600; paint-order: stroke; stroke: var(--mark-halo); stroke-linejoin: round; fill: var(--mark-run); }
 .mk-label.meas { fill: var(--mark-measure); }
 .mk-glow { fill: rgb(14 165 233 / .35); stroke: #0ea5e9; stroke-width: 2.5; filter: drop-shadow(0 0 5px #0ea5e9); }
 .mk-glow.hover { fill: rgb(14 165 233 / .15); stroke-width: 1.5; filter: none; }
-.mk-glow-run { fill: none; stroke: #0ea5e9; stroke-opacity: .45; stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 4px #0ea5e9); }
+.mk-glow-run { fill: none; stroke: #0ea5e9; stroke-opacity: .45; stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 4px #0ea5e9); }
 .mk-box { fill: color-mix(in srgb, var(--accent) 10%, transparent); stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 6 4; }
 .selbar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; max-width: calc(100% - 24px);
   background: var(--panel); border: 1px solid var(--accent); border-radius: 8px; padding: 6px 8px 6px 12px; font-size: 14px; box-shadow: 0 4px 14px rgb(0 0 0 / .14); }
@@ -169,6 +169,7 @@ button { cursor: pointer; }
 .run { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; }
 .run select { grid-column: 1 / -1; min-width: 0; height: 28px; font-size: 13px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); padding: 0 6px; margin-top: -2px; }
 .wire-swatch { width: 22px; height: 0; border-top: 4px solid; border-radius: 2px; flex: none; }
+#wireForm.ug .wire-only, #wireForm:not(.ug) .ug-only { display: none; }
 .amp-box { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 .amp-box .sched { grid-template-columns: 1fr 1.6fr; }
 .wire-fill { font-size: 13px; color: var(--muted); }
@@ -598,6 +599,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <div class="file-acts">
       <button class="btn primary" type="button" id="fileSave">Save job to Google Drive…<small>Pick Google Drive in the Save window</small></button>
       <button class="btn" type="button" id="fileOpen">Open a job file…<small>From Google Drive, Downloads or an email</small></button>
+      <button class="btn" type="button" id="filePdf">Save drawings as a PDF…<small>Marked-up sheets that nobody can change</small></button>
       <button class="btn" type="button" id="fileEmail">Email this job…<small>Sends a link that opens the job in the app</small></button>
     </div>
     <p class="hint" id="driveTip">Don't see Google Drive in the Save window? Install <a href="https://www.google.com/drive/download/" target="_blank" rel="noopener">Google Drive for desktop</a> once, and it shows up there as Google Drive.</p>
@@ -684,11 +686,12 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 <div class="modal" id="ampModal" hidden role="dialog" aria-modal="true" aria-labelledby="ampTitle">
   <form class="modal-card" id="ampForm" autocomplete="off">
     <h2 id="ampTitle">Water heater</h2>
-    <p class="hint">Pick the amps and voltage, then click the sheet to place it. The same amps and voltage add to the same count.</p>
+    <p class="hint">Pick the amps and voltage, then click the sheet to place it. The same amps, voltage and label add to the same count.</p>
     <div class="sched two">
       <div class="opt"><label for="ampAmps">Amps</label><select id="ampAmps"></select></div>
       <div class="opt"><label for="ampVolts">Voltage</label><select id="ampVolts"></select></div>
     </div>
+    <div class="opt"><label for="ampLabel">Label or description</label><input type="text" id="ampLabel" placeholder="e.g. LP-1, or Shop welder by bay door"></div>
     <div class="actions">
       <span class="spacer"></span>
       <button class="btn" type="button" id="ampCancel">Cancel</button>
@@ -701,7 +704,13 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
   <form class="modal-card" id="wireForm" autocomplete="off">
     <h2 id="wireTitle">New run type</h2>
     <p class="hint">Pick the conduit and the wire in it. Every run you draw with this type adds to its totals.</p>
-    <div class="amp-box">
+    <div class="opt"><label for="wLabel">Label</label><input type="text" id="wLabel" placeholder="e.g. Feeder to LP-1, or Parking lot lights"></div>
+    <div class="opt"><label for="wKind">What is this run</label><select id="wKind"><option value="wire">Conduit with wire</option><option value="ug">Conduit only, underground</option></select></div>
+    <div class="sched two ug-only">
+      <div class="opt"><label for="wDepth">Dig depth</label><select id="wDepth"></select></div>
+      <div class="opt"><label for="wFill">Backfill</label><select id="wFill"><option value="None">None, dirt back in</option><option value="Gravel">Gravel</option><option value="Concrete">Concrete</option><option value="Sand">Sand</option></select></div>
+    </div>
+    <div class="amp-box wire-only">
       <div class="sched">
         <div class="opt"><label for="wMat">Wire metal</label><select id="wMat"><option value="CU">Copper</option><option value="AL">Aluminum</option></select></div>
         <div class="opt"><label for="wAmps">Pick by amps</label><select id="wAmps"></select></div>
@@ -712,14 +721,14 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <div class="opt"><label for="wConduit">Conduit</label><select id="wConduit"></select></div>
       <div class="opt"><label for="wSize">Conduit size</label><select id="wSize"></select></div>
     </div>
-    <div class="sched three">
+    <div class="sched three wire-only">
       <div class="opt"><label for="wCount">How many wires</label><input type="number" id="wCount" min="1" max="40" step="1" inputmode="numeric"></div>
       <div class="opt"><label for="wGauge">Wire size</label><select id="wGauge"></select></div>
       <div class="opt"><label for="wIns">Wire type</label><select id="wIns"></select></div>
     </div>
     <div class="sched three">
-      <div class="opt"><label for="wGround">Ground wire</label><select id="wGround"></select></div>
-      <div class="opt"><label for="wSets">Parallel sets</label><input type="number" id="wSets" min="1" max="12" step="1" inputmode="numeric"></div>
+      <div class="opt wire-only"><label for="wGround">Ground wire</label><select id="wGround"></select></div>
+      <div class="opt wire-only"><label for="wSets">Parallel sets</label><input type="number" id="wSets" min="1" max="12" step="1" inputmode="numeric"></div>
       <div class="opt"><label for="wColor">Line color</label><input type="color" id="wColor"></div>
     </div>
     <div class="wire-prev" id="wirePrev" aria-live="polite"></div>
@@ -950,6 +959,28 @@ new ResizeObserver(applyZoom).observe($("stage"));
 
 // Items taken out of the toolbox. Older jobs may still have them placed, so they keep drawing.
 const RETIRED = {
+  panel:[
+    {id:'PNL-M200',manufacturer:'Square D',model:'QO130M200, main panel 200A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'MAIN',sym2:'200A'},
+    {id:'PNL-M400',manufacturer:'Square D',model:'QO142M400, main panel 400A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'MAIN',sym2:'400A'},
+    {id:'PNL-S30',manufacturer:'Square D',model:'QO112L30, subpanel 30A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'SUB',sym2:'30A'},
+    {id:'PNL-S50',manufacturer:'Square D',model:'QO112L50, subpanel 50A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'SUB',sym2:'50A'},
+    {id:'PNL-S100',manufacturer:'Square D',model:'QO124L100, subpanel 100A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'SUB',sym2:'100A'},
+    {id:'PNL-S200',manufacturer:'Square D',model:'QO130L200, subpanel 200A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'SUB',sym2:'200A'}
+  ],
+  disconnect:[
+    {id:'DISC-30',manufacturer:'Square D',model:'H221N, disconnect 30A, NEMA 3R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'60 in',sym1:'30A'},
+    {id:'DISC-50',manufacturer:'Square D',model:'H222N, disconnect 50A, NEMA 3R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'60 in',sym1:'50A'},
+    {id:'DISC-100',manufacturer:'Square D',model:'H223N, disconnect 100A, NEMA 3R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'60 in',sym1:'100A'},
+    {id:'DISC-200',manufacturer:'Square D',model:'H224N, disconnect 200A, NEMA 3R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'60 in',sym1:'200A'}
+  ],
+  service_overhead:[
+    {id:'SVC-OH200',manufacturer:'Utility',model:'Overhead service, 200A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'200A'},
+    {id:'SVC-OH400',manufacturer:'Utility',model:'Overhead service, 400A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'400A'}
+  ],
+  service_underground:[
+    {id:'SVC-UG200',manufacturer:'Utility',model:'Underground service, 200A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'200A'},
+    {id:'SVC-UG400',manufacturer:'Utility',model:'Underground service, 400A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'400A'}
+  ],
   receptacle_240v:[
     {id:'240-30',manufacturer:'Hubbell',model:'HBL9430, 30A receptacle, NEMA 6-30R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'48 in',sym1:'30A'},
     {id:'240-50',manufacturer:'Hubbell',model:'HBL9450, 50A receptacle, NEMA 6-50R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'48 in',sym1:'50A'},
@@ -1030,31 +1061,14 @@ const FIXTURES = {
   occupancy_switch:[
     {id:'OCC-1',manufacturer:'Leviton',model:'ODC10, occupancy / motion, wall mount',wattage:null,voltage:'120/277V',lumens:null,mountingHeight:'48 in'}
   ],
-  panel:[
-    {id:'PNL-M200',manufacturer:'Square D',model:'QO130M200, main panel 200A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'MAIN',sym2:'200A'},
-    {id:'PNL-M400',manufacturer:'Square D',model:'QO142M400, main panel 400A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'MAIN',sym2:'400A'},
-    {id:'PNL-S30',manufacturer:'Square D',model:'QO112L30, subpanel 30A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'SUB',sym2:'30A'},
-    {id:'PNL-S50',manufacturer:'Square D',model:'QO112L50, subpanel 50A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'SUB',sym2:'50A'},
-    {id:'PNL-S100',manufacturer:'Square D',model:'QO124L100, subpanel 100A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'SUB',sym2:'100A'},
-    {id:'PNL-S200',manufacturer:'Square D',model:'QO130L200, subpanel 200A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'SUB',sym2:'200A'}
-  ],
-  disconnect:[
-    {id:'DISC-30',manufacturer:'Square D',model:'H221N, disconnect 30A, NEMA 3R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'60 in',sym1:'30A'},
-    {id:'DISC-50',manufacturer:'Square D',model:'H222N, disconnect 50A, NEMA 3R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'60 in',sym1:'50A'},
-    {id:'DISC-100',manufacturer:'Square D',model:'H223N, disconnect 100A, NEMA 3R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'60 in',sym1:'100A'},
-    {id:'DISC-200',manufacturer:'Square D',model:'H224N, disconnect 200A, NEMA 3R',wattage:null,voltage:'240V',lumens:null,mountingHeight:'60 in',sym1:'200A'}
+  gear_ask:[
+    {id:'PNL',manufacturer:'',model:'Panel',ask:true},
+    {id:'SVC',manufacturer:'',model:'Service entrance',ask:true},
+    {id:'DISC',manufacturer:'',model:'Disconnect',ask:true}
   ],
   meter:[
     {id:'MTR-200',manufacturer:'Utility',model:'Meter base, 200A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'60 in'},
     {id:'MTR-400',manufacturer:'Utility',model:'Meter base, 400A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'60 in'}
-  ],
-  service_overhead:[
-    {id:'SVC-OH200',manufacturer:'Utility',model:'Overhead service, 200A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'200A'},
-    {id:'SVC-OH400',manufacturer:'Utility',model:'Overhead service, 400A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'400A'}
-  ],
-  service_underground:[
-    {id:'SVC-UG200',manufacturer:'Utility',model:'Underground service, 200A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'200A'},
-    {id:'SVC-UG400',manufacturer:'Utility',model:'Underground service, 400A',wattage:null,voltage:'120/240V',lumens:null,mountingHeight:'n/a',sym1:'400A'}
   ],
   fan:[
     {id:'FAN-1',manufacturer:'Big Ass Fans',model:'Basic 6, agricultural ceiling fan',wattage:750,voltage:'120-240V',lumens:null,mountingHeight:'14 ft',size:'large',symbolType:'ceiling'},
@@ -1071,7 +1085,7 @@ const GROUPS = [
   { key: "recept", name: "Receptacles", shape: "square", types: ["duplex_receptacle", "quad_receptacle", "gfci_receptacle", "weatherproof_receptacle"] },
   { key: "special", name: "240V & special", shape: "square", types: ["special"] },
   { key: "fans", name: "Fans", shape: "diamond", types: ["fan"] },
-  { key: "gear", name: "Panels & gear", shape: "hexagon", types: ["panel", "disconnect", "meter", "service_overhead", "service_underground"] }
+  { key: "gear", name: "Panels & gear", shape: "hexagon", types: ["gear_ask", "meter"] }
 ];
 const KIND = { high_bay: "High bay", linear_light: "Linear", recessed_light: "Recessed can", wall_pack: "Wall pack", sconce: "Sconce", barn_light: "Barn light",
   uplight: "Uplight", flood_light: "Flood", duplex_receptacle: "Duplex", quad_receptacle: "Quad", gfci_receptacle: "GFCI", weatherproof_receptacle: "Weatherproof GFCI",
@@ -1088,7 +1102,7 @@ GROUPS.forEach(g => {
   }));
 });
 Object.entries(RETIRED).forEach(([t, list]) => list.forEach((f, i) => {
-  const g = t === "junction_box" ? GROUPS.find(g => g.key === "gear") : GROUPS.find(g => g.key === "special");
+  const g = GROUPS.find(g => g.key === (["receptacle_240v", "ev_charger"].includes(t) ? "special" : "gear"));
   DEVICES[f.id] = { id: f.id, kind: KIND[t] || t, model: f.model, maker: f.manufacturer, volts: f.voltage, group: g.key, shape: g.shape, color: PALETTE[(i + 8) % PALETTE.length] };
 }));
 
@@ -1151,11 +1165,11 @@ const countsList = () => job ? (job.counts || (job.counts = [])) : exampleCounts
 function devInfo(t) {
   const c = countsList().find(c => c.id === t);
   if (c) { const b = DEVICES[c.base] || Object.values(DEVICES)[0]; return { ...b, id: c.id, base: c.base, color: c.color || b.color, tag: c.tag || "", desc: c.desc || "", custom: true,
-    sMaker: c.maker || "", sModel: c.model || "", sWatts: c.watts || "", sVolts: c.volts || "", sMount: c.mount || "", amps: c.amps || "" }; }
+    sMaker: c.maker || "", sModel: c.model || "", sWatts: c.watts || "", sVolts: c.volts || "", sMount: c.mount || "", amps: c.amps || "", label: c.label || "" }; }
   return DEVICES[t];
 }
 const ampsLine = d => [d.amps && `${d.amps}A`, d.sVolts].filter(Boolean).join(" ");
-const nameOf = d => d.custom ? (d.tag ? `Type ${d.tag}` : d.amps ? `${d.kind} ${ampsLine(d)}` : d.kind) : `${d.id} ${d.kind}`;
+const nameOf = d => d.custom ? (d.tag ? `Type ${d.tag}` : d.amps ? `${d.kind}${d.label ? " " + d.label : ""} ${ampsLine(d)}` : d.kind) : `${d.id} ${d.kind}`;
 // one line for a fixture type: maker and model, then the schedule's description, watts, volts and mounting
 const specOf = d => d.custom
   ? [[d.sMaker, d.sModel].filter(Boolean).join(" "), d.desc, d.sWatts && `${d.sWatts}${/w$/i.test(d.sWatts) ? "" : " W"}`, d.amps ? (d.tag && ampsLine(d)) : d.sVolts && `${d.sVolts}${/v$/i.test(d.sVolts) ? "" : " V"}`, d.sMount].filter(Boolean).join(" · ")
@@ -1231,12 +1245,12 @@ function openCount(id, base) {
 $("addCountBtn").onclick = () => openCount(null);
 
 /* 240V and special items: ask the amps and voltage, then place. Each amps + voltage pair is its own count. */
-const ASK_AMPS = [15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200, 225, 250, 300, 350, 400];
+const ASK_AMPS = [15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200, 225, 250, 300, 350, 400, 600, 800, 1000, 1200, 1600, 2000];
 const ASK_VOLTS = ["120V", "208V", "240V", "277V", "480V", "120/208V 3-phase", "120/240V", "208V 3-phase", "240V 3-phase", "277/480V 3-phase", "480V 3-phase"];
 $("ampAmps").innerHTML = ASK_AMPS.map(a => `<option value="${a}">${a} A</option>`).join("");
 $("ampVolts").innerHTML = ASK_VOLTS.map(v => `<option>${v}</option>`).join("");
 let ampBase = null;
-const ASK_DEFAULT = { WH: [30, "240V"], RNG: [50, "120/240V"], DRY: [30, "120/240V"], WLD: [50, "240V"], PLS: [40, "240V"], FLC: [30, "480V 3-phase"], DD: [20, "120V"], JB: [20, "120V"] };
+const ASK_DEFAULT = { WH: [30, "240V"], RNG: [50, "120/240V"], DRY: [30, "120/240V"], WLD: [50, "240V"], PLS: [40, "240V"], FLC: [30, "480V 3-phase"], DD: [20, "120V"], JB: [20, "120V"], PNL: [200, "120/240V"], SVC: [200, "120/240V"], DISC: [60, "240V"] };
 function openAmps(base) {
   if (!pages.length) return;
   if (tool) setTool(null);
@@ -1244,7 +1258,7 @@ function openAmps(base) {
   const last = countsList().filter(c => c.base === base && c.amps).pop();
   const [a, v] = last ? [last.amps, last.volts] : ASK_DEFAULT[base] || [20, "120V"];
   $("ampTitle").textContent = DEVICES[base].kind;
-  $("ampAmps").value = String(a); $("ampVolts").value = v;
+  $("ampAmps").value = String(a); $("ampVolts").value = v; $("ampLabel").value = "";
   $("ampModal").hidden = false; $("ampAmps").focus();
 }
 $("ampCancel").onclick = () => { $("ampModal").hidden = true; };
@@ -1275,7 +1289,10 @@ function takeoffRows() {
     if (!lf) return;
     const sets = w.sets || 1, mat = w.mat === "AL" || /AL/.test(w.ins) ? "AL" : "CU";
     const add = (key, label, sub, base, sup) => foot.push({ key, label, sub, base, pct: +ex[key] || 0, sup, color: w.color });
-    if (w.conduit === "MC cable") add(`${w.id}:c`, `MC cable ${w.count}x ${gaugeTxt(w.gauge)}${w.ground ? " + GND" : ""}`, wireLabel(w), lf * sets, `MC cable, ${w.count}/${gaugeTxt(w.gauge)}${w.ground ? ` with ${gaugeTxt(w.ground)} ground` : ""}`);
+    if (isUG(w)) {
+      add(`${w.id}:c`, `${w.size} ${w.conduit}`, wireLabel(w), lf, `${w.size} ${w.conduit} conduit`);
+      add(`${w.id}:t`, `Trench ${trenchLabel(w)}`, `Dig length for ${w.size} ${w.conduit}`, lf, null);
+    } else if (w.conduit === "MC cable") add(`${w.id}:c`, `MC cable ${w.count}x ${gaugeTxt(w.gauge)}${w.ground ? " + GND" : ""}`, wireLabel(w), lf * sets, `MC cable, ${w.count}/${gaugeTxt(w.gauge)}${w.ground ? ` with ${gaugeTxt(w.ground)} ground` : ""}`);
     else {
       if (w.conduit !== "No conduit") add(`${w.id}:c`, `${w.size} ${w.conduit}`, wireLabel(w), lf * sets, `${w.size} ${w.conduit} conduit`);
       add(`${w.id}:w`, `${gaugeTxt(w.gauge)} ${w.ins} ${mat}`, `${w.count * sets} wires × ${fmtLF(lf)} · ${wireLabel(w)}`, lf * w.count * sets, `${gaugeTxt(w.gauge)} ${w.ins} ${mat === "AL" ? "aluminum" : "copper"} wire`);
@@ -1362,11 +1379,11 @@ $("tsPrint").onclick = () => {
 
 $("ampForm").addEventListener("submit", e => {
   e.preventDefault();
-  const amps = $("ampAmps").value, volts = $("ampVolts").value, list = countsList();
-  let c = list.find(c => c.base === ampBase && String(c.amps) === amps && c.volts === volts);
+  const amps = $("ampAmps").value, volts = $("ampVolts").value, label = $("ampLabel").value.trim(), list = countsList();
+  let c = list.find(c => c.base === ampBase && String(c.amps) === amps && c.volts === volts && (c.label || "") === label);
   if (!c) {
     remember([]);
-    c = { id: uid(), base: ampBase, tag: "", desc: "", color: PALETTE[list.length % PALETTE.length], maker: "", model: "", watts: "", volts, mount: "", amps };
+    c = { id: uid(), base: ampBase, tag: "", desc: "", color: PALETTE[list.length % PALETTE.length], maker: "", model: "", watts: "", volts, mount: "", amps, label };
     list.push(c);
     if (job) { job.updated = new Date().toISOString(); saveJob(job); }
   }
@@ -1487,16 +1504,16 @@ function drawOverlay() {
   if (cmp) return drawCmpHandles(svg);
   const ns = { "vector-effect": "non-scaling-stroke" };
   const ptsAttr = pts => pts.map(q => q.join(",")).join(" ");
-  const dots = (g, pts, cls) => pts.forEach(q => g.appendChild(svgEl("circle", { cx: q[0], cy: q[1], r: 4 / k, class: "mk-dot " + (cls || ""), ...ns })));
+  const dots = (g, pts, cls) => pts.forEach(q => g.appendChild(svgEl("circle", { cx: q[0], cy: q[1], r: 3 / k, class: "mk-dot " + (cls || ""), ...ns })));
   const g = svgEl("g", {});
   for (const r of p.runs) {
     if (r === contRun) continue; // drawn below as the draft that's growing
     const w = wireOf(r.typeId), col = w ? { style: `stroke:${w.color}` } : {};
     if (sel.has(r)) g.appendChild(svgEl("polyline", { points: ptsAttr(r.pts), class: "mk-glow-run", ...ns }));
-    g.appendChild(svgEl("polyline", { points: ptsAttr(r.pts), class: "mk-run", ...col, ...ns }));
+    const line = svgEl("polyline", { points: ptsAttr(r.pts), class: "mk-run", ...col, ...ns });
+    if (p.ftPerPx) line.appendChild(svgEl("title", {}, `${r.name} · ${w ? wireLabel(w) + " · " : ""}${fmtLF(r.px * p.ftPerPx)}`));
+    g.appendChild(line);
     dots(g, [r.pts[0], r.pts[r.pts.length - 1]]);
-    const end = r.pts[r.pts.length - 1];
-    if (p.ftPerPx) label(g, end[0], end[1], `${r.name} · ${w ? wireLabel(w) + " · " : ""}${fmtLF(r.px * p.ftPerPx)}`);
   }
   for (const v of p.devices) {
     const d = devInfo(v.t); if (!d) continue;
@@ -1506,7 +1523,7 @@ function drawOverlay() {
     e.setAttribute("vector-effect", "non-scaling-stroke");
     e.appendChild(svgEl("title", {}, d.custom ? `${nameOf(d)} · ${specOf(d) || d.kind}` : `${d.id} · ${d.maker} ${d.model}`));
     g.appendChild(e);
-    if (d.tag) g.appendChild(svgEl("text", { x: v.x + 10 / k, y: v.y - 6 / k, class: "mk-tag", "font-size": 11 / k, "stroke-width": 3 / k }, d.tag));
+    if (d.tag || d.label) g.appendChild(svgEl("text", { x: v.x + 10 / k, y: v.y - 6 / k, class: "mk-tag", "font-size": 11 / k, "stroke-width": 3 / k }, d.tag || d.label));
   }
   if (tool === "place" && hover) {
     const e = shapeEl(devInfo(placeType), hover[0], hover[1], 8 / k, "mk-dev");
@@ -2095,14 +2112,20 @@ function conduitFor(w) {
   return sz || CSIZES[CSIZES.length - 1];
 }
 const gaugeTxt = g => /^\d{3}$/.test(g) ? `${g} kcmil` : `#${g}`;
+const trenchLabel = w => `${w.depth}" deep` + (w.backfill && w.backfill !== "None" ? ` · ${w.backfill.toLowerCase()} backfill` : "");
 function wireLabel(w) {
   if (!w) return "No type";
+  if (w.label) return `${w.label} · ${wireSpec(w)}`;
+  return wireSpec(w);
+}
+function wireSpec(w) {
+  if (isUG(w)) return `${w.size} ${w.conduit} underground · ${trenchLabel(w)}`;
   const sets = w.sets > 1 ? `${w.sets} sets of ` : "", amps = w.amps ? `${w.amps}A ${w.mat === "AL" ? "AL" : "CU"} · ` : "";
   const pipe = w.conduit === "No conduit" ? "" : w.conduit === "MC cable" ? "MC cable" : `${w.size} ${w.conduit}`;
   const wire = `${w.count}x ${gaugeTxt(w.gauge)} ${w.ins}` + (w.ground ? ` + ${gaugeTxt(w.ground)} GND` : "");
   return amps + sets + (pipe ? `${pipe} · ${wire}` : wire);
 }
-const wireTotal = w => ((w.count || 0) + (w.ground ? 1 : 0)) * (w.sets || 1);
+const wireTotal = w => isUG(w) ? 0 : ((w.count || 0) + (w.ground ? 1 : 0)) * (w.sets || 1);
 const pipeRuns = w => w.sets || 1; // each parallel set is its own conduit
 function renderWires() {
   const ul = $("wireList"), list = wiresList();
@@ -2119,7 +2142,7 @@ function renderWires() {
     const tx = document.createElement("span"); tx.className = "cnt-txt";
     const nm = document.createElement("b"); nm.textContent = wireLabel(w);
     const ds = document.createElement("span"); ds.className = "d";
-    ds.textContent = lf ? `${fmtLF(lf * pipeRuns(w))} of conduit · ${fmtLF(lf * wireTotal(w))} of wire` : "Nothing drawn yet";
+    ds.textContent = !lf ? "Nothing drawn yet" : isUG(w) ? `${fmtLF(lf)} of conduit and trench` : `${fmtLF(lf * pipeRuns(w))} of conduit · ${fmtLF(lf * wireTotal(w))} of wire`;
     tx.append(nm, ds);
     b.append(sw, tx);
     b.onclick = () => startRunType(w.id);
@@ -2156,21 +2179,34 @@ function fillAmps() {
   $("wAmps").innerHTML = `<option value="">Choose amps…</option>` + AMP_LIST[mat].map(opt).join("") +
     `<optgroup label="Bigger: parallel sets">` + AMP_BIG[mat].map(opt).join("") + `</optgroup>`;
 }
+const DEPTHS = [6, 12, 18, 24, 30, 36, 42, 48, 60];
+$("wDepth").innerHTML = DEPTHS.map(d => `<option value="${d}">${d} in</option>`).join("");
+const isUG = w => w && w.kind === "ug";
 function wireFields() {
-  return { conduit: $("wConduit").value, size: $("wSize").value, count: Math.max(1, Math.min(40, parseInt($("wCount").value, 10) || 1)),
+  const label = $("wLabel").value.trim();
+  if ($("wKind").value === "ug") return { label, kind: "ug", conduit: $("wConduit").value, size: $("wSize").value, count: 0, gauge: "", ins: "", ground: "", color: $("wColor").value,
+    sets: 1, mat: "CU", amps: null, depth: +$("wDepth").value, backfill: $("wFill").value };
+  return { label, kind: "wire", conduit: $("wConduit").value, size: $("wSize").value, count: Math.max(1, Math.min(40, parseInt($("wCount").value, 10) || 1)),
     gauge: $("wGauge").value, ins: $("wIns").value, ground: $("wGround").value, color: $("wColor").value,
     sets: Math.max(1, Math.min(12, parseInt($("wSets").value, 10) || 1)), mat: $("wMat").value, amps: parseInt($("wAmps").value, 10) || null };
 }
 function wirePreview() {
+  $("wireForm").classList.toggle("ug", $("wKind").value === "ug");
   $("wSize").disabled = ["MC cable", "No conduit"].includes($("wConduit").value);
   const w = wireFields();
   $("wirePrev").textContent = wireLabel(w);
-  const f = fillOf(w), el = $("wireFill");
+  const f = isUG(w) ? null : fillOf(w), el = $("wireFill");
   el.className = "wire-fill" + (f && f.used > f.max ? " over" : "");
   el.textContent = !f ? "" : `Conduit fill about ${Math.round(f.used * 100)}% (EMT sizes; ${Math.round(f.max * 100)}% allowed)` +
     (f.used > f.max ? `. Too full: try ${conduitFor(w)}.` : ".");
 }
-["wConduit", "wSize", "wCount", "wGauge", "wIns", "wGround", "wSets"].forEach(id => $(id).addEventListener("input", wirePreview));
+["wLabel", "wConduit", "wSize", "wCount", "wGauge", "wIns", "wGround", "wSets", "wDepth", "wFill"].forEach(id => $(id).addEventListener("input", wirePreview));
+$("wKind").addEventListener("input", () => {
+  // underground runs are usually PVC; going back to wire picks EMT again
+  if ($("wKind").value === "ug" && ["EMT", "MC cable", "No conduit", "Flex (FMC)", "Sealtite (LFMC)"].includes($("wConduit").value)) $("wConduit").value = "PVC Sch 40";
+  else if ($("wKind").value === "wire" && $("wConduit").value === "PVC Sch 40" && !editingWire) $("wConduit").value = "EMT";
+  wirePreview();
+});
 // changing the wire by hand means it no longer matches the picked amps
 ["wGauge", "wSets"].forEach(id => $(id).addEventListener("input", () => { $("wAmps").value = ""; wirePreview(); }));
 $("wMat").addEventListener("input", () => { const a = $("wAmps").value; fillAmps(); if (a && AMP_LIST[$("wMat").value].concat(AMP_BIG[$("wMat").value]).includes(+a)) { $("wAmps").value = a; pickAmps(); } else wirePreview(); });
@@ -2196,6 +2232,8 @@ function openWire(id) {
   $("wMat").value = w.mat || "CU"; fillAmps(); $("wAmps").value = w.amps || ""; $("wSets").value = w.sets || 1;
   $("wConduit").value = w.conduit; $("wSize").value = w.size; $("wCount").value = w.count; $("wGauge").value = w.gauge; $("wIns").value = w.ins; $("wGround").value = w.ground || "";
   $("wColor").value = w.color || PALETTE[(list.length + 3) % PALETTE.length];
+  $("wLabel").value = w.label || ""; $("wKind").value = isUG(w) ? "ug" : "wire"; $("wDepth").value = String(w.depth || 24); $("wFill").value = w.backfill || "None";
+  if (isUG(w)) { $("wCount").value = 3; $("wGauge").value = "12"; $("wIns").value = "STR"; }
   $("wireDelete").hidden = !editingWire;
   $("wireSave").textContent = editingWire ? "Save" : "Save and draw";
   wirePreview();
@@ -2819,6 +2857,129 @@ async function saveProject(again) {
   savedTo(`Saved to your Downloads folder as ${file.name}. Move it into your Google Drive folder to open it on other devices.`);
   return true;
 }
+/* PDF of the drawings: each sheet with its symbols, runs and a small legend burned in, then the material list.
+   Nobody can move the marks in a PDF, so it is the copy to hand to someone who should only look. */
+let jsPdfLoad = null;
+const loadJsPdf = () => jsPdfLoad || (jsPdfLoad = new Promise((res, rej) => {
+  const sc = document.createElement("script");
+  sc.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+  sc.onload = () => res(window.jspdf.jsPDF); sc.onerror = () => { jsPdfLoad = null; rej(new Error("jspdf")); };
+  document.head.appendChild(sc);
+}));
+function drawShape(x, d, cx, cy, rr) {
+  x.beginPath();
+  if (d.shape === "circle") x.arc(cx, cy, rr, 0, Math.PI * 2);
+  else if (d.shape === "square") x.rect(cx - rr * .9, cy - rr * .9, rr * 1.8, rr * 1.8);
+  else {
+    const pts = d.shape === "triangle" ? [[0, -1.1], [1, .75], [-1, .75]]
+      : d.shape === "diamond" ? [[0, -1.15], [1.15, 0], [0, 1.15], [-1.15, 0]]
+      : [0, 1, 2, 3, 4, 5].map(i => [Math.cos(Math.PI / 3 * i), Math.sin(Math.PI / 3 * i)]);
+    pts.forEach(([a, b], i) => i ? x.lineTo(cx + a * rr, cy + b * rr) : x.moveTo(cx + a * rr, cy + b * rr));
+    x.closePath();
+  }
+  x.fillStyle = d.color; x.fill(); x.lineWidth = rr / 5; x.strokeStyle = "#1d2731"; x.stroke();
+}
+async function sheetCanvas(pg) {
+  const img = await createImageBitmap(pg.blob);
+  const sc = Math.min(1, 6000 / Math.max(img.width, img.height));
+  const W = Math.round(img.width * sc), H = Math.round(img.height * sc), c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const x = c.getContext("2d");
+  x.fillStyle = "#fff"; x.fillRect(0, 0, W, H); x.drawImage(img, 0, 0, W, H);
+  x.save(); x.scale(sc, sc);
+  const u = Math.max(img.width, img.height) / 1100; // one "screen pixel" at a full-sheet view
+  x.lineJoin = x.lineCap = "round";
+  pg.runs.forEach(r => {
+    const w = wireOf(r.typeId);
+    x.strokeStyle = w ? w.color : "#0b6fb8"; x.lineWidth = 1.5 * u;
+    x.beginPath(); r.pts.forEach((q, i) => i ? x.lineTo(q[0], q[1]) : x.moveTo(q[0], q[1])); x.stroke();
+  });
+  pg.devices.forEach(v => {
+    const d = devInfo(v.t); if (!d) return;
+    drawShape(x, d, v.x, v.y, 6 * u);
+    const tg = d.tag || d.label;
+    if (tg) { x.font = `600 ${9 * u}px sans-serif`; x.lineWidth = 3 * u; x.strokeStyle = "#fff"; x.strokeText(tg, v.x + 8 * u, v.y - 5 * u); x.fillStyle = "#111"; x.fillText(tg, v.x + 8 * u, v.y - 5 * u); }
+  });
+  x.restore();
+  // legend in the bottom-left corner: what is on this sheet
+  const rows = [];
+  const seen = new Map(); pg.devices.forEach(v => seen.set(v.t, (seen.get(v.t) || 0) + 1));
+  seen.forEach((n, t) => { const d = devInfo(t); if (d) rows.push({ d, text: `${n} × ${nameOf(d)}` }); });
+  const byType = new Map(); pg.runs.forEach(r => byType.set(r.typeId || null, (byType.get(r.typeId || null) || 0) + r.px));
+  byType.forEach((px, id) => { const w = wireOf(id); rows.push({ line: w ? w.color : "#0b6fb8", text: `${pg.ftPerPx ? fmtLF(px * pg.ftPerPx) : "Not to scale"} · ${w ? wireLabel(w) : "Run, no type"}` }); });
+  if (rows.length) {
+    const f = Math.max(12, Math.round(Math.max(W, H) / 150)), lh = f * 1.5, pad = f * .8;
+    x.font = `${f}px sans-serif`;
+    const bw = Math.min(W * .6, Math.max(...rows.map(rw => x.measureText(rw.text).width)) + f * 2.6 + pad * 2), bh = rows.length * lh + pad * 2;
+    const bx = pad, by = H - bh - pad;
+    x.fillStyle = "rgba(255,255,255,.94)"; x.fillRect(bx, by, bw, bh); x.strokeStyle = "#555"; x.lineWidth = 1; x.strokeRect(bx, by, bw, bh);
+    rows.forEach((rw, i) => {
+      const cy = by + pad + lh * i + lh / 2;
+      if (rw.d) drawShape(x, rw.d, bx + pad + f * .6, cy, f * .45);
+      else { x.strokeStyle = rw.line; x.lineWidth = f / 5; x.beginPath(); x.moveTo(bx + pad, cy); x.lineTo(bx + pad + f * 1.3, cy); x.stroke(); }
+      x.fillStyle = "#111"; x.textBaseline = "middle"; x.fillText(rw.text, bx + pad + f * 1.8, cy, bw - pad * 2 - f * 1.8);
+    });
+  }
+  return c;
+}
+async function makePdf() {
+  const list = pages.filter(pg => pg.blob);
+  const JsPDF = await loadJsPdf();
+  let doc = null;
+  for (let i = 0; i < list.length; i++) {
+    busy("Making the PDF…", i / (list.length + 1), `Sheet ${i + 1} of ${list.length}`);
+    const pg = list[i], c = await sheetCanvas(pg);
+    const dpi = (pg.pxPerInch || 150) * c.width / ((await createImageBitmap(pg.blob)).width || c.width);
+    const w = c.width / dpi * 72, h = c.height / dpi * 72, o = w > h ? "l" : "p";
+    if (!doc) doc = new JsPDF({ orientation: o, unit: "pt", format: [w, h], compress: true });
+    else doc.addPage([w, h], o);
+    doc.addImage(c.toDataURL("image/jpeg", .82), "JPEG", 0, 0, w, h);
+    doc.setFontSize(Math.max(8, w / 120)); doc.setTextColor(60);
+    doc.text(`${job ? job.name : "Example job"} · ${pg.name || "Sheet " + (i + 1)} · AJ Electrical`, w - 12, h - 10, { align: "right" });
+  }
+  // last page: the material list
+  doc.addPage([612, 792], "p");
+  doc.setTextColor(0); doc.setFontSize(11);
+  let y = 50;
+  takeoffText().split("\n").forEach((ln, i) => {
+    if (y > 750) { doc.addPage([612, 792], "p"); y = 50; }
+    doc.setFont("helvetica", i === 0 || /^[A-Z ]+$/.test(ln) ? "bold" : "normal");
+    doc.text(ln, 50, y); y += ln ? 16 : 10;
+  });
+  busy(null, null);
+  return new File([doc.output("blob")], safeName(job ? job.name : "Example job") + " drawings.pdf", { type: "application/pdf" });
+}
+async function savePdf() {
+  if (!pages.length) return toast("Upload plans first, then save them as a PDF.");
+  let file;
+  try { file = await makePdf(); }
+  catch (e) { busy(null, null); return toast("Couldn't make the PDF. Check your internet and try again."); }
+  if (await mcpReady) { // inside Claude: straight into the AJ Takeoff Jobs folder in Google Drive
+    try {
+      busy("Saving the PDF to Google Drive…", .5, file.name);
+      const root = await driveRoot();
+      const content = fileArgs ? { $file: { data: file, name: file.name, type: "application/pdf" } } : await blobToB64(file);
+      if (!fileArgs && file.size > 700e3) throw { code: "too_big" };
+      await drv("create_file", { title: file.name, parentId: root, base64Content: content, contentMimeType: "application/pdf", disableConversionToGoogleType: true });
+      busy(null, null);
+      return savedTo(`Saved ${file.name} in Google Drive, in the AJ Takeoff Jobs folder.`);
+    } catch (e) { busy(null, null); if (!(e && e.code === "too_big")) toast(driveMsg(e)); }
+  }
+  if (window.showSaveFilePicker) {
+    try {
+      const h = await window.showSaveFilePicker({ id: "ajtakeoffpdf", suggestedName: file.name, types: [{ description: "PDF", accept: { "application/pdf": [".pdf"] } }] });
+      const w = await h.createWritable(); await w.write(file); await w.close();
+      return savedTo(`Saved ${h.name}. Anyone you share it with can look but not change it.`);
+    } catch (e) { if (e && e.name === "AbortError") return; }
+  }
+  if (matchMedia("(pointer: coarse)").matches && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: file.name }); return savedTo("Saved. Pick Drive in that list to keep it in Google Drive."); }
+    catch (e) { if (e && e.name === "AbortError") return; }
+  }
+  downloadFile(file);
+  savedTo(`Saved ${file.name} to your Downloads folder. Drag it into Google Drive to share it.`);
+}
+
 /* Email a job: the file goes up to the website's file storage (Vercel Blob) and the email carries a link.
    The link is this app with ?job=<file address>, so clicking it opens the app and loads the job. */
 const SHARE_HOST = /\.public\.blob\.vercel-storage\.com$/;
@@ -2902,6 +3063,7 @@ $("fileClose").onclick = () => { $("fileModal").hidden = true; };
 $("fileModal").addEventListener("keydown", e => { if (e.key === "Escape") $("fileModal").hidden = true; });
 $("fileSave").onclick = () => saveProject(false);
 $("fileEmail").onclick = emailProject;
+$("filePdf").onclick = savePdf;
 $("fileOpen").onclick = $("jobsOpenFile").onclick = () => $("projInput").click();
 $("projInput").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) importProject(f); };
 
