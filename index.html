@@ -169,7 +169,9 @@ button { cursor: pointer; }
 .run { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; align-items: center; }
 .run select { grid-column: 1 / -1; min-width: 0; height: 28px; font-size: 13px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); padding: 0 6px; margin-top: -2px; }
 .wire-swatch { width: 22px; height: 0; border-top: 4px solid; border-radius: 2px; flex: none; }
-#ampForm:not(.m-amps) .ask-amps, #ampForm:not(.m-fan) .ask-fan, #ampForm:not(.m-drop) .ask-drop { display: none; }
+.ask-em { display: flex; gap: 8px; align-items: center; }
+#ampForm:not(.m-amps) .ask-amps, #ampForm:not(.m-fan) .ask-fan, #ampForm:not(.m-drop) .ask-drop, #ampForm:not(.m-cat) .ask-cat,
+#ampForm:not(.m-em) .ask-em, #ampForm:not(.m-mount) .ask-mount { display: none; }
 #wireForm.ug .wire-only, #wireForm:not(.ug) .ug-only { display: none; }
 .amp-box { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 .amp-box .sched { grid-template-columns: 1fr 1.6fr; }
@@ -497,7 +499,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       </div>
       <div class="panel-sec" style="border-top:1px solid var(--line);padding-top:12px">
         <h2>Toolbox</h2>
-        <p class="empty" style="margin-top:-4px">Pick a fixture to set up its type from the lighting schedule.</p>
+        <p class="empty" style="margin-top:-4px">Click a category, then pick the type in the pop-up.</p>
         <div class="tbx" id="toolbox"></div>
       </div>
       <h2>Sheet scale</h2>
@@ -688,6 +690,9 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
   <form class="modal-card" id="ampForm" autocomplete="off">
     <h2 id="ampTitle">Water heater</h2>
     <p class="hint" id="ampHint"></p>
+    <div class="opt ask-cat"><label for="askType">Type</label><select id="askType"></select></div>
+    <label class="ask-em"><input type="checkbox" id="askEm"> Emergency battery <span class="hint">(counts separately, shown with an E)</span></label>
+    <div class="opt ask-mount"><label for="askMount">Mounting height</label><input type="text" id="askMount" list="mountList" placeholder="e.g. 16 ft"></div>
     <div class="opt ask-fan"><label for="askFan">Kind of fan</label><select id="askFan"><option>Wall exhaust fan</option><option>Standard ceiling fan</option><option>Big Ass Fan</option><option>Bathroom exhaust fan</option><option>Louvers</option></select></div>
     <div class="sched two ask-amps">
       <div class="opt"><label for="ampAmps">Amps</label><select id="ampAmps"></select></div>
@@ -700,6 +705,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     </div>
     <div class="opt"><label for="ampLabel">Label or description</label><input type="text" id="ampLabel" placeholder="e.g. LP-1, or Shop welder by bay door"></div>
     <div class="actions">
+      <button class="btn danger" type="button" id="ampDelete" hidden>Delete count</button>
       <span class="spacer"></span>
       <button class="btn" type="button" id="ampCancel">Cancel</button>
       <button class="btn primary" type="submit" id="ampSave">Place it</button>
@@ -1124,6 +1130,35 @@ Object.entries(RETIRED).forEach(([t, list]) => list.forEach((f, i) => {
   DEVICES[f.id] = { id: f.id, kind: KIND[t] || t, model: f.model, maker: f.manufacturer, volts: f.voltage, group: g.key, shape: g.shape, color: PALETTE[(i + 8) % PALETTE.length] };
 }));
 
+/* Toolbox categories from Jonathan's device list. Each is one button; its pop-up picks the basic type.
+   amps: types that also ask amps and voltage. drop: types that ask conduit and length and add conduit footage.
+   em: the category's lights can have an emergency battery (shown with an E, counted separately), except noEm. */
+const FAMILIES = [["lights", "Lights"], ["switching", "Switching"], ["recept", "Receptacles"], ["lowv", "Low voltage"], ["fire", "Fire alarm"], ["gear", "Panels & gear"]];
+const CATS = [
+  { key: "ceil", fam: "lights", shape: "circle", name: "Ceiling lights", em: true, mount: true, types: ["2x4 lay-in", "2x2 lay-in", "1x4 lay-in", "Recessed downlight", "Surface-mount light", "Strip light", "Wraparound light", "Vapor-tight light"] },
+  { key: "open", fam: "lights", shape: "circle", name: "Open-ceiling lights", em: true, mount: true, types: ["High bay", "Linear pendant", "Decorative pendant", "Track light", "Chandelier"] },
+  { key: "ext", fam: "lights", shape: "circle", name: "Exterior lights", em: true, mount: true, noEm: ["Pole light", "Bollard", "Gooseneck"], types: ["Wall pack", "Floodlight", "Canopy light", "Soffit light", "Pole light", "Bollard", "Gooseneck"] },
+  { key: "emer", fam: "lights", shape: "circle", name: "Emergency lighting", mount: true, types: ["Exit sign", "Emergency battery light", "Exit/emergency combo", "Remote emergency head"] },
+  { key: "fans", fam: "lights", shape: "circle", name: "Fans", mount: true, types: ["Wall exhaust fan", "Standard ceiling fan", "Big Ass Fan", "Bathroom exhaust fan", "Louvers"] },
+  { key: "sw", fam: "switching", shape: "triangle", name: "Switches", types: ["Single-pole", "Double-pole", "3-way", "4-way", "Dimmer", "Keyed switch", "Timer switch"] },
+  { key: "ctl", fam: "switching", shape: "triangle", name: "Lighting controls", amps: ["Lighting contactor"], types: ["Wall occupancy sensor", "Ceiling occupancy sensor", "Vacancy sensor", "Photocell", "Low-voltage wall station", "Power pack/relay", "Lighting control panel", "Lighting contactor"] },
+  { key: "rcp", fam: "recept", shape: "square", name: "Standard receptacles", types: ["Duplex", "Quad", "GFCI", "WR GFCI", "Hospital-grade duplex", "Hospital-grade GFCI", "Isolated-ground duplex", "USB receptacle"] },
+  { key: "spec", fam: "recept", shape: "square", name: "Specialty receptacles", amps: "all", types: ["Twist-lock", "Equipment receptacle", "Welder", "Range", "Dryer", "RV", "EV charging outlet", "Water heater", "Plasma cutter", "Forklift charger", "Dedicated drop"] },
+  { key: "rmt", fam: "recept", shape: "square", name: "Receptacle mounting", types: ["Wall box", "Floor box", "Poke-through", "Surface box", "Ceiling box", "Junction box"] },
+  { key: "lv", fam: "lowv", shape: "diamond", name: "Low-voltage / communications", types: ["Data outlet", "Telephone outlet", "Coax outlet", "Wireless access point", "Camera", "Card reader", "Door contact", "Request-to-exit device", "Speaker", "Intercom"] },
+  { key: "lvp", fam: "lowv", shape: "diamond", name: "Low-voltage pathways", drop: ["Empty conduit stub-up", "Conduit with pull string"], types: ["Empty conduit stub-up", "Conduit with pull string", "Sleeve", "J-hook", "Cable tray"] },
+  { key: "fa", fam: "fire", shape: "diamond", name: "Fire alarm", drop: ["Conduit drop"], types: ["Pull station", "Horn/strobe", "Strobe", "Smoke detector", "Heat detector", "Duct detector", "Monitor module", "Control module", "Fire alarm panel", "Conduit drop"] },
+  { key: "gr", fam: "gear", shape: "hexagon", name: "Panels & gear", amps: "all", types: ["Panel", "Service entrance", "Disconnect", "Meter base", "Transformer"] }
+];
+const catOf = key => CATS.find(c => c.key === key);
+const catAmps = (cat, t) => !!cat.amps && (cat.amps === "all" || cat.amps.includes(t));
+const catDrop = (cat, t) => !!cat.drop && cat.drop.includes(t);
+const catEm = (cat, t) => !!cat.em && !(cat.noEm || []).includes(t);
+CATS.forEach((c, i) => { DEVICES["C-" + c.key] = { id: "C-" + c.key, kind: c.name, model: "Pick a type", maker: "", ask: "cat", cat: c.key, group: c.key, shape: c.shape, color: PALETTE[i % PALETTE.length] }; });
+// older toolbox groups fold into the new families for the toolbox badges
+const FAM_OF = { lights: "lights", fans: "lights", switches: "switching", recept: "recept", special: "recept", gear: "gear", fire: "fire" };
+const famOf = g => catOf(g) ? catOf(g).fam : FAM_OF[g] || g;
+
 // One shape drawer for the toolbox swatches and the marks on the sheet. r = half size.
 function shapeEl(d, cx, cy, r, cls) {
   const NS = "http://www.w3.org/2000/svg";
@@ -1152,23 +1187,25 @@ const countOn = (pg, id) => pg.devices.reduce((n, v) => n + (v.t === id), 0);
 
 function buildToolbox() {
   const box = $("toolbox"); box.replaceChildren();
-  GROUPS.forEach((g, gi) => {
+  FAMILIES.forEach(([fk, fname]) => {
+    const cats = CATS.filter(c => c.fam === fk);
     const det = document.createElement("details"); det.open = true;
     const sum = document.createElement("summary");
-    sum.appendChild(swatch({ shape: g.shape, color: "transparent" }));
-    sum.append(g.name);
-    const gc = document.createElement("span"); gc.className = "gcount"; gc.dataset.group = g.key; sum.appendChild(gc);
+    sum.appendChild(swatch({ shape: cats[0].shape, color: "transparent" }));
+    sum.append(fname);
+    const gc = document.createElement("span"); gc.className = "gcount"; gc.dataset.group = fk; sum.appendChild(gc);
     det.appendChild(sum);
     const wrap = document.createElement("div"); wrap.className = "tbx-items";
-    g.items.forEach(d => {
+    cats.forEach(c => {
+      const d = DEVICES["C-" + c.key];
       const b = document.createElement("button"); b.type = "button"; b.className = "dev"; b.dataset.dev = d.id;
-      b.setAttribute("aria-pressed", "false"); b.title = `${d.maker} ${d.model}`;
+      b.setAttribute("aria-pressed", "false"); b.title = c.types.join(", ");
       b.appendChild(swatch(d));
-      const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = d.kind;
-      const sm = document.createElement("small"); sm.textContent = d.ask ? d.model : `${d.id} · ${d.model}`; nm.appendChild(sm);
+      const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = c.name;
+      const sm = document.createElement("small"); sm.textContent = c.types.slice(0, 3).join(", ") + (c.types.length > 3 ? "…" : ""); nm.appendChild(sm);
       const ct = document.createElement("span"); ct.className = "ct";
       b.append(nm, ct);
-      b.onclick = () => d.ask ? openAmps(d.id) : openCount(null, d.id);
+      b.onclick = () => openAmps(d.id);
       wrap.appendChild(b);
     });
     det.appendChild(wrap); box.appendChild(det);
@@ -1183,11 +1220,12 @@ const countsList = () => job ? (job.counts || (job.counts = [])) : exampleCounts
 function devInfo(t) {
   const c = countsList().find(c => c.id === t);
   if (c) { const b = DEVICES[c.base] || Object.values(DEVICES)[0]; return { ...b, id: c.id, base: c.base, color: c.color || b.color, tag: c.tag || "", desc: c.desc || "", custom: true,
-    sMaker: c.maker || "", sModel: c.model || "", sWatts: c.watts || "", sVolts: c.volts || "", sMount: c.mount || "", amps: c.amps || "", label: c.label || "", fanKind: c.fanKind || "", drop: c.drop || null }; }
+    sMaker: c.maker || "", sModel: c.model || "", sWatts: c.watts || "", sVolts: c.volts || "", sMount: c.mount || "", amps: c.amps || "", label: c.label || "", fanKind: c.fanKind || "", drop: c.drop || null, kindName: c.kindName || "", em: !!c.em }; }
   return DEVICES[t];
 }
 const ampsLine = d => [d.amps && `${d.amps}A`, d.sVolts].filter(Boolean).join(" ");
 const nameOf = d => !d.custom ? `${d.id} ${d.kind}` : d.tag ? `Type ${d.tag}`
+  : d.kindName ? `${d.kindName}${d.em ? " E" : ""}${d.label ? " " + d.label : ""}${d.amps ? " " + ampsLine(d) : ""}${d.drop ? ` · ${d.drop.len}' ${d.drop.size} ${d.drop.conduit}` : ""}`
   : d.amps ? `${d.kind}${d.label ? " " + d.label : ""} ${ampsLine(d)}`
   : d.fanKind ? `${d.fanKind}${d.label ? " " + d.label : ""}`
   : d.drop ? `Conduit drop${d.label ? " " + d.label : ""} · ${d.drop.len}' ${d.drop.size} ${d.drop.conduit}`
@@ -1200,7 +1238,7 @@ const specOf = d => d.custom
 function renderCounts() {
   const p = pages[current];
   document.querySelectorAll(".gcount").forEach(s => {
-    const n = p ? p.devices.filter(v => { const d = devInfo(v.t); return d && d.group === s.dataset.group; }).length : 0;
+    const n = p ? p.devices.filter(v => { const d = devInfo(v.t); return d && famOf(d.group) === s.dataset.group; }).length : 0;
     s.textContent = n || "";
   });
   const items = countsList().map(c => devInfo(c.id));
@@ -1231,7 +1269,7 @@ function renderCounts() {
     if (d.custom) {
       const e = document.createElement("button"); e.type = "button"; e.className = "cnt-edit"; e.title = "Edit this count"; e.setAttribute("aria-label", "Edit " + nameOf(d));
       e.innerHTML = `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M11 2.5 13.5 5 6 12.5H3.5V10z"/></svg>`;
-      e.onclick = () => openCount(d.id);
+      e.onclick = () => DEVICES[d.base] && DEVICES[d.base].ask ? openAmps(d.base, d.id) : openCount(d.id);
       li.appendChild(e);
     }
     ul.appendChild(li);
@@ -1278,15 +1316,44 @@ const ASK_TEXT = { amps: "Pick the amps and voltage, then click the sheet to pla
   fan: "Pick the kind of fan, then click the sheet to place it. Each kind gets its own count.",
   drop: "Each drop you place adds this much conduit to the count sheet and the supplier list.",
   label: "Add a label if you want one, then click the sheet to place it." };
+let askEditing = null, askDelArmed = false;
+const askDropVal = () => ({ conduit: $("dropConduit").value, size: $("dropSize").value, len: Math.max(1, Math.min(500, parseInt($("dropLen").value, 10) || 10)) });
 const askAnswer = () => {
   const m = DEVICES[ampBase].ask, label = $("ampLabel").value.trim();
+  if (m === "cat") {
+    const cat = catOf(DEVICES[ampBase].cat), t = $("askType").value, a = { kindName: t, label, em: catEm(cat, t) && $("askEm").checked, mount: cat.mount ? $("askMount").value.trim() : "" };
+    if (catAmps(cat, t)) Object.assign(a, { amps: $("ampAmps").value, volts: $("ampVolts").value });
+    if (catDrop(cat, t)) a.drop = askDropVal();
+    return a;
+  }
   if (m === "amps") return { amps: $("ampAmps").value, volts: $("ampVolts").value, label };
   if (m === "fan") return { fanKind: $("askFan").value, label };
-  if (m === "drop") return { drop: { conduit: $("dropConduit").value, size: $("dropSize").value, len: Math.max(1, Math.min(500, parseInt($("dropLen").value, 10) || 10)) }, label };
+  if (m === "drop") return { drop: askDropVal(), label };
   return { label };
 };
-const sameAnswer = (c, a) => ["amps", "volts", "fanKind"].every(k => String(c[k] || "") === String(a[k] || "")) && (c.label || "") === a.label && JSON.stringify(c.drop || null) === JSON.stringify(a.drop || null);
-function openAmps(base) {
+const sameAnswer = (c, a) => ["amps", "volts", "fanKind", "kindName", "mount"].every(k => String(c[k] || "") === String(a[k] || "")) && !!c.em === !!a.em && ["label"].every(k => String(c[k] || "") === String(a[k] || "")) && (c.label || "") === a.label && JSON.stringify(c.drop || null) === JSON.stringify(a.drop || null);
+function askRows() {
+  const d = DEVICES[ampBase], m = d.ask;
+  if (m !== "cat") { $("ampForm").className = "modal-card m-" + m; return; }
+  const cat = catOf(d.cat), t = $("askType").value, cls = ["m-cat"];
+  if (catAmps(cat, t)) cls.push("m-amps");
+  if (catDrop(cat, t)) cls.push("m-drop");
+  if (catEm(cat, t)) cls.push("m-em");
+  if (cat.mount) cls.push("m-mount");
+  $("ampForm").className = "modal-card " + cls.join(" ");
+  $("ampHint").textContent = catDrop(cat, t) ? ASK_TEXT.drop : catAmps(cat, t) ? ASK_TEXT.amps : "Pick the type, then click the sheet to place it. Each type gets its own count.";
+}
+$("askType").addEventListener("input", () => { askRows(); askDefaults(); });
+function askDefaults() { // amps and drop length start from the last count of this type, else a sensible default
+  const d = DEVICES[ampBase], t = d.ask === "cat" ? $("askType").value : null;
+  const last = countsList().filter(c => c.base === ampBase && (!t || c.kindName === t)).pop() || {};
+  const key = { Panel: "PNL", "Service entrance": "SVC", Disconnect: "DISC", Welder: "WLD", Range: "RNG", Dryer: "DRY", "Water heater": "WH", "Plasma cutter": "PLS", "Forklift charger": "FLC", "Dedicated drop": "DD", "Lighting contactor": "LC" }[t] || d.id;
+  const [a, v] = last.amps ? [last.amps, last.volts] : ASK_DEFAULT[key] || (t === "Meter base" ? [200, "120/240V"] : t === "Transformer" ? [150, "480V 3-phase"] : [20, "120V"]);
+  $("ampAmps").value = String(a); $("ampVolts").value = v;
+  const dr = last.drop || { conduit: "EMT", size: '3/4"', len: 10 };
+  $("dropConduit").value = dr.conduit; $("dropSize").value = dr.size; $("dropLen").value = dr.len;
+}
+function openAmps(base, editId) {
   if (!pages.length) return;
   if (tool) setTool(null);
   ampBase = base;
@@ -1294,19 +1361,36 @@ function openAmps(base) {
     $("dropConduit").innerHTML = CONDUITS.filter(c => c !== "No conduit").map(c => `<option>${c}</option>`).join("");
     $("dropSize").innerHTML = CSIZES.map(c => `<option>${c.replace(/"/g, "&quot;")}</option>`).join("");
   }
-  const m = DEVICES[base].ask, last = countsList().filter(c => c.base === base).pop() || {};
-  $("ampForm").className = "modal-card m-" + m;
-  $("ampTitle").textContent = DEVICES[base].kind;
-  $("ampHint").textContent = ASK_TEXT[m];
-  const [a, v] = last.amps ? [last.amps, last.volts] : ASK_DEFAULT[base] || [20, "120V"];
-  $("ampAmps").value = String(a); $("ampVolts").value = v; $("ampLabel").value = "";
+  const d = DEVICES[base], m = d.ask, list = countsList();
+  askEditing = editId ? list.find(c => c.id === editId) : null; askDelArmed = false;
+  const last = askEditing || list.filter(c => c.base === base).pop() || {};
+  $("ampHint").textContent = ASK_TEXT[m] || "";
+  $("ampTitle").textContent = (askEditing ? "Edit · " : "") + d.kind;
+  if (m === "cat") {
+    const cat = catOf(d.cat);
+    $("askType").innerHTML = cat.types.map(t => `<option>${esc(t)}</option>`).join("");
+    if (last.kindName && cat.types.includes(last.kindName)) $("askType").value = last.kindName;
+    $("askEm").checked = !!(askEditing && askEditing.em);
+    $("askMount").value = askEditing ? askEditing.mount || "" : last.mount || "";
+  }
+  askRows(); askDefaults();
+  $("ampLabel").value = askEditing ? askEditing.label || "" : "";
   if (last.fanKind) $("askFan").value = last.fanKind;
-  const dr = last.drop || { conduit: "EMT", size: '3/4"', len: 10 };
-  $("dropConduit").value = dr.conduit; $("dropSize").value = dr.size; $("dropLen").value = dr.len;
+  $("ampDelete").hidden = !askEditing; $("ampDelete").textContent = "Delete count";
+  $("ampSave").textContent = askEditing ? "Save" : "Place it";
   $("ampModal").hidden = false;
-  ({ amps: $("ampAmps"), fan: $("askFan"), drop: $("dropLen"), label: $("ampLabel") })[m].focus();
+  ({ cat: $("askType"), amps: $("ampAmps"), fan: $("askFan"), drop: $("dropLen"), label: $("ampLabel") })[m].focus();
 }
 $("ampCancel").onclick = () => { $("ampModal").hidden = true; };
+$("ampDelete").onclick = () => {
+  const c = askEditing; if (!c) return;
+  const n = pages.reduce((t, pg) => t + countOn(pg, c.id), 0);
+  if (n && !askDelArmed) { askDelArmed = true; $("ampDelete").textContent = `Delete and remove ${n} symbol${n > 1 ? "s" : ""}`; return; }
+  remember(pages.filter(pg => countOn(pg, c.id)));
+  pages.forEach(pg => { if (countOn(pg, c.id)) { pg.devices = pg.devices.filter(v => v.t !== c.id); saveMeta(pg); } });
+  if (job) { job.counts = job.counts.filter(x => x !== c); saveJob(job); } else exampleCounts = exampleCounts.filter(x => x !== c);
+  $("ampModal").hidden = true; renderCounts(); drawOverlay();
+};
 $("ampModal").addEventListener("keydown", e => { if (e.key === "Escape") $("ampModal").hidden = true; });
 /* ---------- count sheet and supplier sheet ----------
    Count sheet: every count and every footage line from all sheets, with an extra % box on each footage line.
@@ -1324,8 +1408,8 @@ function takeoffRows() {
     const by = pages.map((pg, i) => [sheetName(pg, i), countOn(pg, d.id)]).filter(x => x[1]);
     const qty = by.reduce((t, x) => t + x[1], 0);
     if (!qty) return;
-    const what = d.custom ? [d.kind !== nameOf(d) && !d.fanKind && !nameOf(d).startsWith(d.kind) ? d.kind : "", [d.sMaker, d.sModel].filter(Boolean).join(" "), d.sMount && `Mount ${d.sMount}`].filter(Boolean).join(" · ") : `${d.maker} ${d.model}`;
-    counts.push({ name: nameOf(d), what, qty, by, color: d.color, group: d.group });
+    const what = d.custom ? [d.kind !== nameOf(d) && !d.fanKind && !d.kindName && !nameOf(d).startsWith(d.kind) ? d.kind : "", [d.sMaker, d.sModel].filter(Boolean).join(" "), d.sMount && `Mount ${d.sMount}`].filter(Boolean).join(" · ") : `${d.maker} ${d.model}`;
+    counts.push({ name: nameOf(d), what: d.kindName && d.em ? ["With emergency battery", what].filter(Boolean).join(" · ") : what, qty, by, color: d.color, group: d.group });
   });
   const lfOf = id => pages.reduce((t, pg) => t + (pg.ftPerPx ? pg.runs.filter(r => (r.typeId || null) === id).reduce((a, r) => a + r.px * pg.ftPerPx, 0) : 0), 0);
   const ex = extraOf();
@@ -1348,10 +1432,11 @@ function takeoffRows() {
   countsList().forEach(c => {
     if (!c.drop) return;
     const n = pages.reduce((t, pg) => t + countOn(pg, c.id), 0); if (!n) return;
-    const key = `drop:${c.drop.size}|${c.drop.conduit}`, cur = drops.get(key) || { size: c.drop.size, conduit: c.drop.conduit, n: 0, lf: 0, parts: [] };
+    const what = c.kindName && c.kindName !== "Conduit drop" ? c.kindName.toLowerCase() : "fire alarm drops";
+    const key = `drop:${c.drop.size}|${c.drop.conduit}|${what}`, cur = drops.get(key) || { size: c.drop.size, conduit: c.drop.conduit, what, n: 0, lf: 0, parts: [] };
     cur.n += n; cur.lf += n * c.drop.len; cur.parts.push(`${n} × ${c.drop.len}'`); drops.set(key, cur);
   });
-  drops.forEach((d, key) => foot.push({ key, label: `${d.size} ${d.conduit} fire alarm drops`, sub: `${d.parts.join(" + ")} drops`, base: d.lf, pct: +ex[key] || 0, sup: `${d.size} ${d.conduit} conduit`, color: "#c92a2a" }));
+  drops.forEach((d, key) => foot.push({ key, label: `${d.size} ${d.conduit} · ${d.what}`, sub: `${d.parts.join(" + ")}`, base: d.lf, pct: +ex[key] || 0, sup: `${d.size} ${d.conduit} conduit`, color: "#c92a2a" }));
   const loose = lfOf(null);
   if (loose) foot.push({ key: "none:r", label: "Runs with no type", sub: "Give these runs a conduit & wire type to put them on the supplier sheet", base: loose, pct: +ex["none:r"] || 0, sup: null, color: "#888" });
   foot.forEach(f => { f.total = Math.ceil(f.base * (1 + f.pct / 100)); });
@@ -1359,8 +1444,9 @@ function takeoffRows() {
 }
 // counts broken out by section, in toolbox order
 const SECTION = { lights: "Lights and fans", switches: "Switching", recept: "Outlets", special: "240V, welder plugs and special", gear: "Gear and disconnects", fire: "Fire alarm" };
-const bySection = counts => GROUPS.map(g => ({ title: SECTION[g.key] || g.name, rows: counts.filter(c => c.group === g.key) }))
-  .concat([{ title: "Other", rows: counts.filter(c => !GROUPS.some(g => g.key === c.group)) }]).filter(sec => sec.rows.length);
+const bySection = counts => CATS.map(c => ({ title: c.name, rows: counts.filter(x => x.group === c.key) }))
+  .concat(GROUPS.map(g => ({ title: SECTION[g.key] || g.name, rows: counts.filter(c => c.group === g.key) })))
+  .concat([{ title: "Other", rows: counts.filter(c => !GROUPS.some(g => g.key === c.group) && !catOf(c.group)) }]).filter(sec => sec.rows.length);
 function supplierRows() {
   const { counts, foot } = takeoffRows(), mat = new Map();
   foot.filter(f => f.sup).forEach(f => mat.set(f.sup, (mat.get(f.sup) || 0) + f.total));
@@ -1437,6 +1523,14 @@ $("tsPrint").onclick = () => {
 $("ampForm").addEventListener("submit", e => {
   e.preventDefault();
   const ans = askAnswer(), list = countsList();
+  if (askEditing) {
+    remember([]);
+    ["amps", "volts", "drop", "em", "kindName", "fanKind"].forEach(k => delete askEditing[k]);
+    Object.assign(askEditing, ans);
+    if (job) { job.updated = new Date().toISOString(); saveJob(job); }
+    $("ampModal").hidden = true; renderCounts(); drawOverlay();
+    return;
+  }
   let c = list.find(c => c.base === ampBase && sameAnswer(c, ans));
   if (!c) {
     remember([]);
