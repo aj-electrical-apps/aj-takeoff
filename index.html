@@ -1280,7 +1280,7 @@ function takeoffRows() {
     const qty = by.reduce((t, x) => t + x[1], 0);
     if (!qty) return;
     const what = d.custom ? [d.kind !== nameOf(d) && !nameOf(d).startsWith(d.kind) ? d.kind : "", [d.sMaker, d.sModel].filter(Boolean).join(" "), d.sMount && `Mount ${d.sMount}`].filter(Boolean).join(" · ") : `${d.maker} ${d.model}`;
-    counts.push({ name: nameOf(d), what, qty, by, color: d.color });
+    counts.push({ name: nameOf(d), what, qty, by, color: d.color, group: d.group });
   });
   const lfOf = id => pages.reduce((t, pg) => t + (pg.ftPerPx ? pg.runs.filter(r => (r.typeId || null) === id).reduce((a, r) => a + r.px * pg.ftPerPx, 0) : 0), 0);
   const ex = extraOf();
@@ -1304,6 +1304,10 @@ function takeoffRows() {
   foot.forEach(f => { f.total = Math.ceil(f.base * (1 + f.pct / 100)); });
   return { counts, foot };
 }
+// counts broken out by section, in toolbox order
+const SECTION = { lights: "Lights", switches: "Switching", recept: "Outlets", special: "240V, welder plugs and special", fans: "Fans", gear: "Gear and disconnects" };
+const bySection = counts => GROUPS.map(g => ({ title: SECTION[g.key] || g.name, rows: counts.filter(c => c.group === g.key) }))
+  .concat([{ title: "Other", rows: counts.filter(c => !GROUPS.some(g => g.key === c.group)) }]).filter(sec => sec.rows.length);
 function supplierRows() {
   const { counts, foot } = takeoffRows(), mat = new Map();
   foot.filter(f => f.sup).forEach(f => mat.set(f.sup, (mat.get(f.sup) || 0) + f.total));
@@ -1320,8 +1324,8 @@ function renderTakeoff() {
   $("tsEmpty").hidden = !!(counts.length || foot.length);
   if (!sup) {
     let h = `<thead><tr><th>Item</th><th class="n">Qty / measured</th><th class="n">Extra %</th><th class="n">Total</th></tr></thead><tbody>`;
-    if (counts.length) h += `<tr class="sec"><td colspan="4">Counts</td></tr>` + counts.map(c => `<tr><td><span class="sw" style="background:${c.color}"></span>${esc(c.name)}${c.what ? `<small>${esc(c.what)}</small>` : ""}<small>${esc(c.by.map(x => `${x[0]}: ${x[1]}`).join(" · "))}</small></td><td class="n">${c.qty}</td><td></td><td class="n"><b>${c.qty}</b></td></tr>`).join("");
-    if (foot.length) h += `<tr class="sec"><td colspan="4">Footage</td></tr>` + foot.map(f => `<tr><td><span class="sw" style="background:${f.color}"></span>${esc(f.label)}<small>${esc(f.sub)}</small></td><td class="n">${fmtLF(f.base)}</td><td class="n"><input type="number" class="ts-pct" min="0" max="100" step="1" data-key="${esc(f.key)}" value="${f.pct || ""}" placeholder="0" aria-label="Extra percent for ${esc(f.label)}"> %</td><td class="n"><b>${f.total.toLocaleString()} LF</b></td></tr>`).join("");
+    bySection(counts).forEach(sec => h += `<tr class="sec"><td colspan="4">${esc(sec.title)}</td></tr>` + sec.rows.map(c => `<tr><td><span class="sw" style="background:${c.color}"></span>${esc(c.name)}${c.what ? `<small>${esc(c.what)}</small>` : ""}<small>${esc(c.by.map(x => `${x[0]}: ${x[1]}`).join(" · "))}</small></td><td class="n">${c.qty}</td><td></td><td class="n"><b>${c.qty}</b></td></tr>`).join(""));
+    if (foot.length) h += `<tr class="sec"><td colspan="4">Conduit and wire footage</td></tr>` + foot.map(f => `<tr><td><span class="sw" style="background:${f.color}"></span>${esc(f.label)}<small>${esc(f.sub)}</small></td><td class="n">${fmtLF(f.base)}</td><td class="n"><input type="number" class="ts-pct" min="0" max="100" step="1" data-key="${esc(f.key)}" value="${f.pct || ""}" placeholder="0" aria-label="Extra percent for ${esc(f.label)}"> %</td><td class="n"><b>${f.total.toLocaleString()} LF</b></td></tr>`).join("");
     t.innerHTML = h + `</tbody>`;
     t.querySelectorAll("input.ts-pct").forEach(inp => inp.onchange = () => {
       const v = Math.max(0, Math.min(100, +inp.value || 0)), ex = extraOf();
@@ -1332,7 +1336,7 @@ function renderTakeoff() {
   } else {
     const { mat } = supplierRows();
     let h = `<thead><tr><th>Material</th><th class="n">Quantity</th></tr></thead><tbody>`;
-    if (counts.length) h += `<tr class="sec"><td colspan="2">Devices and fixtures</td></tr>` + counts.map(c => `<tr><td>${esc(c.name)}${c.what ? `<small>${esc(c.what)}</small>` : ""}</td><td class="n">${c.qty} ea</td></tr>`).join("");
+    bySection(counts).forEach(sec => h += `<tr class="sec"><td colspan="2">${esc(sec.title)}</td></tr>` + sec.rows.map(c => `<tr><td>${esc(c.name)}${c.what ? `<small>${esc(c.what)}</small>` : ""}</td><td class="n">${c.qty} ea</td></tr>`).join(""));
     if (mat.length) h += `<tr class="sec"><td colspan="2">Conduit and wire</td></tr>` + mat.map(m => `<tr><td>${esc(m.name)}</td><td class="n">${m.lf.toLocaleString()} ft</td></tr>`).join("");
     t.innerHTML = h + `</tbody>`;
   }
@@ -1340,7 +1344,7 @@ function renderTakeoff() {
 function takeoffText() {
   const { counts, mat } = supplierRows(), name = job ? job.name : "Example job";
   const lines = [`Material list: ${name}`, `AJ Electrical · ${new Date().toLocaleDateString()}`, ""];
-  if (counts.length) { lines.push("DEVICES AND FIXTURES"); counts.forEach(c => lines.push(`${c.qty} ea  ${c.name}${c.what ? ` (${c.what})` : ""}`)); lines.push(""); }
+  bySection(counts).forEach(sec => { lines.push(sec.title.toUpperCase()); sec.rows.forEach(c => lines.push(`${c.qty} ea  ${c.name}${c.what ? ` (${c.what})` : ""}`)); lines.push(""); });
   if (mat.length) { lines.push("CONDUIT AND WIRE"); mat.forEach(m => lines.push(`${m.lf.toLocaleString()} ft  ${m.name}`)); }
   return lines.join("\n");
 }
@@ -2943,7 +2947,7 @@ async function makePdf() {
   let y = 50;
   takeoffText().split("\n").forEach((ln, i) => {
     if (y > 750) { doc.addPage([612, 792], "p"); y = 50; }
-    doc.setFont("helvetica", i === 0 || /^[A-Z ]+$/.test(ln) ? "bold" : "normal");
+    doc.setFont("helvetica", i === 0 || /^[A-Z0-9 ,]+$/.test(ln) ? "bold" : "normal");
     doc.text(ln, 50, y); y += ln ? 16 : 10;
   });
   busy(null, null);
