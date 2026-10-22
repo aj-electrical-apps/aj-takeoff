@@ -497,7 +497,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
           <button class="btn tool" id="scaleBtn" type="button" title="Set the drawing scale for this sheet">Set scale</button>
           <button class="btn tool erase" id="eraseBtn" type="button" aria-pressed="false" title="Click a symbol on the sheet to remove it (E)">Erase</button>
           <button class="btn tool hl-y" id="hlYBtn" type="button" aria-pressed="false" title="Yellow highlighter: drag over a note to save it to your Notes page">Yellow note</button>
-          <button class="btn tool hl-r" id="hlRBtn" type="button" aria-pressed="false" title="Red highlighter: drag over a note to save it to your Notes page and the supplier sheet">Red note</button>
+          <button class="btn tool hl-r" id="hlRBtn" type="button" aria-pressed="false" title="Red highlighter: drag over a note to save it to your Notes page, count sheet and supplier sheet">Red note</button>
         </div>
         <div class="zoomrow">
           <span class="zl">Zoom</span>
@@ -1513,7 +1513,7 @@ $("hlForm").addEventListener("submit", e => {
   const { pg, h } = hlEdit; h.c = $("hlColor").value; h.note = $("hlNote").value.trim();
   saveMeta(pg); $("hlModal").hidden = true; drawOverlay();
   if (!$("takeoffModal").hidden) renderTakeoff();
-  toast(h.c === "r" ? "Saved to your Notes page and the supplier sheet." : "Saved to your Notes page.");
+  toast(h.c === "r" ? "Saved to your Notes page, count sheet and supplier sheet." : "Saved to your Notes page.");
 });
 const dropHl = () => { const { pg, h } = hlEdit; pg.hl = (pg.hl || []).filter(x => x !== h); saveMeta(pg); $("hlModal").hidden = true; drawOverlay(); if (!$("takeoffModal").hidden) renderTakeoff(); };
 $("hlDelete").onclick = () => { dropHl(); toast("Note deleted."); };
@@ -1633,7 +1633,7 @@ function renderTakeoff() {
   if (notes) {
     $("tsTitle").textContent = "Notes"; $("tsAllBox").hidden = true;
     $("tsJob").innerHTML = `<b>${esc(job ? job.name : "Example job")}</b> · ${new Date().toLocaleDateString()}<br>AJ Electrical`;
-    $("tsHint").textContent = "Every yellow and red highlight, with its page. Red ones are also on the supplier sheet.";
+    $("tsHint").textContent = "Every yellow and red highlight, with its page. Red ones are also on the count sheet and the supplier sheet.";
     return renderNotes();
   }
   $("tsTitle").textContent = sup ? "Material list" : "Count sheet";
@@ -1655,7 +1655,8 @@ function renderTakeoff() {
       <button class="btn sm" type="button" data-f="done">Done</button></div></td></tr>`; };
     bySection(counts).forEach(sec => h += `<tr class="sec"><td colspan="4">${esc(sec.title)}</td></tr>` + sec.rows.map(c => `<tr><td><span class="sw" style="background:${c.color}"></span>${esc(c.name)}${c.what ? `<small>${esc(c.what)}</small>` : ""}<small>${esc(c.by.map(x => `${x[0]}: ${x[1]}`).join(" · "))}</small>${c.feed ? `<button type="button" class="feed-btn no-print" data-id="${esc(c.id)}">Wiring: ${esc(feedText(c.feed))} ✎</button>` : ""}</td><td class="n">${c.qty}</td><td></td><td class="n"><b>${c.qty}</b></td></tr>` + (c.feed && feedOpen === c.id ? editor(c) : "")).join(""));
     if (foot.length) h += `<tr class="sec"><td colspan="4">Conduit and wire footage</td></tr>` + foot.map(f => `<tr><td><span class="sw" style="background:${f.color}"></span>${esc(f.label)}<small>${esc(f.sub)}</small></td><td class="n">${fmtLF(f.base)}</td><td class="n"><input type="number" class="ts-pct" min="0" max="100" step="1" data-key="${esc(f.key)}" value="${f.pct || ""}" placeholder="0" aria-label="Extra percent for ${esc(f.label)}"> %</td><td class="n"><b>${f.total.toLocaleString()} LF</b></td></tr>`).join("");
-    t.innerHTML = h + `</tbody>`;
+    t.innerHTML = h + redNotesRows(4, "Red notes") + `</tbody>`;
+    fillRedCrops(t);
     t.querySelectorAll(".feed-btn").forEach(bt => bt.onclick = () => { feedOpen = feedOpen === bt.dataset.id ? null : bt.dataset.id; renderTakeoff(); });
     t.querySelectorAll(".feed-grid [data-f]").forEach(el => {
       const id = el.closest(".feed-grid").dataset.id;
@@ -1679,11 +1680,17 @@ function renderTakeoff() {
     let h = `<thead><tr><th>Material</th><th class="n">Quantity</th></tr></thead><tbody>`;
     bySection(counts).forEach(sec => h += `<tr class="sec"><td colspan="2">${esc(sec.title)}</td></tr>` + sec.rows.map(c => `<tr><td>${esc(c.name)}${c.what ? `<small>${esc(c.what)}</small>` : ""}</td><td class="n">${c.qty} ea</td></tr>`).join(""));
     if (mat.length) h += `<tr class="sec"><td colspan="2">Conduit and wire</td></tr>` + mat.map(m => `<tr><td>${esc(m.name)}</td><td class="n">${m.lf.toLocaleString()} ft</td></tr>`).join("");
-    const red = allNotes().filter(n => n.h.c === "r");
-    if (red.length) h += `<tr class="sec"><td colspan="2">Notes for supplier</td></tr>` + red.map(n => `<tr><td colspan="2"><b>Note ${n.no}</b> · Page ${n.i + 1}, ${esc(sheetName(n.pg, n.i))}${n.h.note ? `<small style="color:inherit;font-size:14px">${esc(n.h.note)}</small>` : ""}<img class="sup-crop" data-k="${n.no}" alt=""></td></tr>`).join("");
-    t.innerHTML = h + `</tbody>`;
-    red.forEach(n => cropOf(n.pg, n.h).then(u => { const im = t.querySelector(`img.sup-crop[data-k="${n.no}"]`); if (im) im.src = u; }));
+    t.innerHTML = h + redNotesRows(2, "Notes for supplier") + `</tbody>`;
+    fillRedCrops(t);
   }
+}
+// red highlights as table rows (count and supplier sheets), crops filled in after
+function redNotesRows(cols, title) {
+  const red = allNotes().filter(n => n.h.c === "r");
+  return red.length ? `<tr class="sec"><td colspan="${cols}">${title}</td></tr>` + red.map(n => `<tr><td colspan="${cols}"><b>Note ${n.no}</b> · Page ${n.i + 1}, ${esc(sheetName(n.pg, n.i))}${n.h.note ? `<small style="color:inherit;font-size:14px">${esc(n.h.note)}</small>` : ""}<img class="sup-crop" data-k="${n.no}" alt=""></td></tr>`).join("") : "";
+}
+function fillRedCrops(t) {
+  allNotes().filter(n => n.h.c === "r").forEach(n => cropOf(n.pg, n.h).then(u => { const im = t.querySelector(`img.sup-crop[data-k="${n.no}"]`); if (im) im.src = u; }));
 }
 function takeoffText() {
   const { counts, mat } = supplierRows(), name = job ? job.name : "Example job";
