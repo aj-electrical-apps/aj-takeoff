@@ -1703,14 +1703,77 @@ function renderNotes() {
   t.querySelectorAll("[data-ed]").forEach(b => b.onclick = () => { const n = list[b.dataset.ed - 1]; openHl(n.pg, n.h); });
 }
 let asmKey = null;
+/* Parts lists as a spreadsheet: one row per part (Section, Item, Part, Qty each). Jonathan edits it in Excel and loads it back. */
+let xlsLoad = null;
+const loadXlsx = () => xlsLoad || (xlsLoad = new Promise((res, rej) => {
+  const sc = document.createElement("script");
+  sc.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+  sc.onload = () => res(window.XLSX); sc.onerror = () => { xlsLoad = null; rej(new Error("xlsx")); };
+  document.head.appendChild(sc);
+}));
+const asmGroups = () => CATS.map(c => [c.name, c.types.map(ty => `${c.key}|${ty}`)]).concat([["J-hook run", ["jhook|J-hook run"]]]);
+async function partsSheetOut() {
+  let X; try { X = await loadXlsx(); } catch (e) { return toast("Couldn't load the spreadsheet tool. Check your internet and try again."); }
+  const rows = [["Section", "Item", "Part", "Qty each"]];
+  asmGroups().forEach(([g, keys]) => keys.forEach(k => { const list = asmFor(k), it = k.split("|")[1]; if (!list.length) rows.push([g, it, "", ""]); list.forEach(([q, n]) => rows.push([g, it, n, q || ""])); }));
+  const ws = X.utils.aoa_to_sheet(rows); ws["!cols"] = [{ wch: 26 }, { wch: 26 }, { wch: 46 }, { wch: 10 }];
+  const help = X.utils.aoa_to_sheet([["How to use this sheet"], ["One row per part. Section and Item must match the app's names; don't change those columns."], ["Qty each is per item. Leave it blank for parts sized by the layout (they show as \"as needed\")."], ["Add a row to add a part, delete a row to remove it. An item with no parts keeps one row with Part blank."], ["Then in the app: Count sheet > Parts lists > Load a spreadsheet."]]);
+  help["!cols"] = [{ wch: 100 }];
+  const wb = X.utils.book_new(); X.utils.book_append_sheet(wb, ws, "Parts lists"); X.utils.book_append_sheet(wb, help, "How to use");
+  const file = new File([X.write(wb, { type: "array", bookType: "xlsx" })], "AJ Parts Lists.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  if (await mcpReady) {
+    try {
+      const root = await driveRoot(), content = fileArgs ? { $file: { data: file, name: file.name, type: file.type } } : await blobToB64(file);
+      await drv("create_file", { title: file.name, parentId: root, base64Content: content, contentMimeType: file.type, disableConversionToGoogleType: true });
+      return savedTo(`Saved ${file.name} in Google Drive, in the AJ Takeoff Jobs folder.`);
+    } catch (e) { toast(driveMsg(e)); }
+  }
+  if (window.showSaveFilePicker) {
+    try {
+      const h = await window.showSaveFilePicker({ id: "ajparts", suggestedName: file.name, types: [{ description: "Excel", accept: { [file.type]: [".xlsx"] } }] });
+      const w = await h.createWritable(); await w.write(file); await w.close();
+      return savedTo(`Saved ${h.name}. Edit it, then use Load a spreadsheet to bring it back.`);
+    } catch (e) { if (e && e.name === "AbortError") return; }
+  }
+  if (matchMedia("(pointer: coarse)").matches && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: file.name }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+  }
+  downloadFile(file);
+  savedTo(`Saved ${file.name} to your Downloads folder.`);
+}
+async function partsSheetIn(f) {
+  let X; try { X = await loadXlsx(); } catch (e) { return toast("Couldn't load the spreadsheet tool. Check your internet and try again."); }
+  let rows;
+  try { const wb = X.read(await f.arrayBuffer(), { type: "array" }); rows = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames.find(n => /part/i.test(n)) || wb.SheetNames[0]], { header: 1, defval: "" }); }
+  catch (e) { return toast("Couldn't read that file. Save it as an Excel .xlsx and try again."); }
+  const norm = t => String(t).trim().toLowerCase(), keyOf = {}, ed = asmEdits(), got = {}, bad = new Set();
+  asmGroups().forEach(([g, keys]) => keys.forEach(k => { keyOf[norm(g) + "|" + norm(k.split("|")[1])] = k; keyOf["|" + norm(k.split("|")[1])] = keyOf["|" + norm(k.split("|")[1])] || k; }));
+  const head = rows.findIndex(r => r.some(c => norm(c) === "item") && r.some(c => norm(c) === "part"));
+  if (head < 0) return toast("That sheet needs Section, Item, Part and Qty each columns. Use Download as spreadsheet to get one.");
+  const H = rows[head].map(norm), ci = n => H.indexOf(n), cS = ci("section"), cI = ci("item"), cP = ci("part"), cQ = H.findIndex(h => h.startsWith("qty"));
+  rows.slice(head + 1).forEach(r => {
+    const it = String(r[cI] || "").trim(); if (!it) return;
+    const k = keyOf[norm(cS >= 0 ? r[cS] : "") + "|" + norm(it)] || keyOf["|" + norm(it)];
+    if (!k) { bad.add(it); return; }
+    const list = got[k] || (got[k] = []), part = String(r[cP] || "").trim();
+    if (part) list.push([Math.max(0, Math.round(parseFloat(r[cQ]) || 0)), part]);
+  });
+  const keys = Object.keys(got);
+  if (!keys.length) return toast("No items in that sheet matched the app's items.");
+  let changed = 0;
+  keys.forEach(k => { const same = JSON.stringify(got[k]) === JSON.stringify(ASSEMBLIES[k] || []); if (JSON.stringify(got[k]) !== JSON.stringify(asmFor(k))) changed++; if (same) delete ed[k]; else ed[k] = got[k]; });
+  saveAsmEdits(); renderTakeoff();
+  toast(`Loaded parts for ${keys.length} items, ${changed} changed.${bad.size ? ` Skipped ${bad.size} rows with an item name the app doesn't have: ${[...bad].slice(0, 3).join(", ")}${bad.size > 3 ? "…" : ""}.` : ""}`);
+}
 function renderAsm() {
   const t = $("tsTable"), used = new Set(takeoffRows().counts.map(c => c.asm).filter(Boolean)), ed = asmEdits();
-  const groups = CATS.map(c => [c.name, c.types.map(ty => `${c.key}|${ty}`)]).concat([["Low voltage", ["jhook|J-hook run"]]]);
+  const groups = asmGroups();
   if (!asmKey || !ASSEMBLIES[asmKey] && !ed[asmKey]) asmKey = [...used][0] || "ceil|2x4 lay-in";
   const label = k => k.split("|")[1];
   const opts = groups.map(([g, keys]) => `<optgroup label="${esc(g)}">${keys.map(k => `<option value="${esc(k)}"${k === asmKey ? " selected" : ""}>${esc(label(k))}${used.has(k) ? " • on this job" : ""}${ed[k] ? " (changed)" : ""}</option>`).join("")}</optgroup>`).join("");
   const list = asmFor(asmKey);
-  t.innerHTML = `<tbody><tr><td colspan="3"><div class="asm-pick"><label>Item <select id="asmSel">${opts}</select></label>${ed[asmKey] ? `<button class="btn sm" type="button" id="asmReset">Reset to your spreadsheet</button>` : ""}</div>
+  t.innerHTML = `<tbody><tr><td colspan="3"><div class="asm-pick"><label>Item <select id="asmSel">${opts}</select></label>${ed[asmKey] ? `<button class="btn sm" type="button" id="asmReset">Reset to your spreadsheet</button>` : ""}
+    <span style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" type="button" id="asmXlsOut">Download as spreadsheet</button><button class="btn sm" type="button" id="asmXlsIn">Load a spreadsheet</button><input type="file" id="asmXlsFile" accept=".xlsx,.xls,.csv" hidden></span></div>
     <span class="asm-on">Quantity is per item. Leave it blank for parts you size by the layout (they show as "as needed").</span></td></tr>
     <tr><th>Part</th><th class="n">Qty each</th><th></th></tr>
     ${list.map(([q, n], i) => `<tr class="asm-row"><td><input class="asm-n" data-i="${i}" value="${esc(n)}" aria-label="Part name"></td><td class="n"><input type="number" class="asm-q" data-i="${i}" min="0" step="1" value="${q || ""}" placeholder="as needed" aria-label="Quantity of ${esc(n)} per item"></td><td class="n"><button class="btn sm" type="button" data-del="${i}" aria-label="Delete ${esc(n)}">Delete</button></td></tr>`).join("")}
@@ -1724,6 +1787,9 @@ function renderAsm() {
   t.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { const nl = cur(); nl.splice(+b.dataset.del, 1); save(nl); });
   const add = () => { const n = $("asmNewN").value.trim(); if (!n) { $("asmNewN").focus(); return; } const q = $("asmNewQ").value.trim(); save(cur().concat([[q === "" ? 1 : Math.max(0, Math.round(+q || 0)), n]])); $("asmNewN").focus(); };
   $("asmAdd").onclick = add;
+  $("asmXlsOut").onclick = () => partsSheetOut();
+  $("asmXlsIn").onclick = () => $("asmXlsFile").click();
+  $("asmXlsFile").onchange = e => { const f = e.target.files[0]; e.target.value = ""; if (f) partsSheetIn(f); };
   $("asmNewN").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); add(); } });
 }
 function renderTakeoff() {
