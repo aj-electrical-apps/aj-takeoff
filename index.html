@@ -241,6 +241,10 @@ button { cursor: pointer; }
 
 /* Running count list */
 .cnt-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.cnt-sec button { width: 100%; display: flex; align-items: center; gap: 6px; padding: 6px 4px 2px; border: 0; background: none; color: var(--ink); font-weight: 600; font-size: 13px; text-align: left; cursor: pointer; }
+.cnt-sec button .chev { display: inline-block; width: 10px; transition: transform .15s; color: var(--muted); }
+.cnt-sec button[aria-expanded="false"] .chev { transform: rotate(-90deg); }
+.cnt-sec button .sn { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-weight: 400; }
 .cnt { display: grid; grid-template-columns: 1fr auto; gap: 4px; align-items: stretch; }
 .cnt-main { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: start; text-align: left; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); min-width: 0; }
 .cnt-main:hover { border-color: var(--accent); }
@@ -527,7 +531,8 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <p class="empty" id="wiresEmpty">Make a run type like 3/4" EMT with 5 #12 STR. Then click it to draw runs of it, and click it again any time to add more.</p>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <h2>Counts</h2>
-        <button class="btn sm primary" id="addCountBtn" type="button">+ Add type</button>
+        <span style="display:flex;gap:6px"><button class="btn sm" id="cntFoldAll" type="button" hidden>Close all</button>
+        <button class="btn sm primary" id="addCountBtn" type="button">+ Add type</button></span>
       </div>
       <ul class="cnt-list" id="cntList"></ul>
       <p class="empty" id="countsEmpty">No fixture types yet. Pick a fixture in the toolbox (or tap <b>+ Add type</b>), fill in its type, model number and schedule info, then click the sheet wherever one goes. Pick a type from this list to keep adding it on any sheet.</p>
@@ -1291,7 +1296,11 @@ function devInfo(t) {
   return DEVICES[t];
 }
 const ampsLine = d => [d.amps && `${d.amps}A`, d.sVolts].filter(Boolean).join(" ");
+// a labelled light reads like a schedule type: "Type CF-12E", with "2x4 lay-in · Emergency battery" under it
+const typeTitled = d => !!(d.custom && !d.tag && d.kindName && d.label && catOf(d.group) && catOf(d.group).fam === "lights");
+const kindSub = d => [d.kindName, d.em && "Emergency battery", d.amps && ampsLine(d), d.drop && `${d.drop.len}' ${d.drop.size} ${d.drop.conduit}`, d.sMount && `Mount ${d.sMount}`].filter(Boolean).join(" · ");
 const nameOf = d => !d.custom ? `${d.id} ${d.kind}` : d.tag ? `Type ${d.tag}`
+  : typeTitled(d) ? `Type ${d.label}`
   : d.kindName ? `${d.kindName}${d.em ? " E" : ""}${d.label ? " " + d.label : ""}${d.amps ? " " + ampsLine(d) : ""}${d.drop ? ` · ${d.drop.len}' ${d.drop.size} ${d.drop.conduit}` : ""}`
   : d.amps ? `${d.kind}${d.label ? " " + d.label : ""} ${ampsLine(d)}`
   : d.fanKind ? `${d.fanKind}${d.label ? " " + d.label : ""}`
@@ -1316,7 +1325,29 @@ function renderCounts() {
   $("countsEmpty").hidden = all.length > 0;
   $("cntTotals").hidden = !all.length;
   let sheetTot = 0, allTot = 0;
+  // sections in toolbox order; a closed section hides its counts until it's clicked open again
+  const secKey = d => catOf(d.group) ? d.group : (GROUPS.find(g => g.key === d.group) ? d.group : "other");
+  const secName = k => catOf(k) ? catOf(k).name : k === "other" ? "Other" : SECTION[k] || (GROUPS.find(g => g.key === k) || {}).name || k;
+  const order = CATS.map(c => c.key).concat(GROUPS.map(g => g.key), ["other"]);
+  all.sort((a, b) => order.indexOf(secKey(a)) - order.indexOf(secKey(b)));
+  const closed = cntClosed(), keys = [...new Set(all.map(secKey))];
+  $("cntFoldAll").hidden = keys.length < 2;
+  $("cntFoldAll").textContent = keys.length && keys.every(k => closed.includes(k)) ? "Open all" : "Close all";
+  $("cntFoldAll").onclick = () => { const shut = $("cntFoldAll").textContent === "Close all"; cntSetClosed(shut ? keys : []); renderCounts(); };
+  let lastSec = null;
   all.forEach(d => {
+    const sk = secKey(d), isClosed = closed.includes(sk);
+    if (sk !== lastSec) {
+      lastSec = sk;
+      const tot = all.filter(x => secKey(x) === sk).reduce((t, x) => t + pages.reduce((a, pg) => a + countOn(pg, x.id), 0), 0);
+      const h = document.createElement("li"); h.className = "cnt-sec";
+      const hb = document.createElement("button"); hb.type = "button"; hb.setAttribute("aria-expanded", !isClosed);
+      hb.innerHTML = `<span class="chev">▾</span>${esc(secName(sk))}<span class="sn">${tot}</span>`;
+      hb.title = isClosed ? "Show these counts" : "Hide these counts";
+      hb.onclick = () => { const c = cntClosed(); cntSetClosed(c.includes(sk) ? c.filter(x => x !== sk) : c.concat(sk)); renderCounts(); };
+      h.appendChild(hb); ul.appendChild(h);
+    }
+    if (isClosed) { const nS = p ? countOn(p, d.id) : 0, nA = pages.reduce((t, pg) => t + countOn(pg, d.id), 0); sheetTot += nS; allTot += nA; return; }
     const nS = p ? countOn(p, d.id) : 0, nA = pages.reduce((t, pg) => t + countOn(pg, d.id), 0);
     sheetTot += nS; allTot += nA;
     const li = document.createElement("li"); li.className = "cnt";
@@ -1326,8 +1357,8 @@ function renderCounts() {
     b.appendChild(swatch(d));
     const tx = document.createElement("span"); tx.className = "cnt-txt";
     const nm = document.createElement("b"); nm.textContent = nameOf(d);
-    const kind = document.createElement("span"); kind.textContent = d.custom && !(d.amps && !d.tag) ? ` · ${d.kind}` : "";
-    const ds = document.createElement("span"); ds.className = "d"; ds.textContent = d.custom ? (specOf(d) || "Tap the pencil to add a mounting height") : specOf(d);
+    const kind = document.createElement("span"); kind.textContent = d.custom && !(d.amps && !d.tag) && !typeTitled(d) ? ` · ${d.kind}` : "";
+    const ds = document.createElement("span"); ds.className = "d"; ds.textContent = typeTitled(d) ? [kindSub(d), [d.sMaker, d.sModel].filter(Boolean).join(" "), d.desc].filter(Boolean).join(" · ") : d.custom ? (specOf(d) || "Tap the pencil to add a mounting height") : specOf(d);
     tx.append(nm, kind, ds);
     const n = document.createElement("span"); n.className = "cnt-n"; n.innerHTML = `${nS}<small>of ${nA}</small>`;
     b.append(tx, n);
@@ -1343,6 +1374,9 @@ function renderCounts() {
   });
   $("cntSheet").textContent = sheetTot; $("cntAll").textContent = allTot;
 }
+
+function cntClosed() { try { return JSON.parse(localStorage.getItem("aj-cnt-closed") || "[]"); } catch (e) { return []; } }
+function cntSetClosed(list) { try { localStorage.setItem("aj-cnt-closed", JSON.stringify(list)); } catch (e) {} }
 
 /* Add / edit a count */
 let editingCount = null, deleteArmed = false;
@@ -1571,7 +1605,7 @@ function takeoffRows() {
     const qty = by.reduce((t, x) => t + x[1], 0);
     if (!qty) return;
     const what = d.custom ? [d.kind !== nameOf(d) && !d.fanKind && !d.kindName && !nameOf(d).startsWith(d.kind) ? d.kind : "", [d.sMaker, d.sModel].filter(Boolean).join(" "), d.sMount && `Mount ${d.sMount}`].filter(Boolean).join(" · ") : `${d.maker} ${d.model}`;
-    counts.push({ id: d.id, asm: d.kindName ? `${d.group}|${d.kindName}` : "", em: !!(d.kindName && d.em), feed: feedable(d) ? feedFor(d) : null, name: nameOf(d), what: d.kindName && d.em ? ["With emergency battery", what].filter(Boolean).join(" · ") : what, qty, by, color: d.color, group: d.group });
+    counts.push({ id: d.id, asm: d.kindName ? `${d.group}|${d.kindName}` : "", em: !!(d.kindName && d.em), feed: feedable(d) ? feedFor(d) : null, name: nameOf(d), what: typeTitled(d) ? [kindSub(d), [d.sMaker, d.sModel].filter(Boolean).join(" ")].filter(Boolean).join(" · ") : d.kindName && d.em ? ["With emergency battery", what].filter(Boolean).join(" · ") : what, qty, by, color: d.color, group: d.group });
   });
   const lfOf = id => pages.reduce((t, pg) => t + (pg.ftPerPx ? pg.runs.filter(r => (r.typeId || null) === id).reduce((a, r) => a + r.px * pg.ftPerPx, 0) : 0), 0);
   const ex = extraOf();
