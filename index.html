@@ -282,6 +282,22 @@ button { cursor: pointer; }
 .ts-table small { display: block; color: var(--muted); font-size: 12px; }
 .ts-table .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
 .ts-wrap { overflow-x: auto; }
+.btn.tool.hl-y[aria-pressed="true"] { background: #fff3a6; border-color: #d4b100; color: #3d3200; }
+.btn.tool.hl-r[aria-pressed="true"] { background: #ffd6d6; border-color: #d33; color: #5a0000; }
+.btn.tool.hl-y::before, .btn.tool.hl-r::before { content: ""; width: 12px; height: 12px; border-radius: 2px; background: #ffe14d; margin-right: 6px; flex: none; }
+.btn.tool.hl-r::before { background: #ff5c5c; }
+.mk-hl { stroke-width: 1.5; }
+.mk-hl.y { fill: rgb(255 225 0 / .35); stroke: #d4b100; }
+.mk-hl.r { fill: rgb(255 60 60 / .28); stroke: #d33; }
+.mk-hl.draft { stroke-dasharray: 5 3; }
+.note-item { display: grid; grid-template-columns: 220px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: start; }
+.note-item img { width: 100%; border: 1px solid var(--line); border-radius: 4px; background: #fff; }
+.note-item .tagc { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 4px; margin-right: 6px; }
+.note-item .tagc.y { background: #fff3a6; color: #3d3200; } .note-item .tagc.r { background: #ffd6d6; color: #5a0000; }
+.note-item p { margin: 4px 0 8px; white-space: pre-wrap; }
+.note-acts { display: flex; gap: 6px; flex-wrap: wrap; }
+.ts-table img.sup-crop { max-width: 260px; display: block; margin-top: 4px; border: 1px solid var(--line); background: #fff; }
+@media (max-width: 640px) { .note-item { grid-template-columns: 1fr; } }
 .feed-btn { display: block; margin-top: 4px; border: 0; background: none; padding: 0; color: var(--accent); font: inherit; font-size: 12px; cursor: pointer; text-align: left; }
 .feed-btn:hover { text-decoration: underline; }
 .feed-edit td { background: var(--bg); }
@@ -373,6 +389,10 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <button class="btn" id="fileBtn" type="button" title="Save this job to a file, open a job file, or email it (Ctrl+S saves)">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2.5 2.5h9l2 2v9h-11z"/><path d="M5 2.5v4h5v-4M5 13.5v-4h6v4"/></svg>
       Save / Open
+    </button>
+    <button class="btn" id="notesBtn" type="button" title="Every yellow and red highlight, with its sheet">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 13.5 4 10l7-7 2.5 2.5-7 7z"/><path d="M2 14.5h6"/></svg>
+      Notes
     </button>
     <button class="btn" id="takeoffBtn" type="button" title="Count sheet with extra % on footage, and the material list for your supplier">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3.5 1.5h9v13h-9z"/><path d="M6 5h4.5M6 8h4.5M6 11h3"/></svg>
@@ -476,6 +496,8 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
             Linear run</button>
           <button class="btn tool" id="scaleBtn" type="button" title="Set the drawing scale for this sheet">Set scale</button>
           <button class="btn tool erase" id="eraseBtn" type="button" aria-pressed="false" title="Click a symbol on the sheet to remove it (E)">Erase</button>
+          <button class="btn tool hl-y" id="hlYBtn" type="button" aria-pressed="false" title="Yellow highlighter: drag over a note to save it to your Notes page">Yellow note</button>
+          <button class="btn tool hl-r" id="hlRBtn" type="button" aria-pressed="false" title="Red highlighter: drag over a note to save it to your Notes page and the supplier sheet">Red note</button>
         </div>
         <div class="zoomrow">
           <span class="zl">Zoom</span>
@@ -678,6 +700,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <div class="ts-tabs no-print">
       <button class="btn" type="button" id="tsCountTab" aria-pressed="true">Count sheet</button>
       <button class="btn" type="button" id="tsSupTab" aria-pressed="false">Supplier sheet</button>
+      <button class="btn" type="button" id="tsNotesTab" aria-pressed="false">Notes</button>
       <label class="ts-all" id="tsAllBox"><span>Add to all footage</span><input type="number" id="tsAll" class="ts-pct" min="0" max="100" step="1" placeholder="%"><span>%</span><button class="btn sm" type="button" id="tsAllSet">Apply</button></label>
     </div>
     <p class="hint no-print" id="tsHint"></p>
@@ -691,6 +714,21 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <button class="btn primary" type="button" id="tsClose">Done</button>
     </div>
   </div>
+</div>
+
+<div class="modal" id="hlModal" hidden role="dialog" aria-modal="true" aria-labelledby="hlTitle">
+  <form class="modal-card" id="hlForm" autocomplete="off">
+    <h2 id="hlTitle">Note</h2>
+    <img id="hlCrop" alt="The highlighted part of the sheet" style="width:100%;border:1px solid var(--line);border-radius:6px;background:#fff">
+    <div class="opt"><label for="hlColor">Highlighter</label><select id="hlColor"><option value="y">Yellow: my notes page</option><option value="r">Red: notes page and supplier sheet</option></select></div>
+    <div class="opt"><label for="hlNote">What it says, or your note (optional)</label><textarea id="hlNote" placeholder="e.g. All 2x4s to be 0-10V dimming. Or: Supplier to quote Lithonia equal."></textarea></div>
+    <div class="actions">
+      <button class="btn danger" type="button" id="hlDelete" hidden>Delete note</button>
+      <span class="spacer"></span>
+      <button class="btn" type="button" id="hlCancel">Cancel</button>
+      <button class="btn primary" type="submit" id="hlSave">Save note</button>
+    </div>
+  </form>
 </div>
 
 <div class="modal" id="ampModal" hidden role="dialog" aria-modal="true" aria-labelledby="ampTitle">
@@ -823,7 +861,7 @@ function db() {
 async function store(fn, name = "pages") {
   try { const d = await db(); const tx = d.transaction(name, "readwrite"); fn(tx.objectStore(name)); await new Promise(r => { tx.oncomplete = tx.onerror = tx.onabort = r; }); } catch (e) {}
 }
-const meta = p => ({ fileId: p.fileId || null, name: p.name, zoom: p.zoom, pxPerInch: p.pxPerInch || null, ftPerPx: p.ftPerPx || null, scaleLabel: p.scaleLabel || "", runs: p.runs, devices: p.devices });
+const meta = p => ({ fileId: p.fileId || null, name: p.name, zoom: p.zoom, pxPerInch: p.pxPerInch || null, ftPerPx: p.ftPerPx || null, scaleLabel: p.scaleLabel || "", runs: p.runs, devices: p.devices, hl: p.hl || [] });
 const savePage = (p, i) => p.example ? null : (scheduleSync(), store(s => s.put({ id: p.id, jobId: job.id, order: i, blob: p.blob, ...meta(p) })));
 const saveMeta = (p, quiet) => p.example ? null : (quiet || scheduleSync(), store(s => { const g = s.get(p.id); g.onsuccess = () => g.result && s.put({ ...g.result, ...meta(p) }); }));
 async function getAll(name) {
@@ -834,7 +872,7 @@ async function loadSaved(jobId) {
   try {
     const all = (await getAll("pages")).filter(r => r.jobId === jobId);
     return all.sort((a, b) => a.order - b.order).map(r => ({ id: r.id, name: r.name || "", zoom: r.zoom || "FULL", blob: r.blob, url: URL.createObjectURL(r.blob),
-      pxPerInch: r.pxPerInch || null, ftPerPx: r.ftPerPx || null, scaleLabel: r.scaleLabel || "", runs: r.runs || [], devices: r.devices || [], fileId: r.fileId || null }));
+      pxPerInch: r.pxPerInch || null, ftPerPx: r.ftPerPx || null, scaleLabel: r.scaleLabel || "", runs: r.runs || [], devices: r.devices || [], hl: r.hl || [], fileId: r.fileId || null }));
   } catch (e) { return []; }
 }
 
@@ -1411,6 +1449,79 @@ $("ampDelete").onclick = () => {
   $("ampModal").hidden = true; renderCounts(); drawOverlay();
 };
 $("ampModal").addEventListener("keydown", e => { if (e.key === "Escape") $("ampModal").hidden = true; });
+/* ---------- highlighter notes ----------
+   Drag with the yellow or red highlighter over part of a sheet. The box is saved on that sheet with an optional typed note,
+   and every highlight shows on the Notes page with its sheet. Red ones also go on the supplier sheet. */
+let hlMode = null, hlDrag = null, hlEdit = null;
+const bitmaps = new Map(), crops = new Map();
+async function cropOf(pg, h, maxW = 700) {
+  const key = `${h.id}|${h.x}|${h.y}|${h.w}|${h.h}|${maxW}`;
+  if (crops.has(key)) return crops.get(key);
+  if (!bitmaps.has(pg.id)) bitmaps.set(pg.id, createImageBitmap(pg.blob));
+  const img = await bitmaps.get(pg.id), sc = Math.min(1, maxW / h.w), c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(h.w * sc)); c.height = Math.max(1, Math.round(h.h * sc));
+  const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height);
+  x.drawImage(img, h.x, h.y, h.w, h.h, 0, 0, c.width, c.height);
+  const url = c.toDataURL("image/jpeg", .85); crops.set(key, url); return url;
+}
+function setHl(m) {
+  hlMode = hlMode === m ? null : m;
+  if (hlMode && tool) setTool(null);
+  $("hlYBtn").setAttribute("aria-pressed", hlMode === "y"); $("hlRBtn").setAttribute("aria-pressed", hlMode === "r");
+  $("sheet").style.cursor = hlMode ? "crosshair" : "";
+  if (hlMode) toast(hlMode === "y" ? "Yellow highlighter: drag a box over the note. Click the button again to stop." : "Red highlighter: drag a box over the note for the supplier. Click the button again to stop.");
+}
+$("hlYBtn").onclick = () => setHl("y");
+$("hlRBtn").onclick = () => setHl("r");
+const hlAt = (pg, q) => (pg.hl || []).slice().reverse().find(h => q[0] >= h.x && q[0] <= h.x + h.w && q[1] >= h.y && q[1] <= h.y + h.h);
+$("sheet").addEventListener("pointerdown", e => {
+  if (!hlMode || e.button !== 0 || !pages[current]) return;
+  e.stopImmediatePropagation(); e.preventDefault();
+  hlDrag = { start: imgPoint(e), end: null, id: e.pointerId, cx: e.clientX, cy: e.clientY };
+  try { $("sheet").setPointerCapture(e.pointerId); } catch (_) {}
+}, true);
+$("sheet").addEventListener("pointermove", e => {
+  if (!hlDrag || e.pointerId !== hlDrag.id) return;
+  e.stopImmediatePropagation();
+  hlDrag.end = imgPoint(e); drawOverlay();
+}, true);
+$("sheet").addEventListener("pointerup", e => {
+  if (!hlDrag || e.pointerId !== hlDrag.id) return;
+  e.stopImmediatePropagation();
+  const d = hlDrag, pg = pages[current]; hlDrag = null;
+  if (!d.end || Math.hypot(e.clientX - d.cx, e.clientY - d.cy) < 8) { // a click: open a highlight that's there
+    const h = hlAt(pg, d.start); drawOverlay();
+    if (h) openHl(pg, h);
+    return;
+  }
+  const x = Math.min(d.start[0], d.end[0]), y = Math.min(d.start[1], d.end[1]);
+  const h = { id: uid(), c: hlMode, x: Math.round(x), y: Math.round(y), w: Math.round(Math.abs(d.end[0] - d.start[0])), h: Math.round(Math.abs(d.end[1] - d.start[1])), note: "" };
+  (pg.hl || (pg.hl = [])).push(h); saveMeta(pg); drawOverlay();
+  openHl(pg, h, true);
+}, true);
+async function openHl(pg, h, isNew) {
+  hlEdit = { pg, h, isNew };
+  $("hlTitle").textContent = `${isNew ? "New note" : "Note"} · ${sheetName(pg, pages.indexOf(pg))}`;
+  $("hlColor").value = h.c; $("hlNote").value = h.note || "";
+  $("hlDelete").hidden = false; $("hlSave").textContent = "Save note";
+  $("hlCrop").removeAttribute("src");
+  $("hlModal").hidden = false; $("hlNote").focus();
+  $("hlCrop").src = await cropOf(pg, h);
+}
+$("hlForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const { pg, h } = hlEdit; h.c = $("hlColor").value; h.note = $("hlNote").value.trim();
+  saveMeta(pg); $("hlModal").hidden = true; drawOverlay();
+  if (!$("takeoffModal").hidden) renderTakeoff();
+  toast(h.c === "r" ? "Saved to your Notes page and the supplier sheet." : "Saved to your Notes page.");
+});
+const dropHl = () => { const { pg, h } = hlEdit; pg.hl = (pg.hl || []).filter(x => x !== h); saveMeta(pg); $("hlModal").hidden = true; drawOverlay(); if (!$("takeoffModal").hidden) renderTakeoff(); };
+$("hlDelete").onclick = () => { dropHl(); toast("Note deleted."); };
+$("hlCancel").onclick = () => { $("hlModal").hidden = true; }; // a new box stays, with no typed note
+$("hlModal").addEventListener("keydown", e => { if (e.key === "Escape") $("hlModal").hidden = true; });
+// every highlight in sheet order, numbered for the Notes page
+const allNotes = () => pages.flatMap((pg, i) => (pg.hl || []).map(h => ({ pg, i, h }))).map((n, k) => ({ ...n, no: k + 1 }));
+
 /* ---------- count sheet and supplier sheet ----------
    Count sheet: every count and every footage line from all sheets, with an extra % box on each footage line.
    Supplier sheet: the same material added up by item, using the footage with the extra % in it. */
@@ -1504,9 +1615,27 @@ function supplierRows() {
   foot.filter(f => f.sup).forEach(f => mat.set(f.sup, (mat.get(f.sup) || 0) + f.total));
   return { counts, mat: [...mat].map(([name, lf]) => ({ name, lf })) };
 }
+function renderNotes() {
+  const t = $("tsTable"), list = allNotes();
+  $("tsEmpty").hidden = true;
+  if (!list.length) { t.innerHTML = `<tbody><tr><td>No notes yet. Pick <b>Yellow note</b> or <b>Red note</b> under Tools, then drag a box over a note on the drawing.</td></tr></tbody>`; return; }
+  t.innerHTML = `<tbody><tr><td>${list.map(n => `<div class="note-item" data-k="${n.no}"><img alt="Highlighted area on ${esc(sheetName(n.pg, n.i))}"><div>
+    <div><span class="tagc ${n.h.c}">${n.h.c === "r" ? "Red · supplier" : "Yellow"}</span><b>Note ${n.no}</b> · Page ${n.i + 1}, ${esc(sheetName(n.pg, n.i))}</div>
+    <p>${n.h.note ? esc(n.h.note) : `<span class="hint">No typed note</span>`}</p>
+    <div class="note-acts no-print"><button class="btn sm" type="button" data-go="${n.no}">Show on drawing</button><button class="btn sm" type="button" data-ed="${n.no}">Edit</button></div></div></div>`).join("")}</td></tr></tbody>`;
+  list.forEach(n => cropOf(n.pg, n.h).then(u => { const im = t.querySelector(`.note-item[data-k="${n.no}"] img`); if (im) im.src = u; }));
+  t.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { const n = list[b.dataset.go - 1]; $("takeoffModal").hidden = true; go(n.i); });
+  t.querySelectorAll("[data-ed]").forEach(b => b.onclick = () => { const n = list[b.dataset.ed - 1]; openHl(n.pg, n.h); });
+}
 function renderTakeoff() {
-  const t = $("tsTable"), sup = tsView === "sup";
-  $("tsCountTab").setAttribute("aria-pressed", !sup); $("tsSupTab").setAttribute("aria-pressed", sup);
+  const t = $("tsTable"), sup = tsView === "sup", notes = tsView === "notes";
+  $("tsCountTab").setAttribute("aria-pressed", tsView === "count"); $("tsSupTab").setAttribute("aria-pressed", sup); $("tsNotesTab").setAttribute("aria-pressed", notes);
+  if (notes) {
+    $("tsTitle").textContent = "Notes"; $("tsAllBox").hidden = true;
+    $("tsJob").innerHTML = `<b>${esc(job ? job.name : "Example job")}</b> · ${new Date().toLocaleDateString()}<br>AJ Electrical`;
+    $("tsHint").textContent = "Every yellow and red highlight, with its page. Red ones are also on the supplier sheet.";
+    return renderNotes();
+  }
   $("tsTitle").textContent = sup ? "Material list" : "Count sheet";
   $("tsAllBox").hidden = sup;
   $("tsJob").innerHTML = `<b>${esc(job ? job.name : "Example job")}</b> · ${new Date().toLocaleDateString()}<br>AJ Electrical`;
@@ -1550,7 +1679,10 @@ function renderTakeoff() {
     let h = `<thead><tr><th>Material</th><th class="n">Quantity</th></tr></thead><tbody>`;
     bySection(counts).forEach(sec => h += `<tr class="sec"><td colspan="2">${esc(sec.title)}</td></tr>` + sec.rows.map(c => `<tr><td>${esc(c.name)}${c.what ? `<small>${esc(c.what)}</small>` : ""}</td><td class="n">${c.qty} ea</td></tr>`).join(""));
     if (mat.length) h += `<tr class="sec"><td colspan="2">Conduit and wire</td></tr>` + mat.map(m => `<tr><td>${esc(m.name)}</td><td class="n">${m.lf.toLocaleString()} ft</td></tr>`).join("");
+    const red = allNotes().filter(n => n.h.c === "r");
+    if (red.length) h += `<tr class="sec"><td colspan="2">Notes for supplier</td></tr>` + red.map(n => `<tr><td colspan="2"><b>Note ${n.no}</b> · Page ${n.i + 1}, ${esc(sheetName(n.pg, n.i))}${n.h.note ? `<small style="color:inherit;font-size:14px">${esc(n.h.note)}</small>` : ""}<img class="sup-crop" data-k="${n.no}" alt=""></td></tr>`).join("");
     t.innerHTML = h + `</tbody>`;
+    red.forEach(n => cropOf(n.pg, n.h).then(u => { const im = t.querySelector(`img.sup-crop[data-k="${n.no}"]`); if (im) im.src = u; }));
   }
 }
 function takeoffText() {
@@ -1558,6 +1690,8 @@ function takeoffText() {
   const lines = [`Material list: ${name}`, `AJ Electrical · ${new Date().toLocaleDateString()}`, ""];
   bySection(counts).forEach(sec => { lines.push(sec.title.toUpperCase()); sec.rows.forEach(c => lines.push(`${c.qty} ea  ${c.name}${c.what ? ` (${c.what})` : ""}`)); lines.push(""); });
   if (mat.length) { lines.push("CONDUIT AND WIRE"); mat.forEach(m => lines.push(`${m.lf.toLocaleString()} ft  ${m.name}`)); }
+  const red = allNotes().filter(n => n.h.c === "r");
+  if (red.length) { lines.push("", "NOTES FOR SUPPLIER"); red.forEach(n => lines.push(`Note ${n.no}, page ${n.i + 1} (${sheetName(n.pg, n.i)}): ${n.h.note || "see the highlighted area on the drawing"}`)); }
   return lines.join("\n");
 }
 function openTakeoff(view) {
@@ -1569,6 +1703,8 @@ function openTakeoff(view) {
 $("takeoffBtn").onclick = () => openTakeoff("count");
 $("tsCountTab").onclick = () => { tsView = "count"; renderTakeoff(); };
 $("tsSupTab").onclick = () => { tsView = "sup"; renderTakeoff(); };
+$("tsNotesTab").onclick = () => { tsView = "notes"; renderTakeoff(); };
+$("notesBtn").onclick = () => openTakeoff("notes");
 $("tsAllSet").onclick = () => {
   const v = Math.max(0, Math.min(100, +$("tsAll").value || 0)), ex = extraOf();
   takeoffRows().foot.forEach(f => { if (v) ex[f.key] = v; else delete ex[f.key]; });
@@ -1669,6 +1805,7 @@ let scaleDraft = null;  // {then, knownPx}
 let placed = [];        // devices dropped since the place tool was picked, for Undo last
 
 function setTool(t, dev) {
+  if (t && hlMode) setHl(hlMode);
   const p = pages[current];
   if (t && t !== "calibrate" && !p) return;
   if ((t === "measure" || t === "run") && !p.ftPerPx) { openScale(t); return; }
@@ -1730,6 +1867,15 @@ function drawOverlay() {
   const ptsAttr = pts => pts.map(q => q.join(",")).join(" ");
   const dots = (g, pts, cls) => pts.forEach(q => g.appendChild(svgEl("circle", { cx: q[0], cy: q[1], r: 3 / k, class: "mk-dot " + (cls || ""), ...ns })));
   const g = svgEl("g", {});
+  (p.hl || []).forEach(h => {
+    const rc = svgEl("rect", { x: h.x, y: h.y, width: h.w, height: h.h, class: "mk-hl " + h.c, ...ns });
+    rc.appendChild(svgEl("title", {}, (h.c === "r" ? "Red note" : "Yellow note") + (h.note ? ": " + h.note : "")));
+    g.appendChild(rc);
+  });
+  if (hlDrag && hlDrag.end) {
+    const [a, b] = [hlDrag.start, hlDrag.end];
+    g.appendChild(svgEl("rect", { x: Math.min(a[0], b[0]), y: Math.min(a[1], b[1]), width: Math.abs(a[0] - b[0]), height: Math.abs(a[1] - b[1]), class: "mk-hl draft " + hlMode, ...ns }));
+  }
   for (const r of p.runs) {
     if (r === contRun) continue; // drawn below as the draft that's growing
     const w = wireOf(r.typeId), col = w ? { style: `stroke:${w.color}` } : {};
@@ -2742,7 +2888,7 @@ $("labelForm").addEventListener("submit", e => {
 document.addEventListener("keydown", e => {
   if (!$("ctxMenu").hidden) return;
   const typing = !!e.target.closest("input, select, textarea");
-  if (!$("scaleModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden || !$("wireModal").hidden || !$("sendModal").hidden || !$("ampModal").hidden || !$("takeoffModal").hidden) return;
+  if (!$("scaleModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden || !$("wireModal").hidden || !$("sendModal").hidden || !$("ampModal").hidden || !$("takeoffModal").hidden || !$("hlModal").hidden) return;
   if (!typing && (e.ctrlKey || e.metaKey) && !e.altKey) {
     const key = e.key.toLowerCase();
     if (key === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
@@ -3120,6 +3266,10 @@ async function sheetCanvas(pg) {
   x.save(); x.scale(sc, sc);
   const u = Math.max(img.width, img.height) / 1100; // one "screen pixel" at a full-sheet view
   x.lineJoin = x.lineCap = "round";
+  (pg.hl || []).forEach(h => {
+    x.fillStyle = h.c === "r" ? "rgba(255,60,60,.28)" : "rgba(255,225,0,.35)"; x.fillRect(h.x, h.y, h.w, h.h);
+    x.strokeStyle = h.c === "r" ? "#d33" : "#d4b100"; x.lineWidth = 1.5 * u; x.strokeRect(h.x, h.y, h.w, h.h);
+  });
   pg.runs.forEach(r => {
     const w = wireOf(r.typeId);
     x.strokeStyle = w ? w.color : "#0b6fb8"; x.lineWidth = 1.5 * u;
@@ -3167,6 +3317,22 @@ async function makePdf() {
     doc.addImage(c.toDataURL("image/jpeg", .82), "JPEG", 0, 0, w, h);
     doc.setFontSize(Math.max(8, w / 120)); doc.setTextColor(60);
     doc.text(`${job ? job.name : "Example job"} · ${pg.name || "Sheet " + (i + 1)} · AJ Electrical`, w - 12, h - 10, { align: "right" });
+  }
+  // notes pages: every highlight with its picture and typed note
+  const notes = allNotes();
+  if (notes.length) {
+    doc.addPage([612, 792], "p"); doc.setTextColor(0); doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.text("Notes", 50, 50);
+    let y = 74;
+    for (const n of notes) {
+      const url = await cropOf(n.pg, n.h, 1000), ratio = n.h.h / Math.max(1, n.h.w), iw = 250, ih = Math.min(220, iw * ratio), iw2 = ih / ratio < iw ? ih / ratio : iw;
+      const lines = doc.splitTextToSize(n.h.note || "", 250), block = Math.max(ih, 30 + lines.length * 13) + 18;
+      if (y + block > 760) { doc.addPage([612, 792], "p"); y = 50; }
+      doc.addImage(url, "JPEG", 50, y, iw2, ih);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.text(`Note ${n.no} · ${n.h.c === "r" ? "Red, for supplier" : "Yellow"}`, 315, y + 10);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.text(`Page ${n.i + 1}, ${sheetName(n.pg, n.i)}`, 315, y + 25);
+      if (lines.length) doc.text(lines, 315, y + 42);
+      y += block;
+    }
   }
   // last page: the material list
   doc.addPage([612, 792], "p");
