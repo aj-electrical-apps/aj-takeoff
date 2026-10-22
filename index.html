@@ -413,12 +413,12 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     </button>
 
     <div class="group">
-      <button class="btn primary" id="uploadBtn" title="Upload PDFs or images (up to 120 pages)">
+      <button class="btn primary" id="uploadBtn" title="Upload PDFs or images (up to 200 pages)">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 11V2M4.5 5.5 8 2l3.5 3.5M2 11v3h12v-3"/></svg>
         Upload plans
       </button>
       <input type="file" id="fileInput" accept="application/pdf,image/*" multiple hidden>
-      <span class="count" id="pageCount">0 / 120</span>
+      <span class="count" id="pageCount">0 / 200</span>
     </div>
 
     <div class="group">
@@ -844,7 +844,8 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 </div>
 
 <script>
-const MAX_PAGES = 120;
+const MAX_PAGES = 200;
+const THUMB_SIDE = 320; // px; the sheet rail shows these small copies, never the full sheets
 const MAX_SIDE = 3200; // px on the long side; enough for a 2x corner zoom to stay sharp
 const ZOOM_LABEL = { FULL: "Full sheet", TL: "Top left · 2×", TR: "Top right · 2×", BL: "Bottom left · 2×", BR: "Bottom right · 2×" };
 
@@ -877,7 +878,7 @@ async function store(fn, name = "pages") {
   try { const d = await db(); const tx = d.transaction(name, "readwrite"); fn(tx.objectStore(name)); await new Promise(r => { tx.oncomplete = tx.onerror = tx.onabort = r; }); } catch (e) {}
 }
 const meta = p => ({ fileId: p.fileId || null, name: p.name, zoom: p.zoom, pxPerInch: p.pxPerInch || null, ftPerPx: p.ftPerPx || null, scaleLabel: p.scaleLabel || "", runs: p.runs, devices: p.devices, hl: p.hl || [] });
-const savePage = (p, i) => p.example ? null : (scheduleSync(), store(s => s.put({ id: p.id, jobId: job.id, order: i, blob: p.blob, ...meta(p) })));
+const savePage = (p, i) => p.example ? null : (scheduleSync(), store(s => s.put({ id: p.id, jobId: job.id, order: i, blob: p.blob, thumb: p.thumb || null, ...meta(p) })));
 const saveMeta = (p, quiet) => p.example ? null : (quiet || scheduleSync(), store(s => { const g = s.get(p.id); g.onsuccess = () => g.result && s.put({ ...g.result, ...meta(p) }); }));
 async function getAll(name) {
   const d = await db();
@@ -886,7 +887,7 @@ async function getAll(name) {
 async function loadSaved(jobId) {
   try {
     const all = (await getAll("pages")).filter(r => r.jobId === jobId);
-    return all.sort((a, b) => a.order - b.order).map(r => ({ id: r.id, name: r.name || "", zoom: r.zoom || "FULL", blob: r.blob, url: URL.createObjectURL(r.blob),
+    return all.sort((a, b) => a.order - b.order).map(r => ({ id: r.id, name: r.name || "", zoom: r.zoom || "FULL", blob: r.blob, url: URL.createObjectURL(r.blob), thumb: r.thumb || null, thumbUrl: r.thumb ? URL.createObjectURL(r.thumb) : null,
       pxPerInch: r.pxPerInch || null, ftPerPx: r.ftPerPx || null, scaleLabel: r.scaleLabel || "", runs: r.runs || [], devices: r.devices || [], hl: r.hl || [], fileId: r.fileId || null }));
   } catch (e) { return []; }
 }
@@ -909,7 +910,7 @@ async function addFiles(files) {
   if (proj) return importProject(proj);
   files = files.filter(f => f.type === "application/pdf" || /\.pdf$/i.test(f.name) || f.type.startsWith("image/"));
   if (!files.length) return toast("Choose PDF or image files.");
-  if (pages.some(p => p.example)) { pages.forEach(p => URL.revokeObjectURL(p.url)); pages = []; current = 0; }
+  if (pages.some(p => p.example)) { pages.forEach(p => { URL.revokeObjectURL(p.url); p.thumbUrl && URL.revokeObjectURL(p.thumbUrl); }); pages = []; current = 0; }
   await ensureJob(files[0].name);
   const startCount = pages.length;
   let room = MAX_PAGES - pages.length, skipped = 0;
@@ -931,7 +932,8 @@ async function addFiles(files) {
           const c = document.createElement("canvas"); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
           const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
           await page.render({ canvasContext: ctx, viewport: vp }).promise;
-          pushPage(await canvasBlob(c), "", 72 * scale); // PDF points are 1/72 in
+          pushPage(await canvasBlob(c), "", 72 * scale, await thumbFrom(c)); // PDF points are 1/72 in
+          c.width = c.height = 0; // let the big canvas go before the next page
           page.cleanup(); room--;
         }
         pdf.destroy();
@@ -953,24 +955,55 @@ async function addFiles(files) {
   $("nameInput").focus();
 }
 const uid = () => crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
-function pushPage(blob, name, pxPerInch = null) {
-  pages.push({ id: uid(), name, zoom: "FULL", blob, url: URL.createObjectURL(blob), pxPerInch, ftPerPx: null, scaleLabel: "", runs: [], devices: [] });
+function pushPage(blob, name, pxPerInch = null, thumb = null) {
+  pages.push({ id: uid(), name, zoom: "FULL", blob, url: URL.createObjectURL(blob), thumb, thumbUrl: thumb ? URL.createObjectURL(thumb) : null, pxPerInch, ftPerPx: null, scaleLabel: "", runs: [], devices: [] });
+}
+// a small JPEG of a sheet for the rail; src is a canvas or an image bitmap
+function thumbFrom(src) {
+  const sc = Math.min(1, THUMB_SIDE / Math.max(src.width, src.height)), c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(src.width * sc)); c.height = Math.max(1, Math.round(src.height * sc));
+  const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(src, 0, 0, c.width, c.height);
+  return new Promise(r => c.toBlob(r, "image/jpeg", 0.7));
+}
+// older sheets and photos get their thumbnail made in the background, one at a time
+let thumbQ = Promise.resolve();
+function needThumb(p) {
+  if (p.thumbUrl || p.thumbBusy || !p.blob) return;
+  p.thumbBusy = true;
+  thumbQ = thumbQ.then(async () => {
+    try {
+      const bmp = await createImageBitmap(p.blob); p.thumb = await thumbFrom(bmp); bmp.close && bmp.close();
+      p.thumbUrl = URL.createObjectURL(p.thumb);
+      const im = document.querySelector(`#rail .thumb[data-id="${p.id}"] img`); if (im) im.src = p.thumbUrl;
+      if (!p.example) store(s => { const g = s.get(p.id); g.onsuccess = () => g.result && s.put({ ...g.result, thumb: p.thumb }); });
+    } catch (e) {}
+    p.thumbBusy = false;
+  });
 }
 
 /* ---------- render ---------- */
 const QPOS = { TL: "left:0;top:0", TR: "right:0;top:0", BL: "left:0;bottom:0", BR: "right:0;bottom:0" };
+// The rail keeps its buttons between renders and only updates what changed, so 200 sheets stay quick.
 function renderRail() {
   const rail = $("rail");
-  rail.innerHTML = "";
+  const same = rail.children.length === pages.length && pages.every((p, i) => rail.children[i].dataset.id === p.id);
+  if (!same) {
+    rail.replaceChildren();
+    pages.forEach((p, i) => {
+      const b = document.createElement("button");
+      b.className = "thumb"; b.type = "button"; b.dataset.id = p.id;
+      b.innerHTML = `<span class="num">${String(i + 1).padStart(3, "0")}</span><span class="pic"><img alt="" loading="lazy" decoding="async"><span class="q" hidden></span></span><span class="name"></span>`;
+      b.onclick = () => go(i);
+      rail.appendChild(b);
+    });
+  }
   pages.forEach((p, i) => {
-    const b = document.createElement("button");
-    b.className = "thumb"; b.type = "button";
+    const b = rail.children[i], im = b.querySelector("img"), q = b.querySelector(".q"), nm = b.querySelector(".name");
     b.setAttribute("aria-current", i === current ? "true" : "false");
-    b.innerHTML = `<span class="num">${String(i + 1).padStart(3, "0")}</span><span class="pic"><img alt="" loading="lazy">${QPOS[p.zoom] ? `<span class="q" style="${QPOS[p.zoom]}"></span>` : ""}</span><span class="name"></span>`;
-    b.querySelector("img").src = p.url;
-    const nm = b.querySelector(".name"); nm.textContent = p.name || "Not named yet"; if (!p.name) nm.classList.add("unnamed");
-    b.onclick = () => go(i);
-    rail.appendChild(b);
+    if (p.thumbUrl) { if (im.getAttribute("src") !== p.thumbUrl) im.src = p.thumbUrl; } else needThumb(p);
+    q.hidden = !QPOS[p.zoom]; if (QPOS[p.zoom]) q.style.cssText = QPOS[p.zoom];
+    const t = p.name || "Not named yet"; if (nm.textContent !== t) nm.textContent = t;
+    nm.classList.toggle("unnamed", !p.name);
   });
   rail.children[current]?.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
@@ -1501,7 +1534,8 @@ const bitmaps = new Map(), crops = new Map();
 async function cropOf(pg, h, maxW = 700) {
   const key = `${h.id}|${h.x}|${h.y}|${h.w}|${h.h}|${maxW}`;
   if (crops.has(key)) return crops.get(key);
-  if (!bitmaps.has(pg.id)) bitmaps.set(pg.id, createImageBitmap(pg.blob));
+  // keep at most two full-size sheets decoded; each one is tens of MB
+  if (!bitmaps.has(pg.id)) { bitmaps.set(pg.id, createImageBitmap(pg.blob)); while (bitmaps.size > 2) { const [k0, b0] = bitmaps.entries().next().value; bitmaps.delete(k0); b0.then(b => b.close && b.close()); } }
   const img = await bitmaps.get(pg.id), sc = Math.min(1, maxW / h.w), c = document.createElement("canvas");
   c.width = Math.max(1, Math.round(h.w * sc)); c.height = Math.max(1, Math.round(h.h * sc));
   const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height);
@@ -3469,7 +3503,7 @@ async function sheetCanvas(pg) {
   const img = await createImageBitmap(pg.blob);
   const sc = Math.min(1, 6000 / Math.max(img.width, img.height));
   const W = Math.round(img.width * sc), H = Math.round(img.height * sc), c = document.createElement("canvas");
-  c.width = W; c.height = H;
+  c.width = W; c.height = H; c.srcW = img.width;
   const x = c.getContext("2d");
   x.fillStyle = "#fff"; x.fillRect(0, 0, W, H); x.drawImage(img, 0, 0, W, H);
   x.save(); x.scale(sc, sc);
@@ -3510,6 +3544,7 @@ async function sheetCanvas(pg) {
       x.fillStyle = "#111"; x.textBaseline = "middle"; x.fillText(rw.text, bx + pad + f * 1.8, cy, bw - pad * 2 - f * 1.8);
     });
   }
+  img.close && img.close();
   return c;
 }
 async function makePdf() {
@@ -3519,11 +3554,11 @@ async function makePdf() {
   for (let i = 0; i < list.length; i++) {
     busy("Making the PDF…", i / (list.length + 1), `Sheet ${i + 1} of ${list.length}`);
     const pg = list[i], c = await sheetCanvas(pg);
-    const dpi = (pg.pxPerInch || 150) * c.width / ((await createImageBitmap(pg.blob)).width || c.width);
+    const dpi = (pg.pxPerInch || 150) * c.width / (c.srcW || c.width);
     const w = c.width / dpi * 72, h = c.height / dpi * 72, o = w > h ? "l" : "p";
     if (!doc) doc = new JsPDF({ orientation: o, unit: "pt", format: [w, h], compress: true });
     else doc.addPage([w, h], o);
-    doc.addImage(c.toDataURL("image/jpeg", .82), "JPEG", 0, 0, w, h);
+    doc.addImage(c.toDataURL("image/jpeg", .82), "JPEG", 0, 0, w, h); c.width = c.height = 0;
     doc.setFontSize(Math.max(8, w / 120)); doc.setTextColor(60);
     doc.text(`${job ? job.name : "Example job"} · ${pg.name || "Sheet " + (i + 1)} · AJ Electrical`, w - 12, h - 10, { align: "right" });
   }
@@ -3732,7 +3767,7 @@ const saveJob = j => { if (job && j.id === job.id) scheduleSync(); return putJob
 function showJobName() { $("jobName").textContent = job ? job.name : "Example job"; }
 async function openJob(j) {
   if (tool) setTool(null);
-  pages.forEach(p => URL.revokeObjectURL(p.url));
+  pages.forEach(p => { URL.revokeObjectURL(p.url); p.thumbUrl && URL.revokeObjectURL(p.thumbUrl); });
   clearTimeout(syncTimer); syncWanted = false;
   job = j; lsSet("aj-current-job", j ? j.id : null); showJobName();
   dropCmp(); sel.clear(); undoStack = []; redoStack = []; updHist(); tabs = [];
