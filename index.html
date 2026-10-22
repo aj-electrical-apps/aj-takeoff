@@ -1711,16 +1711,34 @@ const loadXlsx = () => xlsLoad || (xlsLoad = new Promise((res, rej) => {
   sc.onload = () => res(window.XLSX); sc.onerror = () => { xlsLoad = null; rej(new Error("xlsx")); };
   document.head.appendChild(sc);
 }));
+let xljLoad = null;
+const loadExcelJs = () => xljLoad || (xljLoad = new Promise((res, rej) => {
+  const sc = document.createElement("script");
+  sc.src = "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js";
+  sc.onload = () => res(window.ExcelJS); sc.onerror = () => { xljLoad = null; rej(new Error("exceljs")); };
+  document.head.appendChild(sc);
+}));
+// light fills, one per item in turn, so every row of an item shares a color and the next item looks different
+const BANDS = ["DDEBF7", "E2EFDA", "FFF2CC", "FCE4D6", "E4DFEC", "D9F2F2", "EDEDED"];
 const asmGroups = () => CATS.map(c => [c.name, c.types.map(ty => `${c.key}|${ty}`)]).concat([["J-hook run", ["jhook|J-hook run"]]]);
 async function partsSheetOut() {
-  let X; try { X = await loadXlsx(); } catch (e) { return toast("Couldn't load the spreadsheet tool. Check your internet and try again."); }
-  const rows = [["Section", "Item", "Part", "Qty each"]];
-  asmGroups().forEach(([g, keys]) => keys.forEach(k => { const list = asmFor(k), it = k.split("|")[1]; if (!list.length) rows.push([g, it, "", ""]); list.forEach(([q, n]) => rows.push([g, it, n, q || ""])); }));
-  const ws = X.utils.aoa_to_sheet(rows); ws["!cols"] = [{ wch: 26 }, { wch: 26 }, { wch: 46 }, { wch: 10 }];
-  const help = X.utils.aoa_to_sheet([["How to use this sheet"], ["One row per part. Section and Item must match the app's names; don't change those columns."], ["Qty each is per item. Leave it blank for parts sized by the layout (they show as \"as needed\")."], ["Add a row to add a part, delete a row to remove it. An item with no parts keeps one row with Part blank."], ["Then in the app: Count sheet > Parts lists > Load a spreadsheet."]]);
-  help["!cols"] = [{ wch: 100 }];
-  const wb = X.utils.book_new(); X.utils.book_append_sheet(wb, ws, "Parts lists"); X.utils.book_append_sheet(wb, help, "How to use");
-  const file = new File([X.write(wb, { type: "array", bookType: "xlsx" })], "AJ Parts Lists.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+  let EJ; try { EJ = await loadExcelJs(); } catch (e) { return toast("Couldn't load the spreadsheet tool. Check your internet and try again."); }
+  const wb = new EJ.Workbook(), ws = wb.addWorksheet("Parts lists", { views: [{ state: "frozen", ySplit: 1 }] });
+  ws.columns = [{ header: "Section", width: 26 }, { header: "Item", width: 26 }, { header: "Part", width: 46 }, { header: "Qty each", width: 10 }];
+  ws.getRow(1).eachCell(c => { c.font = { bold: true, color: { argb: "FFFFFFFF" } }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1F4E78" } }; });
+  const line = { style: "thin", color: { argb: "FFBFBFBF" } };
+  let band = 0;
+  asmGroups().forEach(([g, keys]) => keys.forEach(k => {
+    const list = asmFor(k), it = k.split("|")[1], fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF" + BANDS[band++ % BANDS.length] } };
+    (list.length ? list : [[0, ""]]).forEach(([q, n], i) => {
+      const r = ws.addRow([g, it, n, q || null]);
+      r.eachCell({ includeEmpty: true }, c => { c.fill = fill; c.border = { top: i ? undefined : line, bottom: line }; });
+      r.getCell(4).alignment = { horizontal: "right" };
+    });
+  }));
+  const help = wb.addWorksheet("How to use"); help.getColumn(1).width = 100;
+  ["How to use this sheet", "One row per part. Each item has its own color so you can see where it starts and ends.", "Section and Item must match the app's names; don't change those columns.", "Qty each is per item. Leave it blank for parts sized by the layout (they show as \"as needed\").", "Add a row to add a part, delete a row to remove it. An item with no parts keeps one row with Part blank.", "Then in the app: Count sheet > Parts lists > Load a spreadsheet."].forEach((t, i) => { const r = help.addRow([t]); if (!i) r.font = { bold: true }; });
+  const file = new File([await wb.xlsx.writeBuffer()], "AJ Parts Lists.xlsx", { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   if (await mcpReady) {
     try {
       const root = await driveRoot(), content = fileArgs ? { $file: { data: file, name: file.name, type: file.type } } : await blobToB64(file);
