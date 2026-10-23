@@ -903,7 +903,8 @@ async function loadSaved(jobId) {
   try {
     const all = (await getAll("pages")).filter(r => r.jobId === jobId);
     return all.sort((a, b) => a.order - b.order).map(r => ({ id: r.id, name: r.name || "", zoom: r.zoom || "FULL", blob: r.blob, url: URL.createObjectURL(r.blob), thumb: r.thumb || null, thumbUrl: r.thumb ? URL.createObjectURL(r.thumb) : null,
-      pxPerInch: r.pxPerInch || null, ftPerPx: r.ftPerPx || null, scaleLabel: r.scaleLabel || "", runs: r.runs || [], devices: r.devices || [], hl: r.hl || [], fileId: r.fileId || null }));
+      pxPerInch: r.pxPerInch || null, ftPerPx: r.ftPerPx || null, scaleLabel: r.scaleLabel || "", runs: r.runs || [], devices: r.devices || [], hl: r.hl || [], fileId: r.fileId || null }))
+      .map((p, i, all) => ({ ...p, zoom: all[0].zoom === "FREE" ? "FULL" : all[0].zoom })); // every sheet shares one zoom
   } catch (e) { return []; }
 }
 
@@ -1024,7 +1025,7 @@ async function addFiles(files) {
 }
 const uid = () => crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
 function pushPage(blob, name, pxPerInch = null, thumb = null) {
-  pages.push({ id: uid(), name, zoom: "FULL", blob, url: URL.createObjectURL(blob), thumb, thumbUrl: thumb ? URL.createObjectURL(thumb) : null, pxPerInch, ftPerPx: null, scaleLabel: "", runs: [], devices: [] });
+  pages.push({ id: uid(), name, zoom: pages.length && pages[0].zoom !== "FREE" ? pages[0].zoom : "FULL", blob, url: URL.createObjectURL(blob), thumb, thumbUrl: thumb ? URL.createObjectURL(thumb) : null, pxPerInch, ftPerPx: null, scaleLabel: "", runs: [], devices: [] });
 }
 // a small JPEG of a sheet for the rail; src is a canvas or an image bitmap
 async function thumbFrom(src) {
@@ -3237,10 +3238,12 @@ $("scaleForm").addEventListener("submit", e => {
   if (then) setTool(then);
 });
 
+// One zoom for every sheet: picking Full sheet or a corner sets it on all of them
 function setZoom(z) {
   const p = pages[current]; if (!p) return;
-  p.zoom = p.zoom === z ? "FULL" : z; p.view = null;
-  saveMeta(p); renderAll();
+  const nz = p.zoom === z ? "FULL" : z;
+  pages.forEach((q, i) => { if (q.zoom !== nz || q.view) { q.zoom = nz; q.view = null; saveMeta(q, i !== current); } });
+  renderAll();
 }
 document.querySelectorAll(".corners button").forEach(b => b.onclick = () => setZoom(b.dataset.zoom));
 $("fullBtn").onclick = () => setZoom("FULL");
@@ -3363,7 +3366,10 @@ function go(i) {
   if (!pages.length) return;
   closeCtx(); dropCmp(); sel.clear(); hoverDev = null;
   commitName();
+  const from = pages[current];
   current = Math.max(0, Math.min(pages.length - 1, i));
+  // the next sheet opens at the same zoom as the one you were on
+  if (from && from !== pages[current]) { pages[current].zoom = from.zoom; pages[current].view = from.view ? { ...from.view } : null; }
   if (tool) setTool(null);
   renderAll();
 }
