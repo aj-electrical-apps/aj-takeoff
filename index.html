@@ -412,7 +412,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v41</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v42</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -1114,7 +1114,7 @@ function renderSheet() {
   $("progress").innerHTML = `<b>${named}</b> of ${pages.length} named`;
   $("nextBtn").firstChild.textContent = current === pages.length - 1 ? "Save " : "Next ";
 }
-function renderAll() { addTab(pages[current]); renderTabs(); renderRail(); renderSheet(); renderRuns(); renderWires(); renderCounts(); renderSel(); renderCmpBar(); }
+function renderAll(noTab) { if (!noTab) addTab(pages[current]); renderTabs(); renderRail(); renderSheet(); renderRuns(); renderWires(); renderCounts(); renderSel(); renderCmpBar(); }
 
 /* Corner zoom: the sheet (image + markup layer) is sized to fit the view, then scaled 2x and
    anchored on the chosen corner, so exactly that quarter of the sheet (50% wide x 50% tall) fills the view. */
@@ -3613,7 +3613,7 @@ $("labelForm").addEventListener("submit", e => {
     for (let i = current + 1; i < pages.length; i++) if (!pages[i].name) { next = i; break; }
     current = next; dropCmp(); sel.clear();
     if (tool) setTool(null);
-    renderAll();
+    renderAll(true); // naming sheets with Next doesn't open tabs; only sheets you open yourself get one
     $("nameInput").focus(); $("nameInput").select();
   } else {
     renderAll();
