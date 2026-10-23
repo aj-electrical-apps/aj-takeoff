@@ -416,7 +416,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v50</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v51</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -1898,9 +1898,9 @@ function laborEdits() {
 }
 function saveLaborEdits() { try { localStorage.setItem("aj-labor-edits", JSON.stringify(laborEdits())); } catch (e) {} }
 const laborRow = k => { const r = LABOR.find(x => x.k === k); return r ? { ...r, ...(laborEdits()[k] || {}) } : null; };
-const bidOf = () => { const o = job || (window.exampleBid = window.exampleBid || {}); return o.bid || (o.bid = { rate: 100, adj: false, over: {}, lines: [] }); };
+const bidOf = () => { const o = job || (window.exampleBid = window.exampleBid || {}); return o.bid || (o.bid = { rate: 100, over: {}, lines: [] }); };
 // hours per unit for a labor row: Man hours, or Adjusted when that's switched on (either one when the other is blank)
-const rowHours = r => { if (!r) return null; const b = bidOf(), h = r.h, a = r.a; return b.adj ? (a != null ? a : h) : (h != null ? h : a); };
+const rowHours = r => { if (!r) return null; const b = bidOf(), h = r.h, a = r.a; return !b.stdOnly ? (a != null ? a : h) : (h != null ? h : a); };
 const DEV_LABOR = {
   "wall|Vanity light": "pend", "wall|Wall sconce": "pend", "wall|Bed / reading light": "pend", "wall|Wall wash": "pend", "wall|Linear wall bracket": "pend", "wall|Step / stair light": "pend", "wall|Night / path light": "pend", "wall|Picture light": "pend", "wall|Interior wall pack": "wp", "wall|Bug-eye emergency light": "emlight", "ceil|2x4 lay-in": "2x4", "ceil|2x2 lay-in": "2x2", "ceil|1x4 lay-in": "2x4", "ceil|Recessed downlight": "rec", "ceil|Surface-mount light": "surf", "ceil|Strip light": "surf", "ceil|Wraparound light": "surf", "ceil|Vapor-tight light": "surf",
   "open|High bay": "hb", "open|Linear pendant": "pend", "open|Decorative pendant": "pend", "open|Track light": "surf", "open|Chandelier": "chand",
@@ -1976,7 +1976,7 @@ function renderBid() {
   const t = $("tsTable"), rows = bidRows(), b = bidOf(), tot = bidTotals(rows);
   $("tsEmpty").hidden = true;
   let h = `<thead><tr><th>Item</th><th class="n">Qty</th><th class="n">Man hours each</th><th class="n">Man hours</th><th class="n">Labor</th></tr></thead><tbody>
-    <tr class="no-print"><td colspan="5"><label class="bid-opt"><input type="checkbox" id="bidAdj"${b.adj ? " checked" : ""}> Use the Adjusted man hours column for panels, services, disconnects and lighting control panels</label></td></tr>`;
+    <tr class="no-print"><td colspan="5"><label class="bid-opt"><input type="checkbox" id="bidAdj"${!b.stdOnly ? " checked" : ""}> Use the Adjusted man hours where your sheet has them (panels, services, disconnects, lighting control panels). Uncheck to use the standard man hours.</label></td></tr>`;
   let sec = null;
   rows.forEach(r => {
     if (r.sec !== sec) { sec = r.sec; h += `<tr class="sec"><td colspan="5">${esc(sec)}</td></tr>`; }
@@ -1997,7 +1997,7 @@ function renderBid() {
     <tr class="bid-tot grand"><td>Labor bid total</td><td></td><td></td><td></td><td class="n"><b>${fmt$(tot.total)}</b></td></tr></tbody>`;
   t.innerHTML = h;
   const save = () => { if (job) saveJob(job); renderTakeoff(); };
-  $("bidAdj").onchange = e => { b.adj = e.target.checked; save(); };
+  $("bidAdj").onchange = e => { b.stdOnly = !e.target.checked; delete b.adj; save(); };
   $("bidRate").onchange = e => { b.rate = Math.max(0, +e.target.value || 0); save(); };
   t.querySelectorAll("input.bid-h[data-k]").forEach(inp => inp.onchange = () => { const v = inp.value.trim(); if (v === "") delete b.over[inp.dataset.k]; else b.over[inp.dataset.k] = Math.max(0, +v || 0); save(); });
   t.querySelectorAll(".bid-line [data-f], .bid-line input[data-f]").forEach(inp => inp.onchange = () => { const l = b.lines[inp.dataset.i]; l[inp.dataset.f] = inp.dataset.f === "desc" ? inp.value : Math.max(0, +inp.value || 0); save(); });
