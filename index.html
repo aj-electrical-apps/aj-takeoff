@@ -284,6 +284,14 @@ button { cursor: pointer; }
 .bid-h, .bid-q, .bid-usd, #bidRate { width: 92px; text-align: right; font-family: var(--font-mono); }
 .bid-h.over { border-color: var(--accent); font-weight: 700; }
 .bid-ln { width: 100%; }
+td .bid-ln[data-q], td .bid-ln[data-s] { width: calc(100% - 80px); }
+.pr-head td { font-size: 12px; color: var(--muted); }
+.pr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px 12px; }
+.pr-grid label { display: grid; gap: 3px; font-size: 12px; color: var(--muted); }
+.pr-grid .wide { grid-column: 1 / -1; }
+.pr-grid input, .pr-grid textarea { font: inherit; font-size: 14px; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; height: auto; min-height: 0; width: 100%; box-sizing: border-box; }
+.pr-grid input[type="number"], .pr-grid input[type="date"] { background: var(--panel); height: auto; padding: 6px 8px; font-size: 14px; text-align: left; width: 100%; }
+.pr-file { font-size: 12px; color: var(--muted); }
 .bid-miss td:first-child small { color: var(--warn, #b45309); }
 .bid-tot td { border-top: 1px solid var(--line); }
 .bid-tot.grand td { font-size: 16px; }
@@ -731,6 +739,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <button class="btn" type="button" id="tsAsmTab" aria-pressed="false">Parts lists</button>
       <button class="btn" type="button" id="tsBidTab" aria-pressed="false">Bid sheet</button>
       <button class="btn" type="button" id="tsRateTab" aria-pressed="false">Labor rates</button>
+      <button class="btn" type="button" id="tsPropTab" aria-pressed="false">Proposal</button>
       <label class="ts-all" id="tsAllBox"><span>Add to all footage</span><input type="number" id="tsAll" class="ts-pct" min="0" max="100" step="1" placeholder="%"><span>%</span><button class="btn sm" type="button" id="tsAllSet">Apply</button></label>
     </div>
     <p class="hint no-print" id="tsHint"></p>
@@ -877,11 +886,12 @@ let dbp = null;
 function db() {
   if (!dbp) dbp = new Promise((res, rej) => {
     try {
-      const r = indexedDB.open("aj-takeoff", 2);
+      const r = indexedDB.open("aj-takeoff", 3);
       r.onupgradeneeded = () => {
         const d = r.result;
         if (!d.objectStoreNames.contains("pages")) d.createObjectStore("pages", { keyPath: "id" });
         if (!d.objectStoreNames.contains("jobs")) d.createObjectStore("jobs", { keyPath: "id" });
+        if (!d.objectStoreNames.contains("appx")) d.createObjectStore("appx", { keyPath: "id" });
       };
       r.onsuccess = () => res(r.result);
       r.onerror = () => rej(r.error);
@@ -1992,6 +2002,211 @@ async function laborSheetIn(f) {
   saveLaborEdits(); renderTakeoff();
   toast(`Loaded ${n} labor rates.${skip ? ` Skipped ${skip} rows the app doesn't have.` : ""}`);
 }
+/* ---------- Proposal: supplier quotes (with VE), labor from the bid sheet, markups, 10% tax, subs, inclusions/exclusions, appendices ---------- */
+const propOf = () => {
+  const o = job || (window.exampleProp = window.exampleProp || {});
+  const p = o.prop || (o.prop = {});
+  if (!p.quotes) p.quotes = [["gear", "Gear"], ["light", "Lighting"], ["switch", "Switching"]].map(([k, name]) => ({ k, name, base: 0, ve: 0, useVe: false }));
+  if (!p.subs) p.subs = ["Fire alarm", "Low voltage", "Underground"].map(name => ({ name, amt: 0, ve: 0, useVe: false }));
+  if (!p.mk) p.mk = { mat: 0, labor: 0, sub: 0 };
+  if (p.tax == null) p.tax = 10;
+  if (!p.incl) p.incl = [];
+  if (!p.excl) p.excl = [];
+  if (!p.info) p.info = { number: "", valid: 30, attn: "", scope: "" };
+  if (!p.appx) p.appx = { A: "", B: "", C: "" };
+  return p;
+};
+let companyCache = null;
+const company = () => { if (!companyCache) { try { companyCache = JSON.parse(localStorage.getItem("aj-company") || "null"); } catch (e) {} companyCache = companyCache || { name: "AJ Electrical", phone: "", email: "", address: "", license: "" }; } return companyCache; };
+const saveCompany = () => { try { localStorage.setItem("aj-company", JSON.stringify(company())); } catch (e) {} };
+const qAmt = q => +(q.useVe && +q.ve ? q.ve : q.base) || 0;
+function propTotals() {
+  const p = propOf(), bt = bidTotals(bidRows());
+  const mat = p.quotes.reduce((t, q) => t + qAmt(q), 0), sub = p.subs.reduce((t, s) => t + (+(s.useVe && +s.ve ? s.ve : s.amt) || 0), 0);
+  const matUp = mat * (+p.mk.mat || 0) / 100, labor = bt.total, laborUp = labor * (+p.mk.labor || 0) / 100, subUp = sub * (+p.mk.sub || 0) / 100;
+  const tax = mat * (+p.tax || 0) / 100; // on the supplier material cost
+  const total = mat + matUp + tax + labor + laborUp + sub + subUp;
+  // VE alternates not taken show as deducts
+  const ve = p.quotes.concat(p.subs.map(s => ({ name: s.name, base: s.amt, ve: s.ve, useVe: s.useVe, sub: true })))
+    .filter(q => +q.ve && !q.useVe && +q.ve < +q.base).map(q => { const d = +q.base - +q.ve, up = q.sub ? +p.mk.sub : +p.mk.mat; return { name: q.name, deduct: d * (1 + (up || 0) / 100) + (q.sub ? 0 : d * (+p.tax || 0) / 100) }; });
+  return { hrs: bt.hrs, rate: bt.rate, labor, laborUp, mat, matUp, tax, sub, subUp, total, ve };
+}
+// appendix files live in this browser, one per letter
+async function appxGet(letter) { if (!job) return null; try { const d = await db(); return await new Promise(res => { const g = d.transaction("appx").objectStore("appx").get(job.id + "|" + letter); g.onsuccess = () => res(g.result || null); g.onerror = () => res(null); }); } catch (e) { return null; } }
+const appxPut = (letter, f) => store(s => f ? s.put({ id: job.id + "|" + letter, jobId: job.id, letter, name: f.name, type: f.type, blob: f }) : s.delete(job.id + "|" + letter), "appx");
+function renderProp() {
+  const t = $("tsTable"), p = propOf(), c = company(), tt = propTotals();
+  $("tsEmpty").hidden = true;
+  const money = (v, attrs) => `<input type="number" class="bid-q pr-m" min="0" step="1" value="${+v ? v : ""}" placeholder="0" ${attrs}>`;
+  const row = (label, val, cls = "") => `<tr class="${cls}"><td>${label}</td><td></td><td class="n"><b>${fmt$(val)}</b></td></tr>`;
+  let h = `<tbody>
+  <tr class="sec"><td colspan="3">Supplier quotes</td></tr>
+  <tr class="pr-head"><td>Item</td><td class="n">Quote $</td><td class="n">VE price $ · use VE</td></tr>
+  ${p.quotes.map((q, i) => `<tr><td><input class="bid-ln" data-q="${i}" data-f="name" value="${esc(q.name)}" aria-label="Quote name"> <button class="btn sm no-print" type="button" data-qdel="${i}">Delete</button></td><td class="n">${money(q.base, `data-q="${i}" data-f="base" aria-label="${esc(q.name)} quote"`)}</td><td class="n">${money(q.ve, `data-q="${i}" data-f="ve" aria-label="${esc(q.name)} VE price"`)} <input type="checkbox" data-q="${i}" data-f="useVe"${q.useVe ? " checked" : ""} aria-label="Use VE price for ${esc(q.name)}"></td></tr>`).join("")}
+  <tr class="no-print"><td colspan="3"><button class="btn sm" type="button" id="prAddQ">+ Add a quote</button></td></tr>
+  <tr class="sec"><td colspan="3">Sub-contractor quotes</td></tr>
+  ${p.subs.map((s, i) => `<tr><td><input class="bid-ln" data-s="${i}" data-f="name" value="${esc(s.name)}" aria-label="Sub name"> <button class="btn sm no-print" type="button" data-sdel="${i}">Delete</button></td><td class="n">${money(s.amt, `data-s="${i}" data-f="amt" aria-label="${esc(s.name)} quote"`)}</td><td class="n">${money(s.ve, `data-s="${i}" data-f="ve" aria-label="${esc(s.name)} VE price"`)} <input type="checkbox" data-s="${i}" data-f="useVe"${s.useVe ? " checked" : ""} aria-label="Use VE price for ${esc(s.name)}"></td></tr>`).join("")}
+  <tr class="no-print"><td colspan="3"><button class="btn sm" type="button" id="prAddS">+ Add a sub</button></td></tr>
+  <tr class="sec"><td colspan="3">Totals</td></tr>
+  ${row(`Labor from the bid sheet (${fmtH(tt.hrs)} man hours at $${tt.rate})`, tt.labor)}
+  <tr><td>Labor markup <input type="number" class="ts-pct" min="0" max="200" step="0.5" data-mk="labor" value="${p.mk.labor || ""}" placeholder="0"> %</td><td></td><td class="n">${fmt$(tt.laborUp)}</td></tr>
+  ${row("Supplier material (quotes, with VE where picked)", tt.mat)}
+  <tr><td>Material markup <input type="number" class="ts-pct" min="0" max="200" step="0.5" data-mk="mat" value="${p.mk.mat || ""}" placeholder="0"> %</td><td></td><td class="n">${fmt$(tt.matUp)}</td></tr>
+  <tr><td>Tax on material <input type="number" class="ts-pct" min="0" max="30" step="0.25" id="prTax" value="${p.tax}"> %</td><td></td><td class="n">${fmt$(tt.tax)}</td></tr>
+  ${row("Sub-contractors", tt.sub)}
+  <tr><td>Sub markup <input type="number" class="ts-pct" min="0" max="200" step="0.5" data-mk="sub" value="${p.mk.sub || ""}" placeholder="0"> %</td><td></td><td class="n">${fmt$(tt.subUp)}</td></tr>
+  ${row("Proposal total", tt.total, "bid-tot grand")}
+  ${tt.ve.length ? `<tr><td colspan="3"><small>VE alternates (shown as deducts in the proposal): ${tt.ve.map(v => `${esc(v.name)} deduct ${fmt$(v.deduct)}`).join(" · ")}</small></td></tr>` : ""}
+  <tr class="sec"><td colspan="3">Included</td></tr>
+  ${listRows("incl", p.incl, "Add an included item, like Temporary power for the job")}
+  <tr class="sec"><td colspan="3">Excluded</td></tr>
+  ${listRows("excl", p.excl, "Add an excluded item, like Utility company fees")}
+  <tr class="sec"><td colspan="3">Appendices (PDF or picture, one file each)</td></tr>
+  ${["A", "B", "C"].map(L => `<tr><td>Appendix ${L} <input class="bid-ln" data-appt="${L}" value="${esc(p.appx[L] || "")}" placeholder="Title, like Lighting fixture schedule" style="width:60%"></td><td colspan="2" class="n"><span class="pr-file" id="prF${L}">…</span> <button class="btn sm no-print" type="button" data-appu="${L}">Upload</button> <button class="btn sm no-print" type="button" data-appd="${L}" hidden>Remove</button></td></tr>`).join("")}
+  <tr class="sec"><td colspan="3">Proposal details</td></tr>
+  <tr><td colspan="3"><div class="pr-grid">
+    <label>Proposal number<input data-i="number" value="${esc(p.info.number || "")}"></label>
+    <label>Attention<input data-i="attn" value="${esc(p.info.attn || "")}" placeholder="Name at the GC or owner"></label>
+    <label>Customer<input data-j="customer" value="${esc(job ? job.customer || "" : "")}"></label>
+    <label>Job address<input data-j="address" value="${esc(job ? job.address || "" : "")}"></label>
+    <label>Bid date<input type="date" data-j="bidDate" value="${esc(job ? job.bidDate || "" : "")}"></label>
+    <label>Price good for (days)<input type="number" min="1" data-i="valid" value="${p.info.valid || 30}"></label>
+    <label class="wide">Scope of work<textarea data-i="scope" rows="3" placeholder="A few lines about the job, like: Furnish and install the electrical shown on sheets E-001 to E-401.">${esc(p.info.scope || "")}</textarea></label>
+    <label>Your company<input data-c="name" value="${esc(c.name)}"></label>
+    <label>Phone<input data-c="phone" value="${esc(c.phone)}"></label>
+    <label>Email<input data-c="email" value="${esc(c.email)}"></label>
+    <label>Address<input data-c="address" value="${esc(c.address)}"></label>
+    <label>License #<input data-c="license" value="${esc(c.license)}"></label>
+  </div></td></tr>
+  <tr class="no-print"><td colspan="3"><button class="btn primary" type="button" id="prMake">Make the proposal PDF</button> <label class="bid-opt" style="display:inline-flex"><input type="checkbox" id="prBreak"${p.showBreak ? " checked" : ""}> Show the price breakdown in the proposal</label><input type="file" id="prFile" accept="application/pdf,image/*" hidden></td></tr>
+  </tbody>`;
+  t.innerHTML = h;
+  const save = (re = true) => { if (job) saveJob(job); if (re) renderTakeoff(); };
+  const num = v => Math.max(0, +v || 0);
+  t.querySelectorAll("[data-q]").forEach(el => el.onchange = () => { const q = p.quotes[el.dataset.q], f = el.dataset.f; q[f] = f === "name" ? el.value : f === "useVe" ? el.checked : num(el.value); save(); });
+  t.querySelectorAll("[data-s]").forEach(el => el.onchange = () => { const q = p.subs[el.dataset.s], f = el.dataset.f; q[f] = f === "name" ? el.value : f === "useVe" ? el.checked : num(el.value); save(); });
+  t.querySelectorAll("[data-qdel]").forEach(b => b.onclick = () => { p.quotes.splice(+b.dataset.qdel, 1); save(); });
+  t.querySelectorAll("[data-sdel]").forEach(b => b.onclick = () => { p.subs.splice(+b.dataset.sdel, 1); save(); });
+  $("prAddQ").onclick = () => { p.quotes.push({ k: uid(), name: "Other material", base: 0, ve: 0, useVe: false }); save(); };
+  $("prAddS").onclick = () => { p.subs.push({ name: "Sub", amt: 0, ve: 0, useVe: false }); save(); };
+  t.querySelectorAll("[data-mk]").forEach(el => el.onchange = () => { p.mk[el.dataset.mk] = num(el.value); save(); });
+  $("prTax").onchange = e => { p.tax = e.target.value === "" ? 10 : num(e.target.value); save(); };
+  bindList(t, "incl", p.incl, save); bindList(t, "excl", p.excl, save);
+  t.querySelectorAll("[data-i]").forEach(el => el.onchange = () => { p.info[el.dataset.i] = el.type === "number" ? num(el.value) : el.value; save(false); });
+  t.querySelectorAll("[data-j]").forEach(el => el.onchange = () => { if (job) { job[el.dataset.j] = el.value; save(false); } });
+  t.querySelectorAll("[data-c]").forEach(el => el.onchange = () => { company()[el.dataset.c] = el.value; saveCompany(); });
+  t.querySelectorAll("[data-appt]").forEach(el => el.onchange = () => { p.appx[el.dataset.appt] = el.value; save(false); });
+  let upFor = null;
+  t.querySelectorAll("[data-appu]").forEach(b => b.onclick = () => { if (!job) return toast("Start a job first, then add appendices."); upFor = b.dataset.appu; $("prFile").click(); });
+  $("prFile").onchange = async e => { const f = e.target.files[0]; e.target.value = ""; if (!f || !upFor) return; await appxPut(upFor, f); if (!p.appx[upFor]) p.appx[upFor] = f.name.replace(/\.[^.]+$/, ""); save(); };
+  t.querySelectorAll("[data-appd]").forEach(b => b.onclick = async () => { await appxPut(b.dataset.appd, null); save(); });
+  ["A", "B", "C"].forEach(async L => { const r = await appxGet(L), el = $("prF" + L); if (!el) return; el.textContent = r ? r.name : "No file yet"; const d = t.querySelector(`[data-appd="${L}"]`); if (d) d.hidden = !r; });
+  $("prBreak").onchange = e => { p.showBreak = e.target.checked; save(false); };
+  $("prMake").onclick = saveProposal;
+}
+function listRows(k, list, ph) {
+  return list.map((x, i) => `<tr><td colspan="2"><input class="bid-ln" data-l="${k}" data-li="${i}" value="${esc(x)}"></td><td class="n no-print"><button class="btn sm" type="button" data-ldel="${k}" data-li="${i}">Delete</button></td></tr>`).join("") +
+    `<tr class="no-print"><td colspan="2"><input class="bid-ln" data-lnew="${k}" placeholder="${esc(ph)}"></td><td class="n"><button class="btn sm" type="button" data-ladd="${k}">Add</button></td></tr>`;
+}
+function bindList(t, k, list, save) {
+  t.querySelectorAll(`[data-l="${k}"]`).forEach(el => el.onchange = () => { const v = el.value.trim(); if (v) list[el.dataset.li] = v; else list.splice(+el.dataset.li, 1); save(); });
+  t.querySelectorAll(`[data-ldel="${k}"]`).forEach(b => b.onclick = () => { list.splice(+b.dataset.li, 1); save(); });
+  const inp = t.querySelector(`[data-lnew="${k}"]`), add = () => { const v = inp.value.trim(); if (!v) return inp.focus(); list.push(v); save(); const n = $("tsTable").querySelector(`[data-lnew="${k}"]`); if (n) n.focus(); };
+  t.querySelector(`[data-ladd="${k}"]`).onclick = add;
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); add(); } });
+}
+async function makeProposal() {
+  const JsPDF = await loadJsPdf(), p = propOf(), c = company(), tt = propTotals(), j = job || { name: "Example job" };
+  const doc = new JsPDF({ unit: "pt", format: "letter" }), W = 612, M = 54;
+  let y = M;
+  const need = hgt => { if (y + hgt > 792 - M) { doc.addPage("letter", "p"); y = M; } };
+  const text = (s, size = 10.5, style = "normal", x = M, w = W - 2 * M) => { doc.setFont("helvetica", style); doc.setFontSize(size); doc.splitTextToSize(String(s), w).forEach(ln => { need(size * 1.35); doc.text(ln, x, y); y += size * 1.35; }); };
+  const rule = () => { need(10); doc.setDrawColor(180); doc.line(M, y, W - M, y); y += 12; };
+  const money = v => "$" + Math.round(v).toLocaleString();
+  // header
+  doc.setFont("helvetica", "bold"); doc.setFontSize(20); doc.text(c.name || "AJ Electrical", M, y); y += 16;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(90);
+  [c.address, [c.phone, c.email].filter(Boolean).join(" · "), c.license && `License # ${c.license}`].filter(Boolean).forEach(l => { doc.text(l, M, y); y += 12; });
+  doc.setTextColor(0); y += 8;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("Electrical Proposal", M, y);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.text(`${p.info.number ? "Proposal " + p.info.number + " · " : ""}${new Date().toLocaleDateString()}`, W - M, y, { align: "right" }); y += 20;
+  rule();
+  [["Project", j.name], ["Customer", j.customer], ["Attention", p.info.attn], ["Job address", j.address], ["Bid date", j.bidDate && new Date(j.bidDate + "T12:00").toLocaleDateString()]].filter(r => r[1]).forEach(([k, v]) => { doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.text(k, M, y); doc.setFont("helvetica", "normal"); doc.text(String(v), M + 90, y); y += 15; });
+  y += 6;
+  if (p.info.scope) { text("Scope of work", 12, "bold"); text(p.info.scope); y += 6; }
+  text("Price", 12, "bold");
+  if (p.showBreak) {
+    const line = (k, v) => { need(15); doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.text(k, M + 10, y); doc.text(money(v), W - M, y, { align: "right" }); y += 15; };
+    line("Labor", tt.labor + tt.laborUp); line("Material", tt.mat + tt.matUp); line(`Tax (${p.tax}%)`, tt.tax);
+    p.subs.filter(s => +s.amt).forEach(s => line(s.name, (+(s.useVe && +s.ve ? s.ve : s.amt)) * (1 + (+p.mk.sub || 0) / 100)));
+  }
+  need(24); doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.text("Total base bid", M + 10, y + 4); doc.text(money(tt.total), W - M, y + 4, { align: "right" }); y += 24;
+  if (tt.ve.length) { text("Value engineering alternates (optional deducts)", 11, "bold"); tt.ve.forEach(v => { need(15); doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.text(`${v.name}: VE alternate`, M + 10, y); doc.text(`deduct ${money(v.deduct)}`, W - M, y, { align: "right" }); y += 15; }); y += 4; }
+  const bullets = (title, list) => { if (!list.length) return; y += 4; text(title, 12, "bold"); list.forEach(x => { need(14); doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.text("•", M + 6, y); const ls = doc.splitTextToSize(x, W - 2 * M - 22); ls.forEach((ln, i) => { if (i) need(14); doc.text(ln, M + 18, y); y += 14; }); }); };
+  bullets("Included", p.incl); bullets("Excluded", p.excl);
+  const ap = ["A", "B", "C"].filter(L => p.appx[L]);
+  if (ap.length) { y += 4; text("Appendices", 12, "bold"); ap.forEach(L => text(`Appendix ${L}: ${p.appx[L]}`, 10.5, "normal", M + 10)); }
+  y += 6; text(`This price is good for ${p.info.valid || 30} days from the date above.`, 9.5);
+  // acceptance
+  need(110); y += 18; text("Acceptance", 12, "bold"); text("The prices, scope and terms above are accepted. AJ Electrical is authorized to do the work as described.", 10);
+  y += 26; doc.setDrawColor(0);
+  [["Signature", M], ["Date", W / 2 + 20]].forEach(([k, x]) => { doc.line(x, y, x + (k === "Date" ? 160 : 230), y); doc.setFontSize(9); doc.text(k, x, y + 11); });
+  y += 34; [["Printed name", M], ["Title", W / 2 + 20]].forEach(([k, x]) => { doc.line(x, y, x + (k === "Title" ? 160 : 230), y); doc.setFontSize(9); doc.text(k, x, y + 11); });
+  // appendices: each file's pages after the proposal
+  for (const L of ["A", "B", "C"]) {
+    const r = await appxGet(L); if (!r) continue;
+    const title = `Appendix ${L}${p.appx[L] ? ": " + p.appx[L] : ""}`;
+    const imgs = [];
+    if (/pdf/i.test(r.type) || /\.pdf$/i.test(r.name)) {
+      if (!window.pdfjsLib) continue;
+      const pdf = await pdfjsLib.getDocument({ data: await r.blob.arrayBuffer() }).promise;
+      for (let n = 1; n <= pdf.numPages; n++) {
+        busy("Making the proposal…", 0.5, `${title}, page ${n} of ${pdf.numPages}`);
+        const pg = await pdf.getPage(n), v1 = pg.getViewport({ scale: 1 }), vp = pg.getViewport({ scale: Math.min(2.5, 2200 / Math.max(v1.width, v1.height)) });
+        const cv = document.createElement("canvas"); cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+        const x = cv.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, cv.width, cv.height); await pg.render({ canvasContext: x, viewport: vp }).promise;
+        imgs.push({ url: cv.toDataURL("image/jpeg", .85), w: v1.width, h: v1.height }); cv.width = cv.height = 0; pg.cleanup();
+      }
+      pdf.destroy();
+    } else {
+      const bmp = await createImageBitmap(r.blob), sc = Math.min(1, 2200 / Math.max(bmp.width, bmp.height)), cv = document.createElement("canvas");
+      cv.width = Math.round(bmp.width * sc); cv.height = Math.round(bmp.height * sc); const x = cv.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, cv.width, cv.height); x.drawImage(bmp, 0, 0, cv.width, cv.height); bmp.close && bmp.close();
+      imgs.push({ url: cv.toDataURL("image/jpeg", .85), w: cv.width, h: cv.height });
+    }
+    imgs.forEach((im, i) => {
+      const land = im.w > im.h; doc.addPage("letter", land ? "l" : "p");
+      const PW = land ? 792 : 612, PH = land ? 612 : 792, top = 40, s = Math.min((PW - 60) / im.w, (PH - top - 30) / im.h);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.text(i ? `${title} (continued)` : title, 30, 26);
+      doc.addImage(im.url, "JPEG", (PW - im.w * s) / 2, top, im.w * s, im.h * s);
+    });
+  }
+  const n = doc.getNumberOfPages();
+  for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(120); const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight(); doc.text(`${c.name || "AJ Electrical"} · ${j.name} · page ${i} of ${n}`, pw / 2, ph - 14, { align: "center" }); doc.setTextColor(0); }
+  return new File([doc.output("blob")], `${safeName(j.name)} proposal.pdf`, { type: "application/pdf" });
+}
+async function saveProposal() {
+  let file;
+  busy("Making the proposal…", 0.2);
+  try { file = await makeProposal(); } catch (e) { busy(null, null); return toast("Couldn't make the proposal. Check your internet and try again."); }
+  busy(null, null);
+  if (await mcpReady) {
+    try {
+      busy("Saving the proposal to Google Drive…", .5, file.name);
+      const root = await driveRoot(), content = fileArgs ? { $file: { data: file, name: file.name, type: file.type } } : await blobToB64(file);
+      if (!fileArgs && file.size > 700e3) throw { code: "too_big" };
+      await drv("create_file", { title: file.name, parentId: root, base64Content: content, contentMimeType: file.type, disableConversionToGoogleType: true });
+      busy(null, null); return savedTo(`Saved ${file.name} in Google Drive, in the AJ Takeoff Jobs folder.`);
+    } catch (e) { busy(null, null); if (!(e && e.code === "too_big")) toast(driveMsg(e)); }
+  }
+  if (window.showSaveFilePicker) {
+    try { const h = await window.showSaveFilePicker({ id: "ajproposal", suggestedName: file.name, types: [{ description: "PDF", accept: { "application/pdf": [".pdf"] } }] }); const w = await h.createWritable(); await w.write(file); await w.close(); return savedTo(`Saved ${h.name}.`); }
+    catch (e) { if (e && e.name === "AbortError") return; }
+  }
+  if (matchMedia("(pointer: coarse)").matches && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: file.name }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+  }
+  downloadFile(file); savedTo(`Saved ${file.name} to your Downloads folder.`);
+}
 let asmKey = null;
 /* Parts lists as a spreadsheet: one row per part (Section, Item, Part, Qty each). Jonathan edits it in Excel and loads it back. */
 let xlsLoad = null;
@@ -2103,7 +2318,13 @@ function renderAsm() {
 function renderTakeoff() {
   const t = $("tsTable"), sup = tsView === "sup", notes = tsView === "notes";
   $("tsCountTab").setAttribute("aria-pressed", tsView === "count"); $("tsSupTab").setAttribute("aria-pressed", sup); $("tsNotesTab").setAttribute("aria-pressed", notes); $("tsAsmTab").setAttribute("aria-pressed", tsView === "asm");
-  $("tsBidTab").setAttribute("aria-pressed", tsView === "bid"); $("tsRateTab").setAttribute("aria-pressed", tsView === "rate");
+  $("tsBidTab").setAttribute("aria-pressed", tsView === "bid"); $("tsRateTab").setAttribute("aria-pressed", tsView === "rate"); $("tsPropTab").setAttribute("aria-pressed", tsView === "prop");
+  if (tsView === "prop") {
+    $("tsTitle").textContent = "Proposal"; $("tsAllBox").hidden = true;
+    $("tsJob").innerHTML = `<b>${esc(job ? job.name : "Example job")}</b> · ${new Date().toLocaleDateString()}<br>AJ Electrical`;
+    $("tsHint").textContent = "Put in your supplier and sub quotes, set your markups, list what's included and excluded, add Appendix A to C, then make the proposal PDF.";
+    return renderProp();
+  }
   if (tsView === "bid" || tsView === "rate") {
     const bid = tsView === "bid";
     $("tsTitle").textContent = bid ? "Bid sheet" : "Labor rates"; $("tsAllBox").hidden = true;
@@ -2213,6 +2434,7 @@ $("tsNotesTab").onclick = () => { tsView = "notes"; renderTakeoff(); };
 $("tsAsmTab").onclick = () => { tsView = "asm"; renderTakeoff(); };
 $("tsBidTab").onclick = () => { tsView = "bid"; renderTakeoff(); };
 $("tsRateTab").onclick = () => { tsView = "rate"; renderTakeoff(); };
+$("tsPropTab").onclick = () => { tsView = "prop"; renderTakeoff(); };
 $("notesBtn").onclick = () => openTakeoff("notes");
 $("tsAllSet").onclick = () => {
   const v = Math.max(0, Math.min(100, +$("tsAll").value || 0)), ex = extraOf();
@@ -3550,7 +3772,7 @@ async function runSync() {
     if (todo.length) { setDrive("busy", `Saving sheets to Drive… 0 of ${todo.length}`); await Promise.all([worker(), worker(), worker()]); }
     if (job !== j) return;
     setDrive("busy", "Saving to Drive…");
-    const data = { app: "aj-takeoff", v: 1, savedAt: new Date().toISOString(), job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, driveSheetsId: j.driveSheetsId, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [], extra: j.extra || {}, feed: j.feed || {}, supOver: j.supOver || {}, bid: j.bid || null },
+    const data = { app: "aj-takeoff", v: 1, savedAt: new Date().toISOString(), job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, driveSheetsId: j.driveSheetsId, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [], extra: j.extra || {}, feed: j.feed || {}, supOver: j.supOver || {}, bid: j.bid || null, prop: j.prop || null },
       pages: list.map(p => ({ id: p.id, fileId: p.fileId, ...meta(p) })) };
     const made = await drv("create_file", { title: `${safeName(j.name)} · ajjob ${j.id}.json`, parentId: root, textContent: JSON.stringify(data), contentMimeType: "application/json", disableConversionToGoogleType: true });
     const old = j.driveJsonId;
@@ -3664,7 +3886,7 @@ const APP_HOME = "https://aj-commercial-takeoff.vercel.app/";
 async function projectBlob() {
   const j = job, list = pages.filter(p => !p.example);
   const head = { app: "aj-takeoff", kind: "job-file", v: 1, savedAt: new Date().toISOString(),
-    job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [], extra: j.extra || {}, feed: j.feed || {}, supOver: j.supOver || {}, bid: j.bid || null }, pages: [] };
+    job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [], extra: j.extra || {}, feed: j.feed || {}, supOver: j.supOver || {}, bid: j.bid || null, prop: j.prop || null }, pages: [] };
   let at = 0;
   for (const p of list) {
     const { fileId, ...m } = meta(p);
