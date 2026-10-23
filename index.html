@@ -292,6 +292,7 @@ td .bid-ln[data-q], td .bid-ln[data-s] { width: calc(100% - 80px); }
 .pr-grid .wide { grid-column: 1 / -1; }
 .pr-grid input, .pr-grid textarea { font: inherit; font-size: 14px; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; height: auto; min-height: 0; width: 100%; box-sizing: border-box; }
 .pr-grid input[type="number"], .pr-grid input[type="date"] { background: var(--panel); height: auto; padding: 6px 8px; font-size: 14px; text-align: left; width: 100%; }
+.pr-vendor { width: 170px !important; margin-right: 6px; }
 .pr-file { font-size: 12px; color: var(--muted); }
 .bid-miss td:first-child small { color: var(--warn, #b45309); }
 .bid-tot td { border-top: 1px solid var(--line); }
@@ -416,7 +417,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v53</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v54</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -2108,6 +2109,9 @@ const propOf = () => {
   if (!p.appx) p.appx = { A: "", B: "", C: "" };
   return p;
 };
+// supplier and sub names, kept on this device for every job; typing a new one adds it to the list
+const vendors = () => { try { return JSON.parse(localStorage.getItem("aj-vendors") || "[]"); } catch (e) { return []; } };
+const addVendor = v => { if (!v) return; const l = vendors(); if (l.some(x => x.toLowerCase() === v.toLowerCase())) return; l.push(v); l.sort((a, b) => a.localeCompare(b)); try { localStorage.setItem("aj-vendors", JSON.stringify(l)); } catch (e) {} };
 let companyCache = null;
 const company = () => { if (!companyCache) { try { companyCache = JSON.parse(localStorage.getItem("aj-company") || "null"); } catch (e) {} companyCache = companyCache || { name: "AJ Electrical", phone: "", email: "", address: "", license: "" }; } return companyCache; };
 const saveCompany = () => { try { localStorage.setItem("aj-company", JSON.stringify(company())); } catch (e) {} };
@@ -2130,14 +2134,15 @@ function renderProp() {
   const t = $("tsTable"), p = propOf(), c = company(), tt = propTotals();
   $("tsEmpty").hidden = true;
   const money = (v, attrs) => `<input type="number" class="bid-q pr-m" min="0" step="1" value="${+v ? v : ""}" placeholder="0" ${attrs}>`;
+  const vendorIn = (attrs, v, ph) => `<input class="bid-ln pr-vendor" list="prVendors" ${attrs} data-f="vendor" value="${esc(v || "")}" placeholder="${ph}" aria-label="${ph}">`;
   const row = (label, val, cls = "") => `<tr class="${cls}"><td>${label}</td><td></td><td class="n"><b>${fmt$(val)}</b></td></tr>`;
   let h = `<tbody>
   <tr class="sec"><td colspan="3">Supplier quotes</td></tr>
-  <tr class="pr-head"><td>Item</td><td class="n">Quote $</td><td class="n">VE price $ · use VE</td></tr>
-  ${p.quotes.map((q, i) => `<tr><td><input class="bid-ln" data-q="${i}" data-f="name" value="${esc(q.name)}" aria-label="Quote name"> <button class="btn sm no-print" type="button" data-qdel="${i}">Delete</button></td><td class="n">${money(q.base, `data-q="${i}" data-f="base" aria-label="${esc(q.name)} quote"`)}</td><td class="n">${money(q.ve, `data-q="${i}" data-f="ve" aria-label="${esc(q.name)} VE price"`)} <input type="checkbox" data-q="${i}" data-f="useVe"${q.useVe ? " checked" : ""} aria-label="Use VE price for ${esc(q.name)}"></td></tr>`).join("")}
+  <tr class="pr-head"><td>Item</td><td class="n">Supplier · Quote $</td><td class="n">VE price $ · use VE</td></tr>
+  ${p.quotes.map((q, i) => `<tr><td><input class="bid-ln" data-q="${i}" data-f="name" value="${esc(q.name)}" aria-label="Quote name"> <button class="btn sm no-print" type="button" data-qdel="${i}">Delete</button></td><td class="n">${vendorIn(`data-q="${i}"`, q.vendor, "Supplier")} ${money(q.base, `data-q="${i}" data-f="base" aria-label="${esc(q.name)} quote"`)}</td><td class="n">${money(q.ve, `data-q="${i}" data-f="ve" aria-label="${esc(q.name)} VE price"`)} <input type="checkbox" data-q="${i}" data-f="useVe"${q.useVe ? " checked" : ""} aria-label="Use VE price for ${esc(q.name)}"></td></tr>`).join("")}
   <tr class="no-print"><td colspan="3"><button class="btn sm" type="button" id="prAddQ">+ Add a quote</button></td></tr>
   <tr class="sec"><td colspan="3">Sub-contractor quotes</td></tr>
-  ${p.subs.map((s, i) => `<tr><td><input class="bid-ln" data-s="${i}" data-f="name" value="${esc(s.name)}" aria-label="Sub name"> <button class="btn sm no-print" type="button" data-sdel="${i}">Delete</button></td><td class="n">${money(s.amt, `data-s="${i}" data-f="amt" aria-label="${esc(s.name)} quote"`)}</td><td class="n">${money(s.ve, `data-s="${i}" data-f="ve" aria-label="${esc(s.name)} VE price"`)} <input type="checkbox" data-s="${i}" data-f="useVe"${s.useVe ? " checked" : ""} aria-label="Use VE price for ${esc(s.name)}"></td></tr>`).join("")}
+  ${p.subs.map((s, i) => `<tr><td><input class="bid-ln" data-s="${i}" data-f="name" value="${esc(s.name)}" aria-label="Sub name"> <button class="btn sm no-print" type="button" data-sdel="${i}">Delete</button></td><td class="n">${vendorIn(`data-s="${i}"`, s.vendor, "Sub company")} ${money(s.amt, `data-s="${i}" data-f="amt" aria-label="${esc(s.name)} quote"`)}</td><td class="n">${money(s.ve, `data-s="${i}" data-f="ve" aria-label="${esc(s.name)} VE price"`)} <input type="checkbox" data-s="${i}" data-f="useVe"${s.useVe ? " checked" : ""} aria-label="Use VE price for ${esc(s.name)}"></td></tr>`).join("")}
   <tr class="no-print"><td colspan="3"><button class="btn sm" type="button" id="prAddS">+ Add a sub</button></td></tr>
   <tr class="sec"><td colspan="3">Totals</td></tr>
   ${row(`Labor from the bid sheet (${fmtH(tt.hrs)} man hours at $${tt.rate})`, tt.labor)}
@@ -2172,11 +2177,11 @@ function renderProp() {
   </div></td></tr>
   <tr class="no-print"><td colspan="3"><button class="btn primary" type="button" id="prMake">Make the proposal PDF</button> <label class="bid-opt" style="display:inline-flex"><input type="checkbox" id="prBreak"${p.showBreak ? " checked" : ""}> Show the price breakdown in the proposal</label><input type="file" id="prFile" accept="application/pdf,image/*" hidden></td></tr>
   </tbody>`;
-  t.innerHTML = h;
+  t.innerHTML = h + `<datalist id="prVendors">${vendors().map(v => `<option value="${esc(v)}">`).join("")}</datalist>`;
   const save = (re = true) => { if (job) saveJob(job); if (re) renderTakeoff(); };
   const num = v => Math.max(0, +v || 0);
-  t.querySelectorAll("[data-q]").forEach(el => el.onchange = () => { const q = p.quotes[el.dataset.q], f = el.dataset.f; q[f] = f === "name" ? el.value : f === "useVe" ? el.checked : num(el.value); save(); });
-  t.querySelectorAll("[data-s]").forEach(el => el.onchange = () => { const q = p.subs[el.dataset.s], f = el.dataset.f; q[f] = f === "name" ? el.value : f === "useVe" ? el.checked : num(el.value); save(); });
+  t.querySelectorAll("[data-q]").forEach(el => el.onchange = () => { const q = p.quotes[el.dataset.q], f = el.dataset.f; if (f === "vendor") { q.vendor = el.value.trim(); addVendor(q.vendor); return save(false); } q[f] = f === "name" ? el.value : f === "useVe" ? el.checked : num(el.value); save(); });
+  t.querySelectorAll("[data-s]").forEach(el => el.onchange = () => { const q = p.subs[el.dataset.s], f = el.dataset.f; if (f === "vendor") { q.vendor = el.value.trim(); addVendor(q.vendor); return save(false); } q[f] = f === "name" ? el.value : f === "useVe" ? el.checked : num(el.value); save(); });
   t.querySelectorAll("[data-qdel]").forEach(b => b.onclick = () => { p.quotes.splice(+b.dataset.qdel, 1); save(); });
   t.querySelectorAll("[data-sdel]").forEach(b => b.onclick = () => { p.subs.splice(+b.dataset.sdel, 1); save(); });
   $("prAddQ").onclick = () => { p.quotes.push({ k: uid(), name: "Other material", base: 0, ve: 0, useVe: false }); save(); };
