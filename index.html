@@ -278,6 +278,9 @@ button { cursor: pointer; }
 .ts-tabs .btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 .ts-all { display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 14px; }
 .ts-pct { width: 64px; text-align: right; font-family: var(--font-mono); }
+.bg-load { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.bg-load .bar { width: 80px; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.bg-load .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
 .bid-h, .bid-q, .bid-usd, #bidRate { width: 92px; text-align: right; font-family: var(--font-mono); }
 .bid-h.over { border-color: var(--accent); font-weight: 700; }
 .bid-ln { width: 100%; }
@@ -428,6 +431,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       </button>
       <input type="file" id="fileInput" accept="application/pdf,image/*" multiple hidden>
       <span class="count" id="pageCount">0 / 200</span>
+      <span class="bg-load" id="bgLoad" hidden><span class="bar"><i id="bgLoadBar"></i></span><span id="bgLoadText"></span></span>
     </div>
 
     <div class="group">
@@ -912,30 +916,85 @@ viewer.addEventListener("dragleave", e => { if (!viewer.contains(e.relatedTarget
 viewer.addEventListener("drop", e => { e.preventDefault(); $("drop").hidden = true; addFiles([...e.dataTransfer.files]); });
 
 function canvasBlob(canvas) { return new Promise(r => canvas.toBlob(r, "image/jpeg", 0.88)); }
+// JPEG making moved off the main thread: a few workers each turn a drawn page into the sheet JPEG and its thumbnail
+let jpegPool = null;
+function jpegWorkers() {
+  if (jpegPool !== null) return jpegPool;
+  try {
+    if (typeof OffscreenCanvas === "undefined" || !OffscreenCanvas.prototype.convertToBlob) return (jpegPool = false);
+    const src = `onmessage = async e => { const { id, bmp, tw, th } = e.data;
+      try { const c = new OffscreenCanvas(bmp.width, bmp.height), x = c.getContext("2d"); x.drawImage(bmp, 0, 0);
+        const big = await c.convertToBlob({ type: "image/jpeg", quality: 0.88 });
+        const t = new OffscreenCanvas(tw, th), y = t.getContext("2d"); y.fillStyle = "#fff"; y.fillRect(0, 0, tw, th); y.imageSmoothingQuality = "medium"; y.drawImage(bmp, 0, 0, tw, th);
+        const small = await t.convertToBlob({ type: "image/jpeg", quality: 0.7 }); bmp.close(); postMessage({ id, big, small });
+      } catch (err) { postMessage({ id, err: String(err) }); } };`;
+    const url = URL.createObjectURL(new Blob([src], { type: "text/javascript" })), n = Math.max(1, Math.min(3, (navigator.hardwareConcurrency || 2) - 1));
+    const waits = new Map(); let seq = 0, rr = 0;
+    const ws = Array.from({ length: n }, () => { const w = new Worker(url); w.onmessage = e => { const f = waits.get(e.data.id); waits.delete(e.data.id); e.data.err ? f.rej(new Error(e.data.err)) : f.res([e.data.big, e.data.small]); }; return w; });
+    jpegPool = { run: (bmp, tw, th) => new Promise((res, rej) => { const id = ++seq; waits.set(id, { res, rej }); ws[rr++ % ws.length].postMessage({ id, bmp, tw, th }, [bmp]); }) };
+  } catch (e) { jpegPool = false; }
+  return jpegPool;
+}
+async function encodeSheet(c) {
+  const pool = jpegWorkers(), sc = Math.min(1, THUMB_SIDE / Math.max(c.width, c.height));
+  if (pool) {
+    try { const bmp = await createImageBitmap(c); c.width = c.height = 0; return await pool.run(bmp, Math.max(1, Math.round(bmp.width * sc)), Math.max(1, Math.round(bmp.height * sc))); }
+    catch (e) { if (!c.width) throw e; }
+  }
+  const r = await Promise.all([canvasBlob(c), thumbFrom(c)]); c.width = c.height = 0; return r;
+}
 function busy(title, frac, text) {
   $("busy").hidden = frac === null; $("busyTitle").textContent = title || ""; $("busyBar").style.width = ((frac || 0) * 100) + "%"; $("busyText").textContent = text || "";
 }
 
+// Sheets are added in the background: the first one shows right away and you can work on it
+// while the rest load. Each page's JPEG is made while the next page is drawn, a few at a time.
+let loading = null;
 async function addFiles(files) {
   const proj = files.find(f => /\.ajtakeoff$/i.test(f.name));
   if (proj) return importProject(proj);
   files = files.filter(f => f.type === "application/pdf" || /\.pdf$/i.test(f.name) || f.type.startsWith("image/"));
   if (!files.length) return toast("Choose PDF or image files.");
+  if (loading) return toast("Still adding the last plans. Wait for those to finish, then add more.");
   if (pages.some(p => p.example)) { pages.forEach(p => { URL.revokeObjectURL(p.url); p.thumbUrl && URL.revokeObjectURL(p.thumbUrl); }); pages = []; current = 0; }
   await ensureJob(files[0].name);
-  const startCount = pages.length;
-  let room = MAX_PAGES - pages.length, skipped = 0;
+  const startCount = pages.length, myJob = job;
+  let room = MAX_PAGES - pages.length, skipped = 0, shown = false, done = 0, total = 0, lastPaint = 0, bad = false;
   if (room <= 0) return toast(`This project already has ${MAX_PAGES} pages, the limit.`);
+  loading = { stop: false };
+  const me = loading;
   busy("Reading files…", 0);
+  const progress = () => {
+    $("bgLoad").hidden = !shown; $("bgLoadBar").style.width = `${total ? done / total * 100 : 0}%`; $("bgLoadText").textContent = `Adding sheets ${done} of ${total}`;
+    if (!shown) busy("Reading plans…", total ? done / total : 0, `Sheet ${done + 1} of ${total || "…"}`);
+  };
+  const add = (blob, pxPerInch, thumb) => {
+    if (me.stop || job !== myJob) return;
+    pushPage(blob, "", pxPerInch, thumb); savePage(pages[pages.length - 1], pages.length - 1); done++;
+    if (!shown) { shown = true; busy(null, null); current = startCount; renderAll(); $("nameInput").focus(); }
+    else if (performance.now() - lastPaint > 700) { lastPaint = performance.now(); renderRail(); renderSheet(); }
+    progress();
+  };
   try {
+    // count first so the progress bar knows the total
+    const docs = [];
     for (const f of files) {
       const isPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
-      if (isPdf) {
-        if (!window.pdfjsLib) { toast("The PDF reader didn't load. Check your connection and reload."); continue; }
-        const pdf = await pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise;
-        for (let n = 1; n <= pdf.numPages; n++) {
-          if (room <= 0) { skipped += pdf.numPages - n + 1; break; }
-          busy(`Splitting ${f.name}`, n / pdf.numPages, `Page ${n} of ${pdf.numPages}`);
+      if (!isPdf) { docs.push({ f }); total++; continue; }
+      if (!window.pdfjsLib) { toast("The PDF reader didn't load. Check your connection and reload."); continue; }
+      try { const pdf = await pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise; docs.push({ f, pdf }); total += pdf.numPages; }
+      catch (e) { bad = true; }
+    }
+    skipped = Math.max(0, total - room); total = Math.min(total, room);
+    progress();
+    const inFlight = [];
+    const drain = async max => { while (inFlight.length > max) { const r = await inFlight.shift(); add(r[0], r[1], r[2]); } };
+    for (const { f, pdf } of docs) {
+      if (me.stop || job !== myJob) break;
+      if (!pdf) { if (room-- <= 0) break; inFlight.push(Promise.resolve([f, null, null])); await drain(0); continue; }
+      for (let n = 1; n <= pdf.numPages && !me.stop && job === myJob; n++) {
+        if (room-- <= 0) break;
+        try {
           const page = await pdf.getPage(n);
           const v1 = page.getViewport({ scale: 1 });
           const scale = Math.min(4, MAX_SIDE / Math.max(v1.width, v1.height));
@@ -943,37 +1002,38 @@ async function addFiles(files) {
           const c = document.createElement("canvas"); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
           const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
           await page.render({ canvasContext: ctx, viewport: vp }).promise;
-          pushPage(await canvasBlob(c), "", 72 * scale, await thumbFrom(c)); // PDF points are 1/72 in
-          c.width = c.height = 0; // let the big canvas go before the next page
-          page.cleanup(); room--;
-        }
-        pdf.destroy();
-      } else {
-        if (room <= 0) { skipped++; continue; }
-        busy(`Adding ${f.name}`, 1);
-        pushPage(f, ""); room--;
+          page.cleanup();
+          // the JPEG and thumbnail are made while the next page draws; PDF points are 1/72 in
+          inFlight.push(encodeSheet(c).then(([big, small]) => [big, 72 * scale, small]));
+          await drain(n === 1 && !shown ? 0 : 2);
+        } catch (e) { bad = true; }
       }
+      await drain(0);
+      pdf.destroy();
     }
-  } catch (err) {
-    toast("One file couldn't be read. It may be damaged or password protected.");
-  }
+    await drain(0);
+  } catch (err) { bad = true; }
   busy(null, null);
-  pages.forEach((p, i) => i >= startCount && savePage(p, i));
+  loading = null; $("bgLoad").hidden = true;
+  if (job !== myJob) return;
   touchJob();
-  if (startCount === 0) current = 0; else current = startCount;
   renderAll();
-  if (skipped) toast(`Added up to the ${MAX_PAGES}-page limit. ${skipped} page${skipped > 1 ? "s" : ""} left out.`);
-  $("nameInput").focus();
+  if (bad) toast("One file or page couldn't be read. It may be damaged or password protected.");
+  else if (skipped) toast(`Added up to the ${MAX_PAGES}-page limit. ${skipped} page${skipped > 1 ? "s" : ""} left out.`);
+  else if (done > 1) toast(`All ${done} sheets added.`);
 }
 const uid = () => crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
 function pushPage(blob, name, pxPerInch = null, thumb = null) {
   pages.push({ id: uid(), name, zoom: "FULL", blob, url: URL.createObjectURL(blob), thumb, thumbUrl: thumb ? URL.createObjectURL(thumb) : null, pxPerInch, ftPerPx: null, scaleLabel: "", runs: [], devices: [] });
 }
 // a small JPEG of a sheet for the rail; src is a canvas or an image bitmap
-function thumbFrom(src) {
+async function thumbFrom(src) {
   const sc = Math.min(1, THUMB_SIDE / Math.max(src.width, src.height)), c = document.createElement("canvas");
   c.width = Math.max(1, Math.round(src.width * sc)); c.height = Math.max(1, Math.round(src.height * sc));
-  const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(src, 0, 0, c.width, c.height);
+  let small = null;
+  try { small = await createImageBitmap(src, { resizeWidth: c.width, resizeHeight: c.height, resizeQuality: "medium" }); } catch (e) {}
+  const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(small || src, 0, 0, c.width, c.height);
+  small && small.close && small.close();
   return new Promise(r => c.toBlob(r, "image/jpeg", 0.7));
 }
 // older sheets and photos get their thumbnail made in the background, one at a time
@@ -3459,6 +3519,7 @@ function scheduleSync() {
 }
 async function runSync() {
   if (syncing || !syncWanted || !job) return;
+  if (loading) return scheduleSync(); // wait until the plans finish loading
   if (!(await mcpReady)) return setDrive("off");
   syncing = true; syncWanted = false;
   const j = job, list = pages;
@@ -3469,14 +3530,18 @@ async function runSync() {
       j.driveSheetsId = (await drv("create_file", { title: `${safeName(j.name)} sheets · ajjob ${j.id}`, parentId: root, contentMimeType: "application/vnd.google-apps.folder" })).id;
       await putJobLocal(j);
     }
+    // three sheets go up at a time
     const todo = list.filter(p => !p.fileId);
-    for (let i = 0; i < todo.length; i++) {
-      if (job !== j) break;
-      setDrive("busy", `Saving sheets to Drive… ${i + 1} of ${todo.length}`);
-      const p = todo[i];
-      p.fileId = await uploadSheet(p.blob, `${String(list.indexOf(p) + 1).padStart(3, "0")}-${p.id}.jpg`, j.driveSheetsId);
-      saveMeta(p, true);
-    }
+    let next = 0, sent = 0;
+    const worker = async () => {
+      while (next < todo.length && job === j) {
+        const p = todo[next++];
+        p.fileId = await uploadSheet(p.blob, `${String(list.indexOf(p) + 1).padStart(3, "0")}-${p.id}.jpg`, j.driveSheetsId);
+        saveMeta(p, true);
+        setDrive("busy", `Saving sheets to Drive… ${++sent} of ${todo.length}`);
+      }
+    };
+    if (todo.length) { setDrive("busy", `Saving sheets to Drive… 0 of ${todo.length}`); await Promise.all([worker(), worker(), worker()]); }
     if (job !== j) return;
     setDrive("busy", "Saving to Drive…");
     const data = { app: "aj-takeoff", v: 1, savedAt: new Date().toISOString(), job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, driveSheetsId: j.driveSheetsId, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [], extra: j.extra || {}, feed: j.feed || {}, supOver: j.supOver || {}, bid: j.bid || null },
