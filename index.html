@@ -292,7 +292,11 @@ td .bid-ln[data-q], td .bid-ln[data-s] { width: calc(100% - 80px); }
 .pr-grid .wide { grid-column: 1 / -1; }
 .pr-grid input, .pr-grid textarea { font: inherit; font-size: 14px; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; height: auto; min-height: 0; width: 100%; box-sizing: border-box; }
 .pr-grid input[type="number"], .pr-grid input[type="date"] { background: var(--panel); height: auto; padding: 6px 8px; font-size: 14px; text-align: left; width: 100%; }
-.pr-vendor { width: 170px !important; margin-right: 6px; }
+.pr-vendor { width: 200px !important; margin-right: 6px; }
+.pr-natl { width: 110px !important; margin-right: 6px; }
+.pr-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 8px; }
+.pr-lists label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.pr-lists textarea { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 6px; font: inherit; }
 .pr-file { font-size: 12px; color: var(--muted); }
 .bid-miss td:first-child small { color: var(--warn, #b45309); }
 .bid-tot td { border-top: 1px solid var(--line); }
@@ -417,7 +421,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v54</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v55</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -2100,7 +2104,7 @@ const propOf = () => {
   const o = job || (window.exampleProp = window.exampleProp || {});
   const p = o.prop || (o.prop = {});
   if (!p.quotes) p.quotes = [["gear", "Gear"], ["light", "Lighting"], ["switch", "Switching"]].map(([k, name]) => ({ k, name, base: 0, ve: 0, useVe: false }));
-  if (!p.subs) p.subs = ["Fire alarm", "Low voltage", "Underground"].map(name => ({ name, amt: 0, ve: 0, useVe: false }));
+  if (!p.subs) p.subs = ["Fire alarm", "Low voltage", "Lightning protection", "Underground"].map(name => ({ name, amt: 0, ve: 0, useVe: false }));
   if (!p.mk) p.mk = { mat: 0, labor: 0, sub: 0 };
   if (p.tax == null) p.tax = 10;
   if (!p.incl) p.incl = [];
@@ -2110,8 +2114,30 @@ const propOf = () => {
   return p;
 };
 // supplier and sub names, kept on this device for every job; typing a new one adds it to the list
-const vendors = () => { try { return JSON.parse(localStorage.getItem("aj-vendors") || "[]"); } catch (e) { return []; } };
-const addVendor = v => { if (!v) return; const l = vendors(); if (l.some(x => x.toLowerCase() === v.toLowerCase())) return; l.push(v); l.sort((a, b) => a.localeCompare(b)); try { localStorage.setItem("aj-vendors", JSON.stringify(l)); } catch (e) {} };
+// each list starts with Jonathan's names; "Edit name lists" on the Proposal tab changes them
+const VLISTS = {
+  sup: { title: "Suppliers", def: ["Border States", "City Electric Supply", "Elliott Electric Supply", "Lone Star", "Regency Supply", "WinSupply"] },
+  natl: { title: "National accounts", def: [] },
+  falv: { title: "Fire alarm and low voltage", def: ["Rick Smedley", "Twin Lakes", "ADT Commercial", "Cintas Fire Protection", "Convergint", "Firetrol Protection Systems", "Johnson Controls", "Pye-Barker Fire & Safety", "Securitas Technology", "Siemens", "Summit Fire & Security", "Vector Security"] },
+  lp: { title: "Lightning protection", def: ["Bonded Lightning Protection", "Certified Lightning Protection", "United Lightning Rods"] }
+};
+const vendors = (k = "sup") => {
+  try { const v = localStorage.getItem("aj-list-" + k); if (v) return JSON.parse(v); } catch (e) {}
+  let l = VLISTS[k].def.slice();
+  if (k === "sup") { try { l = l.concat(JSON.parse(localStorage.getItem("aj-vendors") || "[]")); } catch (e) {} }
+  return setVendors(k, l);
+};
+const setVendors = (k, l) => {
+  const seen = new Set(), out = [];
+  l.map(x => String(x).trim()).filter(Boolean).forEach(x => { if (!seen.has(x.toLowerCase())) { seen.add(x.toLowerCase()); out.push(x); } });
+  out.sort((a, b) => a.localeCompare(b));
+  try { localStorage.setItem("aj-list-" + k, JSON.stringify(out)); } catch (e) {}
+  return out;
+};
+const addVendor = (k, v) => { if (!k || !v) return; const l = vendors(k); if (!l.some(x => x.toLowerCase() === v.toLowerCase())) setVendors(k, l.concat(v)); };
+// which list a sub row uses; other subs are a plain fill-in box
+const subList = name => /lightning/i.test(name) ? "lp" : /fire|low ?volt|\blv\b|security|access|camera|cctv|data|sound|nurse/i.test(name) ? "falv" : "";
+let prShowLists = false;
 let companyCache = null;
 const company = () => { if (!companyCache) { try { companyCache = JSON.parse(localStorage.getItem("aj-company") || "null"); } catch (e) {} companyCache = companyCache || { name: "AJ Electrical", phone: "", email: "", address: "", license: "" }; } return companyCache; };
 const saveCompany = () => { try { localStorage.setItem("aj-company", JSON.stringify(company())); } catch (e) {} };
@@ -2134,15 +2160,16 @@ function renderProp() {
   const t = $("tsTable"), p = propOf(), c = company(), tt = propTotals();
   $("tsEmpty").hidden = true;
   const money = (v, attrs) => `<input type="number" class="bid-q pr-m" min="0" step="1" value="${+v ? v : ""}" placeholder="0" ${attrs}>`;
-  const vendorIn = (attrs, v, ph) => `<input class="bid-ln pr-vendor" list="prVendors" ${attrs} data-f="vendor" value="${esc(v || "")}" placeholder="${ph}" aria-label="${ph}">`;
+  const vendorIn = (attrs, v, ph, k, f = "vendor", cls = "pr-vendor") => `<input class="bid-ln ${cls}"${k ? ` list="prList-${k}"` : ""} ${attrs} data-f="${f}" value="${esc(v || "")}" placeholder="${ph}" aria-label="${ph}">`;
   const row = (label, val, cls = "") => `<tr class="${cls}"><td>${label}</td><td></td><td class="n"><b>${fmt$(val)}</b></td></tr>`;
   let h = `<tbody>
-  <tr class="sec"><td colspan="3">Supplier quotes</td></tr>
-  <tr class="pr-head"><td>Item</td><td class="n">Supplier · Quote $</td><td class="n">VE price $ · use VE</td></tr>
-  ${p.quotes.map((q, i) => `<tr><td><input class="bid-ln" data-q="${i}" data-f="name" value="${esc(q.name)}" aria-label="Quote name"> <button class="btn sm no-print" type="button" data-qdel="${i}">Delete</button></td><td class="n">${vendorIn(`data-q="${i}"`, q.vendor, "Supplier")} ${money(q.base, `data-q="${i}" data-f="base" aria-label="${esc(q.name)} quote"`)}</td><td class="n">${money(q.ve, `data-q="${i}" data-f="ve" aria-label="${esc(q.name)} VE price"`)} <input type="checkbox" data-q="${i}" data-f="useVe"${q.useVe ? " checked" : ""} aria-label="Use VE price for ${esc(q.name)}"></td></tr>`).join("")}
+  <tr class="sec"><td colspan="3">Supplier quotes <button class="btn sm no-print" type="button" id="prLists" style="float:right">${prShowLists ? "Close name lists" : "Edit name lists"}</button></td></tr>
+  ${prShowLists ? `<tr class="no-print"><td colspan="3"><div class="pr-lists">${Object.keys(VLISTS).map(k => `<label>${VLISTS[k].title} (one per line)<textarea rows="8" data-vl="${k}">${esc(vendors(k).join("\n"))}</textarea></label>`).join("")}</div><button class="btn sm primary" type="button" id="prListsSave">Save the lists</button> <button class="btn sm" type="button" id="prListsReset">Put back the starting names</button></td></tr>` : ""}
+  <tr class="pr-head"><td>Item</td><td class="n">Supplier · National account · Quote $</td><td class="n">VE price $ · use VE</td></tr>
+  ${p.quotes.map((q, i) => `<tr><td><input class="bid-ln" data-q="${i}" data-f="name" value="${esc(q.name)}" aria-label="Quote name"> <button class="btn sm no-print" type="button" data-qdel="${i}">Delete</button></td><td class="n">${vendorIn(`data-q="${i}"`, q.vendor, "Supplier", "sup")} ${vendorIn(`data-q="${i}"`, q.natl, "National acct", "natl", "natl", "pr-natl")} ${money(q.base, `data-q="${i}" data-f="base" aria-label="${esc(q.name)} quote"`)}</td><td class="n">${money(q.ve, `data-q="${i}" data-f="ve" aria-label="${esc(q.name)} VE price"`)} <input type="checkbox" data-q="${i}" data-f="useVe"${q.useVe ? " checked" : ""} aria-label="Use VE price for ${esc(q.name)}"></td></tr>`).join("")}
   <tr class="no-print"><td colspan="3"><button class="btn sm" type="button" id="prAddQ">+ Add a quote</button></td></tr>
   <tr class="sec"><td colspan="3">Sub-contractor quotes</td></tr>
-  ${p.subs.map((s, i) => `<tr><td><input class="bid-ln" data-s="${i}" data-f="name" value="${esc(s.name)}" aria-label="Sub name"> <button class="btn sm no-print" type="button" data-sdel="${i}">Delete</button></td><td class="n">${vendorIn(`data-s="${i}"`, s.vendor, "Sub company")} ${money(s.amt, `data-s="${i}" data-f="amt" aria-label="${esc(s.name)} quote"`)}</td><td class="n">${money(s.ve, `data-s="${i}" data-f="ve" aria-label="${esc(s.name)} VE price"`)} <input type="checkbox" data-s="${i}" data-f="useVe"${s.useVe ? " checked" : ""} aria-label="Use VE price for ${esc(s.name)}"></td></tr>`).join("")}
+  ${p.subs.map((s, i) => `<tr><td><input class="bid-ln" data-s="${i}" data-f="name" value="${esc(s.name)}" aria-label="Sub name"> <button class="btn sm no-print" type="button" data-sdel="${i}">Delete</button></td><td class="n">${vendorIn(`data-s="${i}"`, s.vendor, "Sub company", subList(s.name))} ${money(s.amt, `data-s="${i}" data-f="amt" aria-label="${esc(s.name)} quote"`)}</td><td class="n">${money(s.ve, `data-s="${i}" data-f="ve" aria-label="${esc(s.name)} VE price"`)} <input type="checkbox" data-s="${i}" data-f="useVe"${s.useVe ? " checked" : ""} aria-label="Use VE price for ${esc(s.name)}"></td></tr>`).join("")}
   <tr class="no-print"><td colspan="3"><button class="btn sm" type="button" id="prAddS">+ Add a sub</button></td></tr>
   <tr class="sec"><td colspan="3">Totals</td></tr>
   ${row(`Labor from the bid sheet (${fmtH(tt.hrs)} man hours at $${tt.rate})`, tt.labor)}
@@ -2177,11 +2204,16 @@ function renderProp() {
   </div></td></tr>
   <tr class="no-print"><td colspan="3"><button class="btn primary" type="button" id="prMake">Make the proposal PDF</button> <label class="bid-opt" style="display:inline-flex"><input type="checkbox" id="prBreak"${p.showBreak ? " checked" : ""}> Show the price breakdown in the proposal</label><input type="file" id="prFile" accept="application/pdf,image/*" hidden></td></tr>
   </tbody>`;
-  t.innerHTML = h + `<datalist id="prVendors">${vendors().map(v => `<option value="${esc(v)}">`).join("")}</datalist>`;
+  t.innerHTML = h + Object.keys(VLISTS).map(k => `<datalist id="prList-${k}">${vendors(k).map(v => `<option value="${esc(v)}">`).join("")}</datalist>`).join("");
   const save = (re = true) => { if (job) saveJob(job); if (re) renderTakeoff(); };
   const num = v => Math.max(0, +v || 0);
-  t.querySelectorAll("[data-q]").forEach(el => el.onchange = () => { const q = p.quotes[el.dataset.q], f = el.dataset.f; if (f === "vendor") { q.vendor = el.value.trim(); addVendor(q.vendor); return save(false); } q[f] = f === "name" ? el.value : f === "useVe" ? el.checked : num(el.value); save(); });
-  t.querySelectorAll("[data-s]").forEach(el => el.onchange = () => { const q = p.subs[el.dataset.s], f = el.dataset.f; if (f === "vendor") { q.vendor = el.value.trim(); addVendor(q.vendor); return save(false); } q[f] = f === "name" ? el.value : f === "useVe" ? el.checked : num(el.value); save(); });
+  t.querySelectorAll("[data-q]").forEach(el => el.onchange = () => { const q = p.quotes[el.dataset.q], f = el.dataset.f; if (f === "vendor" || f === "natl") { q[f] = el.value.trim(); addVendor(f === "natl" ? "natl" : "sup", q[f]); return save(false); } q[f] = f === "name" ? el.value : f === "useVe" ? el.checked : num(el.value); save(); });
+  t.querySelectorAll("[data-s]").forEach(el => el.onchange = () => { const q = p.subs[el.dataset.s], f = el.dataset.f; if (f === "vendor") { q.vendor = el.value.trim(); addVendor(subList(q.name), q.vendor); return save(false); } q[f] = f === "name" ? el.value : f === "useVe" ? el.checked : num(el.value); save(); });
+  $("prLists").onclick = () => { prShowLists = !prShowLists; renderTakeoff(); };
+  if (prShowLists) {
+    $("prListsSave").onclick = () => { t.querySelectorAll("[data-vl]").forEach(a => setVendors(a.dataset.vl, a.value.split("\n"))); prShowLists = false; renderTakeoff(); };
+    $("prListsReset").onclick = () => { if (!confirm("Put back the starting names? Names you added will be removed.")) return; Object.keys(VLISTS).forEach(k => setVendors(k, VLISTS[k].def)); renderTakeoff(); };
+  }
   t.querySelectorAll("[data-qdel]").forEach(b => b.onclick = () => { p.quotes.splice(+b.dataset.qdel, 1); save(); });
   t.querySelectorAll("[data-sdel]").forEach(b => b.onclick = () => { p.subs.splice(+b.dataset.sdel, 1); save(); });
   $("prAddQ").onclick = () => { p.quotes.push({ k: uid(), name: "Other material", base: 0, ve: 0, useVe: false }); save(); };
