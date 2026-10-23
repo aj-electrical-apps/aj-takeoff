@@ -130,6 +130,7 @@ button { cursor: pointer; }
 .mk-label.meas { fill: var(--mark-measure); }
 .mk-glow { fill: rgb(14 165 233 / .35); stroke: #0ea5e9; stroke-width: 2.5; filter: drop-shadow(0 0 5px #0ea5e9); }
 .mk-glow.hover { fill: rgb(14 165 233 / .15); stroke-width: 1.5; filter: none; }
+.mk-handle { fill: #fff; stroke: #0ea5e9; stroke-width: 2.5; cursor: grab; }
 .mk-glow-run { fill: none; stroke: #0ea5e9; stroke-opacity: .45; stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 4px #0ea5e9); }
 .mk-box { fill: color-mix(in srgb, var(--accent) 10%, transparent); stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 6 4; }
 .selbar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; max-width: calc(100% - 24px);
@@ -415,7 +416,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v49</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v50</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -2702,6 +2703,8 @@ function drawOverlay() {
     if (p.ftPerPx) line.appendChild(svgEl("title", {}, `${r.name} · ${w ? wireLabel(w) + " · " : ""}${fmtLF(r.px * p.ftPerPx)}`));
     g.appendChild(line);
     dots(g, [r.pts[0], r.pts[r.pts.length - 1]]);
+    // a highlighted run shows a handle on every point: drag one to stretch the run, drag the line to slide it
+    if (sel.has(r) && !tool) r.pts.forEach(q => g.appendChild(svgEl("circle", { cx: q[0], cy: q[1], r: 6 / k, class: "mk-handle", ...ns })));
   }
   for (const v of p.devices) {
     const d = devInfo(v.t); if (!d) continue;
@@ -2849,6 +2852,13 @@ function runAt(e) {
   if (!best && tool !== "measure" && lastMeasure && lastMeasure.pageId === p.id && lastMeasure.pts.length === 2 && segDist(q, ...lastMeasure.pts) < bd) best = lastMeasure;
   return best;
 }
+// the run point under the pointer (ends first), for stretching a run
+function vertexAt(e) {
+  const p = pages[current]; if (!p) return null;
+  const q = imgPoint(e); let best = null, bd = 10 / k;
+  p.runs.forEach(r => r.pts.forEach((v, i) => { const d = Math.hypot(q[0] - v[0], q[1] - v[1]) - (i === 0 || i === r.pts.length - 1 ? 2 / k : 0); if (d < bd) { bd = d; best = [r, i]; } }));
+  return best;
+}
 function setSel(items, add) {
   if (!add) sel.clear();
   if (add && items.length === 1 && sel.has(items[0])) sel.delete(items[0]);
@@ -2882,7 +2892,8 @@ $("selClear").onclick = () => setSel([]);
 $("sheet").addEventListener("pointerdown", e => {
   if (tool || cmp || e.button !== 0 || !pages[current]) return;
   // starting on a symbol drags it (and anything else highlighted) around; starting on empty paper draws a box
-  boxDrag = { start: imgPoint(e), cx: e.clientX, cy: e.clientY, id: e.pointerId, on: false, add: e.shiftKey, end: null, grab: e.shiftKey ? null : symbolAt(e), moving: null };
+  const vx = e.shiftKey ? null : vertexAt(e), sym = e.shiftKey || vx ? null : symbolAt(e), rn = e.shiftKey || vx || sym ? null : runAt(e);
+  boxDrag = { start: imgPoint(e), cx: e.clientX, cy: e.clientY, id: e.pointerId, on: false, add: e.shiftKey, end: null, grab: sym || (rn && rn !== lastMeasure ? rn : null), vertex: vx, moving: null, movingRuns: null };
 });
 $("sheet").addEventListener("pointermove", e => {
   if (boxDrag && e.pointerId === boxDrag.id) {
@@ -2890,24 +2901,36 @@ $("sheet").addEventListener("pointermove", e => {
       boxDrag.on = true;
       try { $("sheet").setPointerCapture(e.pointerId); } catch (_) {}
       if (typeof pressT === "number") { clearTimeout(pressT); pressT = null; }
-      if (boxDrag.grab) {
+      if (boxDrag.vertex) {
+        const p = pages[current], [r, i] = boxDrag.vertex;
+        if (!sel.has(r)) { sel.clear(); sel.add(r); }
+        remember([p]);
+        boxDrag.moving = []; boxDrag.movingRuns = [[r, r.pts.map(q => [...q]), i]];
+        renderSel();
+      } else if (boxDrag.grab) {
         const p = pages[current];
         if (!sel.has(boxDrag.grab)) { sel.clear(); sel.add(boxDrag.grab); }
         remember([p]);
         boxDrag.moving = p.devices.filter(v => sel.has(v)).map(v => [v, v.x, v.y]);
+        boxDrag.movingRuns = p.runs.filter(r => sel.has(r)).map(r => [r, r.pts.map(q => [...q]), -1]);
         renderSel();
       }
     }
     if (boxDrag.on && boxDrag.moving) {
       const q = imgPoint(e), dx = q[0] - boxDrag.start[0], dy = q[1] - boxDrag.start[1];
       boxDrag.moving.forEach(([v, x, y]) => { v.x = x + dx; v.y = y + dy; });
+      (boxDrag.movingRuns || []).forEach(([r, pts, i]) => {
+        r.pts = pts.map((q, j) => i < 0 || i === j ? [q[0] + dx, q[1] + dy] : [...q]);
+        r.px = polyLen(r.pts);
+      });
       drawOverlay();
     } else if (boxDrag.on) { boxDrag.end = imgPoint(e); drawOverlay(); }
     return;
   }
   if (!tool && !cmp && e.pointerType === "mouse") {
     const h = symbolAt(e);
-    if (h !== hoverDev) { hoverDev = h; $("sheet").style.cursor = h ? "move" : ""; drawOverlay(); }
+    if (h !== hoverDev) { hoverDev = h; drawOverlay(); }
+    $("sheet").style.cursor = h ? "move" : vertexAt(e) ? "grab" : runAt(e) ? "move" : "";
   }
 });
 $("sheet").addEventListener("pointerup", e => {
@@ -2915,7 +2938,7 @@ $("sheet").addEventListener("pointerup", e => {
   if (!b || e.pointerId !== b.id) return;
   if (longPressed) { longPressed = false; return; } // press-and-hold opened the menu instead
   const p = pages[current];
-  if (b.moving) { saveMeta(p); renderSel(); drawOverlay(); return; }
+  if (b.moving) { saveMeta(p); renderSel(); drawOverlay(); if (b.movingRuns && b.movingRuns.length) { renderRuns(); renderCounts(); updateHint(); } return; }
   if (b.on && b.end) {
     const x0 = Math.min(b.start[0], b.end[0]), x1 = Math.max(b.start[0], b.end[0]), y0 = Math.min(b.start[1], b.end[1]), y1 = Math.max(b.start[1], b.end[1]);
     const inside = q => q[0] >= x0 && q[0] <= x1 && q[1] >= y0 && q[1] <= y1;
@@ -2930,7 +2953,7 @@ $("sheet").addEventListener("pointerup", e => {
   }
 });
 $("sheet").addEventListener("pointercancel", () => {
-  if (boxDrag && boxDrag.moving) { boxDrag.moving.forEach(([v, x, y]) => { v.x = x; v.y = y; }); undoStack.pop(); updHist(); }
+  if (boxDrag && boxDrag.moving) { boxDrag.moving.forEach(([v, x, y]) => { v.x = x; v.y = y; }); (boxDrag.movingRuns || []).forEach(([r, pts]) => { r.pts = pts; r.px = polyLen(pts); }); undoStack.pop(); updHist(); }
   if (boxDrag) { boxDrag = null; drawOverlay(); }
 });
 $("sheet").addEventListener("pointerleave", e => { if (e.pointerType === "mouse" && hoverDev && !boxDrag) { hoverDev = null; $("sheet").style.cursor = ""; drawOverlay(); } });
