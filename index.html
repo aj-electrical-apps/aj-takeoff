@@ -292,7 +292,13 @@ td .bid-ln[data-q], td .bid-ln[data-s] { width: calc(100% - 80px); }
 .pr-grid .wide { grid-column: 1 / -1; }
 .pr-grid input, .pr-grid textarea { font: inherit; font-size: 14px; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; height: auto; min-height: 0; width: 100%; box-sizing: border-box; }
 .pr-grid input[type="number"], .pr-grid input[type="date"] { background: var(--panel); height: auto; padding: 6px 8px; font-size: 14px; text-align: left; width: 100%; }
-.pr-vendor { width: 200px !important; margin-right: 6px; }
+.pr-vendor { width: 180px !important; margin-right: 6px; }
+.pr-vsel { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; font-family: inherit; font-size: 12px !important; height: 26px !important; padding: 2px 4px !important; vertical-align: middle; }
+#tsTable tr:has(.pr-vendor) > td:first-child { white-space: nowrap; }
+.pr-vwrap { display: inline-flex; flex-direction: column; gap: 4px; vertical-align: middle; margin-right: 6px; }
+.pr-vwrap .pr-vendor { margin-right: 0; }
+.pr-other { width: 180px !important; }
+#tsTable input[data-f="name"] { width: 170px; }
 .pr-natl { width: 110px !important; margin-right: 6px; }
 .pr-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 8px; }
 .pr-lists label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
@@ -421,7 +427,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v56</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v57</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -2118,9 +2124,12 @@ const propOf = () => {
 const VLISTS = {
   sup: { title: "Suppliers", def: ["Border States", "City Electric Supply", "Elliott Electric Supply", "Lone Star", "Regency Supply", "WinSupply"] },
   natl: { title: "National accounts", def: [] },
-  falv: { title: "Fire alarm and low voltage", def: ["Security Equipment Co. (Ricky Smedley)", "Twin Lakes", "ADT Commercial", "Cintas Fire Protection", "Convergint", "Firetrol Protection Systems", "Johnson Controls", "Pye-Barker Fire & Safety", "Securitas Technology", "Siemens", "Summit Fire & Security", "Vector Security"] },
-  lp: { title: "Lightning protection", def: ["Bonded Lightning Protection", "Certified Lightning Protection", "United Lightning Rods"] }
+  falv: { title: "Fire alarm and low voltage", def: ["Security Equipment Co. (Ricky Smedley)", "Twin Lakes"] },
+  lp: { title: "Lightning protection", def: [] }
 };
+// v55/v56 preloaded these; Jonathan wants only his own names, so take them off saved lists once
+const VL_DROPPED = ["ADT Commercial", "Cintas Fire Protection", "Convergint", "Firetrol Protection Systems", "Johnson Controls", "Pye-Barker Fire & Safety", "Securitas Technology", "Siemens", "Summit Fire & Security", "Vector Security", "Bonded Lightning Protection", "Certified Lightning Protection", "United Lightning Rods"];
+try { if (localStorage.getItem("aj-list-ver") !== "2") { ["falv", "lp"].forEach(k => { const v = localStorage.getItem("aj-list-" + k); if (v) localStorage.setItem("aj-list-" + k, JSON.stringify(JSON.parse(v).filter(x => !VL_DROPPED.includes(x)))); }); localStorage.setItem("aj-list-ver", "2"); } } catch (e) {}
 const vendors = (k = "sup") => {
   try { const v = localStorage.getItem("aj-list-" + k); if (v) { const l = JSON.parse(v), i = l.indexOf("Rick Smedley"); if (k === "falv" && i >= 0) { l[i] = "Security Equipment Co. (Ricky Smedley)"; return setVendors(k, l); } return l; } } catch (e) {}
   let l = VLISTS[k].def.slice();
@@ -2160,7 +2169,12 @@ function renderProp() {
   const t = $("tsTable"), p = propOf(), c = company(), tt = propTotals();
   $("tsEmpty").hidden = true;
   const money = (v, attrs) => `<input type="number" class="bid-q pr-m" min="0" step="1" value="${+v ? v : ""}" placeholder="0" ${attrs}>`;
-  const vendorIn = (attrs, v, ph, k, f = "vendor", cls = "pr-vendor") => `<input class="bid-ln ${cls}"${k ? ` list="prList-${k}"` : ""} ${attrs} data-f="${f}" value="${esc(v || "")}" placeholder="${ph}" aria-label="${ph}">`;
+  const vendorIn = (attrs, v, ph, k, f = "vendor", cls = "pr-vendor") => {
+    if (!k || k === "natl") return `<input class="bid-ln ${cls}"${k ? ` list="prList-${k}"` : ""} ${attrs} data-f="${f}" value="${esc(v || "")}" placeholder="${ph}" aria-label="${ph}">`;
+    // pick from the list, or Unlisted to type a name in
+    const l = vendors(k), other = !!v && !l.includes(v);
+    return `<span class="pr-vwrap"><select class="pr-vendor pr-vsel" data-vsel="${attrs.replace(/"/g, "")}" aria-label="${ph}"><option value="">${ph}</option>${l.map(x => `<option${x === v ? " selected" : ""}>${esc(x)}</option>`).join("")}<option value="__other"${other ? " selected" : ""}>Unlisted, type it in</option></select><input class="bid-ln pr-other" ${attrs} data-f="${f}" value="${other ? esc(v) : ""}" placeholder="Name" aria-label="${ph} name"${other ? "" : " hidden"}></span>`;
+  };
   const row = (label, val, cls = "") => `<tr class="${cls}"><td>${label}</td><td></td><td class="n"><b>${fmt$(val)}</b></td></tr>`;
   let h = `<tbody>
   <tr class="sec"><td colspan="3">Supplier quotes <button class="btn sm no-print" type="button" id="prLists" style="float:right">${prShowLists ? "Close name lists" : "Edit name lists"}</button></td></tr>
@@ -2207,8 +2221,14 @@ function renderProp() {
   t.innerHTML = h + Object.keys(VLISTS).map(k => `<datalist id="prList-${k}">${vendors(k).map(v => `<option value="${esc(v)}">`).join("")}</datalist>`).join("");
   const save = (re = true) => { if (job) saveJob(job); if (re) renderTakeoff(); };
   const num = v => Math.max(0, +v || 0);
-  t.querySelectorAll("[data-q]").forEach(el => el.onchange = () => { const q = p.quotes[el.dataset.q], f = el.dataset.f; if (f === "vendor" || f === "natl") { q[f] = el.value.trim(); addVendor(f === "natl" ? "natl" : "sup", q[f]); return save(false); } q[f] = f === "name" ? el.value : f === "useVe" ? el.checked : num(el.value); save(); });
-  t.querySelectorAll("[data-s]").forEach(el => el.onchange = () => { const q = p.subs[el.dataset.s], f = el.dataset.f; if (f === "vendor") { q.vendor = el.value.trim(); addVendor(subList(q.name), q.vendor); return save(false); } q[f] = f === "name" ? el.value : f === "useVe" ? el.checked : num(el.value); save(); });
+  t.querySelectorAll("[data-q]").forEach(el => el.onchange = () => { const q = p.quotes[el.dataset.q], f = el.dataset.f; if (f === "natl") { q.natl = el.value.trim(); addVendor("natl", q.natl); return save(false); } if (f === "vendor") { q.vendor = el.value.trim(); return save(false); } q[f] = f === "name" ? el.value : f === "useVe" ? el.checked : num(el.value); save(); });
+  t.querySelectorAll("[data-s]").forEach(el => el.onchange = () => { const q = p.subs[el.dataset.s], f = el.dataset.f; if (f === "vendor") { q.vendor = el.value.trim(); return save(false); } q[f] = f === "name" ? el.value : f === "useVe" ? el.checked : num(el.value); save(); });
+  t.querySelectorAll("[data-vsel]").forEach(sel => sel.onchange = () => {
+    const [kind, i] = sel.dataset.vsel.split("="), q = (kind === "data-q" ? p.quotes : p.subs)[i], box = sel.nextElementSibling;
+    if (sel.value === "__other") { box.hidden = false; box.value = ""; q.vendor = ""; box.focus(); }
+    else { box.hidden = true; box.value = ""; q.vendor = sel.value; }
+    save(false);
+  });
   $("prLists").onclick = () => { prShowLists = !prShowLists; renderTakeoff(); };
   if (prShowLists) {
     $("prListsSave").onclick = () => { t.querySelectorAll("[data-vl]").forEach(a => setVendors(a.dataset.vl, a.value.split("\n"))); prShowLists = false; renderTakeoff(); };
