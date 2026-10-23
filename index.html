@@ -421,7 +421,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v55</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v56</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -2118,11 +2118,11 @@ const propOf = () => {
 const VLISTS = {
   sup: { title: "Suppliers", def: ["Border States", "City Electric Supply", "Elliott Electric Supply", "Lone Star", "Regency Supply", "WinSupply"] },
   natl: { title: "National accounts", def: [] },
-  falv: { title: "Fire alarm and low voltage", def: ["Rick Smedley", "Twin Lakes", "ADT Commercial", "Cintas Fire Protection", "Convergint", "Firetrol Protection Systems", "Johnson Controls", "Pye-Barker Fire & Safety", "Securitas Technology", "Siemens", "Summit Fire & Security", "Vector Security"] },
+  falv: { title: "Fire alarm and low voltage", def: ["Security Equipment Co. (Ricky Smedley)", "Twin Lakes", "ADT Commercial", "Cintas Fire Protection", "Convergint", "Firetrol Protection Systems", "Johnson Controls", "Pye-Barker Fire & Safety", "Securitas Technology", "Siemens", "Summit Fire & Security", "Vector Security"] },
   lp: { title: "Lightning protection", def: ["Bonded Lightning Protection", "Certified Lightning Protection", "United Lightning Rods"] }
 };
 const vendors = (k = "sup") => {
-  try { const v = localStorage.getItem("aj-list-" + k); if (v) return JSON.parse(v); } catch (e) {}
+  try { const v = localStorage.getItem("aj-list-" + k); if (v) { const l = JSON.parse(v), i = l.indexOf("Rick Smedley"); if (k === "falv" && i >= 0) { l[i] = "Security Equipment Co. (Ricky Smedley)"; return setVendors(k, l); } return l; } } catch (e) {}
   let l = VLISTS[k].def.slice();
   if (k === "sup") { try { l = l.concat(JSON.parse(localStorage.getItem("aj-vendors") || "[]")); } catch (e) {} }
   return setVendors(k, l);
