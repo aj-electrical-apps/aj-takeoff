@@ -427,7 +427,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v57</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v58</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -3743,6 +3743,7 @@ $("stage").addEventListener("pointermove", e => {
   setView({ z: pan.v.z, tx: pan.v.tx + dx, ty: pan.v.ty + dy });
   e.stopPropagation();
 }, true);
+let lastRight = 0;
 function endPointer(e) {
   touches.delete(e.pointerId);
   if (pinch && touches.size < 2) { pinch = null; e.stopPropagation(); }
@@ -3750,7 +3751,9 @@ function endPointer(e) {
     const still = pan.right && !pan.moved && e.type === "pointerup";
     pan = null; $("stage").classList.remove("panning"); e.stopPropagation();
     const under = document.elementFromPoint(e.clientX, e.clientY);
-    if (still && under && under.closest("#sheet")) openCtx(e);
+    // two still right-clicks in a row end the active tool, like Esc (a run with 2+ points is kept)
+    if (still && tool && Date.now() - lastRight < 450) { lastRight = 0; closeCtx(); if (tool === "run" && draft.length > 1) finishRun(); if (tool) $("cancelToolBtn").click(); toast("Stopped. Pick a tool to start again."); }
+    else if (still && under && under.closest("#sheet")) { lastRight = Date.now(); openCtx(e); }
   }
   if (rightBtn) setTimeout(() => { rightBtn = false; }, 300); // outlast the contextmenu event that follows the release on Windows
 }
