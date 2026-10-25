@@ -427,7 +427,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v58</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v59</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -2828,6 +2828,7 @@ $("overlay").addEventListener("click", e => {
   if (!tool || longPressed) { longPressed = false; return; }
   const q = imgPoint(e), p = pages[current];
   if (tool === "place") {
+    if (e.detail > 1) return; // second click of a double-click deletes instead (dblclick below)
     const v = { t: placeType, x: q[0], y: q[1] };
     remember(); p.devices.push(v); placed.push(v);
     saveMeta(p); drawOverlay(); updateHint(); renderCounts(); return;
@@ -2835,7 +2836,7 @@ $("overlay").addEventListener("click", e => {
   if (tool === "erase") {
     let best = null, bd = 14 / k;
     p.devices.forEach(v => { const dd = dist([v.x, v.y], q); if (dd < bd) { bd = dd; best = v; } });
-    if (best) { remember(); p.devices = p.devices.filter(v => v !== best); hoverDev = null; saveMeta(p); drawOverlay(); renderCounts(); }
+    if (best) { remember(); p.devices = p.devices.filter(v => v !== best); if (dropEmptyRooms(p, [best])) toast("That was the last mark in the typical room, so its box is gone too. Undo brings it back."); hoverDev = null; saveMeta(p); drawOverlay(); renderCounts(); }
     else toast("No symbol there. Click right on the symbol to remove it.");
     return;
   }
@@ -2850,7 +2851,16 @@ $("overlay").addEventListener("click", e => {
   }
   drawOverlay(); updateHint();
 });
-$("overlay").addEventListener("dblclick", e => { if (tool === "run") { e.preventDefault(); finishRun(); } });
+$("sheet").addEventListener("dblclick", e => {
+  if (tool === "run") { e.preventDefault(); finishRun(); return; }
+  // double left-click on a symbol or run deletes it; while counting, the mark the first click dropped is taken back first
+  const p = pages[current]; if (!p || cmp || (tool && tool !== "place")) return;
+  e.preventDefault();
+  if (tool === "place" && placed.length) { const v = placed.pop(); p.devices = p.devices.filter(x => x !== v); undoStack.pop(); updHist(); saveMeta(p); }
+  const hit = symbolAt(e) || (tool ? null : runAt(e));
+  if (hit && hit !== lastMeasure) { setSel([hit]); deleteSel(); }
+  else { drawOverlay(); renderCounts(); updateHint(); }
+});
 $("finishBtn").onclick = finishRun;
 $("undoBtn").onclick = () => {
   const p = pages[current];
@@ -2955,12 +2965,24 @@ function deleteSel() {
   const n = sel.size;
   remember();
   p.devices = p.devices.filter(v => !sel.has(v)); p.runs = p.runs.filter(r => !sel.has(r));
+  const roomsGone = dropEmptyRooms(p, [...sel]);
   const measOnly = n === 1 && sel.has(lastMeasure);
   if (sel.has(lastMeasure)) lastMeasure = null;
   placed = placed.filter(v => !sel.has(v));
   sel.clear(); hoverDev = null; saveMeta(p);
   renderSel(); renderRuns(); renderCounts(); drawOverlay(); updateHint();
-  toast(measOnly ? "Measurement deleted." : `Deleted ${n}. Press Undo to bring ${n > 1 ? "them" : "it"} back.`);
+  toast(measOnly ? "Measurement deleted." : `Deleted ${n}${roomsGone ? ` and the typical room box${roomsGone > 1 ? "es" : ""} around them` : ""}. Press Undo to bring ${n > 1 || roomsGone ? "them" : "it"} back.`);
+}
+// a typical room box that held deleted marks and now holds nothing goes too, so clearing a room clears its box
+function dropEmptyRooms(p, removed) {
+  if (!p.rooms || !p.rooms.length) return 0;
+  const inRoom = (m, q) => q[0] >= m.x && q[0] <= m.x + m.w && q[1] >= m.y && q[1] <= m.y + m.h;
+  const ptsOf = x => "t" in x ? [[x.x, x.y]] : x.pts || [];
+  const had = m => removed.some(x => ptsOf(x).some(q => inRoom(m, q)));
+  const empty = m => !p.devices.some(v => inRoom(m, [v.x, v.y])) && !p.runs.some(r => r.pts && r.pts.length && r.pts.every(q => inRoom(m, q))) && !(p.hl || []).some(h => inRoom(m, [h.x + h.w / 2, h.y + h.h / 2]));
+  const before = p.rooms.length;
+  p.rooms = p.rooms.filter(m => !(had(m) && empty(m)));
+  return before - p.rooms.length;
 }
 $("selDelete").onclick = deleteSel;
 $("selClear").onclick = () => setSel([]);
@@ -3037,7 +3059,7 @@ $("sheet").addEventListener("pointerleave", e => { if (e.pointerType === "mouse"
    Undo puts that copy back and jumps to the sheet that changed. */
 let undoStack = [], redoStack = [];
 function snapState(ids) {
-  return { c: JSON.stringify(countsList()), p: ids.map(id => { const pg = pages.find(x => x.id === id); return pg && [id, JSON.stringify([pg.devices, pg.runs, pg.ftPerPx || null, pg.scaleLabel || ""])]; }).filter(Boolean) };
+  return { c: JSON.stringify(countsList()), p: ids.map(id => { const pg = pages.find(x => x.id === id); return pg && [id, JSON.stringify([pg.devices, pg.runs, pg.ftPerPx || null, pg.scaleLabel || "", pg.rooms || []])]; }).filter(Boolean) };
 }
 function remember(list) {
   const ids = (list || [pages[current]]).filter(Boolean).map(pg => pg.id);
@@ -3049,10 +3071,10 @@ function restoreState(s) {
   let first = -1;
   s.p.forEach(([id, st]) => {
     const i = pages.findIndex(x => x.id === id); if (i < 0) return;
-    const pg = pages[i], cur = JSON.stringify([pg.devices, pg.runs, pg.ftPerPx || null, pg.scaleLabel || ""]);
+    const pg = pages[i], cur = JSON.stringify([pg.devices, pg.runs, pg.ftPerPx || null, pg.scaleLabel || "", pg.rooms || []]);
     if (cur === st) return;
-    const [dv, rn, fp, sl] = JSON.parse(st);
-    Object.assign(pg, { devices: dv, runs: rn, ftPerPx: fp, scaleLabel: sl }); saveMeta(pg);
+    const [dv, rn, fp, sl, rm] = JSON.parse(st);
+    Object.assign(pg, { devices: dv, runs: rn, ftPerPx: fp, scaleLabel: sl, rooms: rm || pg.rooms || [] }); saveMeta(pg);
     if (first < 0) first = i;
   });
   sel.clear(); hoverDev = null; placed = [];
