@@ -429,7 +429,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v61</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v62</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -2188,7 +2188,7 @@ function propTotals() {
   // VE alternates not taken show as deducts
   const ve = p.quotes.concat(p.subs.map(s => ({ name: s.name, base: s.amt, ve: s.ve, useVe: s.useVe, sub: true })))
     .filter(q => +q.ve && !q.useVe && +q.ve < +q.base).map(q => { const d = +q.base - +q.ve, up = q.sub ? +p.mk.sub : +p.mk.mat; return { name: q.name, deduct: d * (1 + (up || 0) / 100) + (q.sub ? 0 : d * (+p.tax || 0) / 100) }; });
-  return { hrs: bt.hrs, rate: bt.rate, labor, laborUp, mat, matUp, tax, sub, subUp, total, ve };
+  return { hrs: bt.hrs, rate: bt.rate, prod: p.prod != null ? +p.prod : 33, labor, laborUp, mat, matUp, tax, sub, subUp, total, ve };
 }
 // appendix files live in this browser, one per letter
 async function appxGet(letter) { if (!job) return null; try { const d = await db(); return await new Promise(res => { const g = d.transaction("appx").objectStore("appx").get(job.id + "|" + letter); g.onsuccess = () => res(g.result || null); g.onerror = () => res(null); }); } catch (e) { return null; } }
@@ -2223,6 +2223,10 @@ function renderProp() {
   <tr><td>Sub markup <input type="number" class="ts-pct" min="0" max="200" step="0.5" data-mk="sub" value="${p.mk.sub || ""}" placeholder="0"> %</td><td></td><td class="n">${fmt$(tt.subUp)}</td></tr>
   ${row("Proposal total", tt.total, "bid-tot grand")}
   ${tt.ve.length ? `<tr><td colspan="3"><small>VE alternates (shown as deducts in the proposal): ${tt.ve.map(v => `${esc(v.name)} deduct ${fmt$(v.deduct)}`).join(" · ")}</small></td></tr>` : ""}
+  <tr class="sec no-print pr-int"><td colspan="3">For us only (never on the customer's proposal PDF)</td></tr>
+  <tr class="no-print pr-int"><td>Production cost at $<input type="number" class="ts-pct" min="0" step="1" id="prProd" value="${tt.prod}" aria-label="Production cost per man hour"> per man hour (${fmtH(tt.hrs)} man hours)</td><td></td><td class="n"><b>${fmt$(tt.hrs * tt.prod)}</b></td></tr>
+  <tr class="no-print pr-int"><td>Overhead and retained earnings (the other $${Math.max(0, tt.rate - tt.prod).toLocaleString()} of the $${tt.rate} rate)</td><td></td><td class="n"><b>${fmt$(tt.hrs * Math.max(0, tt.rate - tt.prod))}</b></td></tr>
+  ${tt.laborUp ? `<tr class="no-print pr-int"><td>Plus labor markup</td><td></td><td class="n">${fmt$(tt.laborUp)}</td></tr>` : ""}
   <tr class="sec"><td colspan="3">Included</td></tr>
   ${listRows("incl", p.incl, "Add an included item, like Temporary power for the job")}
   <tr class="sec"><td colspan="3">Excluded</td></tr>
@@ -2257,6 +2261,7 @@ function renderProp() {
     else { box.hidden = true; box.value = ""; q.vendor = sel.value; }
     save(false);
   });
+  $("prProd").onchange = e => { p.prod = Math.max(0, +e.target.value || 0); save(); };
   $("prLists").onclick = () => { prShowLists = !prShowLists; renderTakeoff(); };
   if (prShowLists) {
     $("prListsSave").onclick = () => { t.querySelectorAll("[data-vl]").forEach(a => setVendors(a.dataset.vl, a.value.split("\n"))); prShowLists = false; renderTakeoff(); };
