@@ -337,6 +337,15 @@ td .bid-ln[data-q], td .bid-ln[data-s] { width: calc(100% - 80px); }
 .mk-hl.y { fill: rgb(255 225 0 / .35); stroke: #d4b100; }
 .mk-hl.r { fill: rgb(255 60 60 / .28); stroke: #d33; }
 .mk-hl.draft { stroke-dasharray: 5 3; }
+.mk-hl.sched { fill: rgb(47 158 68 / .08); stroke: #2f9e44; stroke-width: 2; }
+.sched-wrap { overflow: auto; max-height: 55vh; border: 1px solid var(--line); border-radius: 6px; }
+.sched-tbl { border-collapse: collapse; width: 100%; font-size: 12px; }
+.sched-tbl th { position: sticky; top: 0; background: var(--panel); text-align: left; padding: 4px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.sched-tbl td { padding: 2px 3px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.sched-tbl input[type=text], .sched-tbl select { width: 100%; min-width: 70px; font: inherit; font-size: 12px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 3px 4px; }
+.sched-tbl td.k input { width: 64px; min-width: 0; font-weight: 600; }
+.sched-tbl tr.off td { opacity: .45; }
+.sched-src { width: 100%; border: 1px solid var(--line); border-radius: 6px; background: #fff; max-height: 180px; object-fit: contain; }
 .mk-hl.room { fill: rgb(28 126 214 / .07); stroke: #1c7ed6; stroke-width: 2; stroke-dasharray: 8 4; }
 .mk-room-lbl { fill: #1864ab; font-weight: 700; paint-order: stroke; stroke: #fff; }
 .btn.tool.hl-room[aria-pressed="true"] { background: #d0ebff; border-color: #1c7ed6; color: #0b3d6e; }
@@ -429,7 +438,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v64</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v65</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -550,6 +559,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
           <button class="btn tool hl-y" id="hlYBtn" type="button" aria-pressed="false" title="Yellow highlighter: drag over a note to save it to your Notes page">Yellow note</button>
           <button class="btn tool hl-r" id="hlRBtn" type="button" aria-pressed="false" title="Red highlighter: drag over a note to save it to your Notes page, count sheet and supplier sheet">Red note</button>
           <button class="btn tool hl-room" id="roomBtn" type="button" aria-pressed="false" title="Typical room: drag a box around one room you marked up, then say how many of that room the job has">Typical room</button>
+          <button class="btn tool hl-sched" id="schedBtn" type="button" aria-pressed="false" title="Schedule reader: drag a box around the light fixture schedule and it reads the types into your toolbox. No AI, nothing leaves this computer.">Read schedule</button>
         </div>
         <div class="zoomrow">
           <span class="zl">Zoom</span>
@@ -789,6 +799,21 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
   </form>
 </div>
 
+<div class="modal" id="schedModal" hidden role="dialog" aria-modal="true" aria-labelledby="schedTitle">
+  <form class="modal-card wide" id="schedForm" autocomplete="off">
+    <h2 id="schedTitle">Light fixture schedule</h2>
+    <p class="hint" id="schedHint"></p>
+    <img id="schedImg" class="sched-src" alt="The schedule you boxed">
+    <div class="sched-wrap"><table class="sched-tbl" id="schedTbl"></table></div>
+    <div class="actions">
+      <button class="btn" type="button" id="schedAddRow">+ Add a row</button>
+      <span class="spacer"></span>
+      <button class="btn" type="button" id="schedCancel">Cancel</button>
+      <button class="btn primary" type="submit" id="schedSave">Add to my toolbox</button>
+    </div>
+  </form>
+</div>
+
 <div class="modal" id="hlModal" hidden role="dialog" aria-modal="true" aria-labelledby="hlTitle">
   <form class="modal-card" id="hlForm" autocomplete="off">
     <h2 id="hlTitle">Note</h2>
@@ -942,7 +967,7 @@ async function store(fn, name = "pages") {
   try { const d = await db(); const tx = d.transaction(name, "readwrite"); fn(tx.objectStore(name)); await new Promise(r => { tx.oncomplete = tx.onerror = tx.onabort = r; }); } catch (e) {}
 }
 const meta = p => ({ fileId: p.fileId || null, name: p.name, zoom: p.zoom, pxPerInch: p.pxPerInch || null, ftPerPx: p.ftPerPx || null, scaleLabel: p.scaleLabel || "", runs: p.runs, devices: p.devices, hl: p.hl || [], rooms: p.rooms || [] });
-const savePage = (p, i) => p.example ? null : (scheduleSync(), store(s => s.put({ id: p.id, jobId: job.id, order: i, blob: p.blob, thumb: p.thumb || null, ...meta(p) })));
+const savePage = (p, i) => p.example ? null : (scheduleSync(), store(s => s.put({ id: p.id, jobId: job.id, order: i, blob: p.blob, thumb: p.thumb || null, words: p.words || null, ...meta(p) })));
 const saveMeta = (p, quiet) => p.example ? null : (quiet || scheduleSync(), store(s => { const g = s.get(p.id); g.onsuccess = () => g.result && s.put({ ...g.result, ...meta(p) }); }));
 async function getAll(name) {
   const d = await db();
@@ -952,7 +977,7 @@ async function loadSaved(jobId) {
   try {
     const all = (await getAll("pages")).filter(r => r.jobId === jobId);
     return all.sort((a, b) => a.order - b.order).map(r => ({ id: r.id, name: r.name || "", zoom: r.zoom || "FULL", blob: r.blob, url: URL.createObjectURL(r.blob), thumb: r.thumb || null, thumbUrl: r.thumb ? URL.createObjectURL(r.thumb) : null,
-      pxPerInch: r.pxPerInch || null, ftPerPx: r.ftPerPx || null, scaleLabel: r.scaleLabel || "", runs: r.runs || [], devices: r.devices || [], hl: r.hl || [], rooms: r.rooms || [], fileId: r.fileId || null }))
+      pxPerInch: r.pxPerInch || null, ftPerPx: r.ftPerPx || null, scaleLabel: r.scaleLabel || "", runs: r.runs || [], devices: r.devices || [], hl: r.hl || [], rooms: r.rooms || [], fileId: r.fileId || null, words: r.words || null }))
       .map((p, i, all) => ({ ...p, zoom: all[0].zoom === "FREE" ? "FULL" : all[0].zoom })); // every sheet shares one zoom
   } catch (e) { return []; }
 }
@@ -1018,9 +1043,9 @@ async function addFiles(files) {
     $("bgLoad").hidden = !shown; $("bgLoadBar").style.width = `${total ? done / total * 100 : 0}%`; $("bgLoadText").textContent = `Adding sheets ${done} of ${total}`;
     if (!shown) busy("Reading plans…", total ? done / total : 0, `Sheet ${done + 1} of ${total || "…"}`);
   };
-  const add = (blob, pxPerInch, thumb) => {
+  const add = (blob, pxPerInch, thumb, words) => {
     if (me.stop || job !== myJob) return;
-    pushPage(blob, "", pxPerInch, thumb); savePage(pages[pages.length - 1], pages.length - 1); done++;
+    pushPage(blob, "", pxPerInch, thumb); if (words && words.length) pages[pages.length - 1].words = words; savePage(pages[pages.length - 1], pages.length - 1); done++;
     if (!shown) { shown = true; busy(null, null); current = startCount; renderAll(); $("nameInput").focus(); }
     else if (performance.now() - lastPaint > 700) { lastPaint = performance.now(); renderRail(); renderSheet(); }
     progress();
@@ -1038,7 +1063,7 @@ async function addFiles(files) {
     skipped = Math.max(0, total - room); total = Math.min(total, room);
     progress();
     const inFlight = [];
-    const drain = async max => { while (inFlight.length > max) { const r = await inFlight.shift(); add(r[0], r[1], r[2]); } };
+    const drain = async max => { while (inFlight.length > max) { const r = await inFlight.shift(); add(r[0], r[1], r[2], r[3]); } };
     for (const { f, pdf } of docs) {
       if (me.stop || job !== myJob) break;
       if (!pdf) { if (room-- <= 0) break; inFlight.push(Promise.resolve([f, null, null])); await drain(0); continue; }
@@ -1054,7 +1079,9 @@ async function addFiles(files) {
           await page.render({ canvasContext: ctx, viewport: vp }).promise;
           page.cleanup();
           // the JPEG and thumbnail are made while the next page draws; PDF points are 1/72 in
-          inFlight.push(encodeSheet(c).then(([big, small]) => [big, 72 * scale, small]));
+          let words = null;
+          try { words = textWords((await page.getTextContent()).items, vp); } catch (e) {}
+          inFlight.push(encodeSheet(c).then(([big, small]) => [big, 72 * scale, small, words]));
           await drain(n === 1 && !shown ? 0 : 2);
         } catch (e) { bad = true; }
       }
@@ -1687,17 +1714,164 @@ async function cropOf(pg, h, maxW = 700) {
   x.drawImage(img, h.x, h.y, h.w, h.h, 0, 0, c.width, c.height);
   const url = c.toDataURL("image/jpeg", .85); crops.set(key, url); return url;
 }
+/* ---------- schedule reader (no AI): boxed light fixture schedule -> fixture types ----------
+   Words come from the PDF's own text (saved with each sheet at upload). Sheets without it, like scans or
+   sheets added before v65, are read with Tesseract OCR in this browser, loaded only when needed. */
+function textWords(items, vp) {
+  const out = [];
+  items.forEach(it => {
+    const s = (it.str || "").trim(); if (!s) return;
+    const t = pdfjsLib.Util.transform(vp.transform, it.transform), h = Math.hypot(t[2], t[3]) || Math.hypot(t[0], t[1]), w = (it.width || 0) * vp.scale;
+    if (Math.abs(t[1]) > Math.abs(t[0])) out.push([s, Math.round(t[4] - h), Math.round(t[5] - w), Math.round(h), Math.round(w), 1]); // turned 90 degrees
+    else out.push([s, Math.round(t[4]), Math.round(t[5] - h), Math.round(w), Math.round(h)]);
+  });
+  return out;
+}
+const TESS = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/";
+let tessLoad = null;
+function loadTess() {
+  if (window.Tesseract) return Promise.resolve();
+  return tessLoad || (tessLoad = new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = TESS + "tesseract.min.js"; sc.onload = res; sc.onerror = () => { tessLoad = null; rej(new Error("load")); }; document.head.appendChild(sc); }));
+}
+async function ocrWords(pg, r) {
+  await loadTess();
+  const img = await createImageBitmap(pg.blob), sc = Math.max(1, Math.min(3, 3000 / Math.max(r.w, r.h))), c = document.createElement("canvas");
+  c.width = Math.round(r.w * sc); c.height = Math.round(r.h * sc);
+  const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, r.x, r.y, r.w, r.h, 0, 0, c.width, c.height); img.close && img.close();
+  const wk = await Tesseract.createWorker("eng", 1, { workerPath: TESS + "worker.min.js", corePath: "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1", langPath: "https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng@1.0.0/4.0.0_best_int",
+    logger: m => { if (m.status === "recognizing text") busy("Reading the schedule…", m.progress, "Reading the picture of the schedule (OCR), on this computer"); } });
+  try {
+    await wk.setParameters({ preserve_interword_spaces: "1" });
+    const { data } = await wk.recognize(c);
+    return (data.words || []).filter(w => w.text.trim() && w.confidence > 20).map(w => [w.text.trim(), Math.round(r.x + w.bbox.x0 / sc), Math.round(r.y + w.bbox.y0 / sc), Math.round((w.bbox.x1 - w.bbox.x0) / sc), Math.round((w.bbox.y1 - w.bbox.y0) / sc)]);
+  } finally { wk.terminate(); }
+}
+// which app field a schedule column feeds, from its heading
+const SCHED_FIELDS = [["label", "Type", /^(fixture\s*)?(type|mark|tag|symbol|designation|id|fixt?\.?|luminaire\s*(type|mark|tag))$/i], ["maker", "Manufacturer", /manuf|mfr|mfg|maker|make\b|brand|vendor/i], ["model", "Catalog / model", /catalog|cat\.?\s*(no|#|number)?$|model|part|series|product/i],
+  ["desc", "Description", /desc|fixture$|luminaire$|^type of|remarks|notes|comments|lamps?\b|lumens|cct|kelvin|finish|optics|driver|dimming|ballast/i], ["watts", "Watts", /watt|^w$|^va$|input|load/i], ["volts", "Volts", /volt|^v$/i], ["mount", "Mounting", /mount|height|aff/i]];
+const fieldOfHead = h => { const t = h.replace(/[^\w#./ ]+/g, " ").trim(); if (!t) return ""; for (const [f, , re] of SCHED_FIELDS) if (re.test(t)) return f; return "desc"; };
+// toolbox kind from what the row says
+const KIND_RULES = [[/exit/i, "emer", "Exit sign"], [/bug.?eye|emergency (light|unit|battery unit)|battery unit|\bel-?\d|egress light/i, "emer", "Emergency battery light"], [/vanity/i, "wall", "Vanity light"], [/sconce/i, "wall", "Wall sconce"],
+  [/wall\s*pack/i, "ext", "Wall pack"], [/flood/i, "ext", "Floodlight"], [/canopy|garage/i, "ext", "Canopy light"], [/soffit/i, "ext", "Soffit light"], [/pole|area light|site light|parking/i, "ext", "Pole light"], [/bollard/i, "ext", "Bollard"], [/gooseneck/i, "ext", "Gooseneck"],
+  [/high\s*bay|highbay|low\s*bay/i, "open", "High bay"], [/chandelier/i, "open", "Chandelier"], [/track/i, "open", "Track light"], [/linear.*pendant|pendant.*linear|suspended linear|direct.?indirect/i, "open", "Linear pendant"], [/pendant/i, "open", "Decorative pendant"],
+  [/2\s*x\s*4|2'\s*x\s*4'|24\s*x\s*48/i, "ceil", "2x4 lay-in"], [/2\s*x\s*2|2'\s*x\s*2'|24\s*x\s*24/i, "ceil", "2x2 lay-in"], [/1\s*x\s*4|1'\s*x\s*4'/i, "ceil", "1x4 lay-in"], [/down\s*light|downlight|recessed|\bcan\b|wafer/i, "ceil", "Recessed downlight"],
+  [/vapor|wet location|enclosed.*gasket/i, "ceil", "Vapor-tight light"], [/wrap/i, "ceil", "Wraparound light"], [/strip|linear/i, "ceil", "Strip light"], [/step|stair/i, "wall", "Step / stair light"], [/wall/i, "wall", "Wall sconce"]];
+const guessKind = txt => { for (const [re, cat, t] of KIND_RULES) if (re.test(txt)) return `${cat}|${t}`; return "ceil|Surface-mount light"; };
+function parseSchedule(tokens) {
+  if (!tokens.length) return { cols: [], rows: [] };
+  const hs = tokens.map(t => t[4]).sort((a, b) => a - b), mh = hs[Math.floor(hs.length / 2)] || 10;
+  // rows: tokens whose middles sit within about half a line of each other
+  const rows = [];
+  tokens.slice().sort((a, b) => (a[2] + a[4] / 2) - (b[2] + b[4] / 2)).forEach(t => {
+    const cy = t[2] + t[4] / 2, last = rows[rows.length - 1];
+    if (last && Math.abs(cy - last.cy) < mh * 0.6) { last.t.push(t); last.cy = (last.cy * (last.t.length - 1) + cy) / last.t.length; } else rows.push({ cy, t: [t] });
+  });
+  rows.forEach(r => r.t.sort((a, b) => a[1] - b[1]));
+  // the heading row is the one in the top few with the most heading words
+  const HEAD = /^(fixture|type|mark|tag|symbol|manuf|mfr|mfg|catalog|cat\.?|model|description|desc|lamps?|watts?|wattage|volts?|voltage|mounting|mount|remarks|notes|lumens|input|cct|luminaire)/i;
+  let hi = -1, best = 1;
+  rows.slice(0, 8).forEach((r, i) => { const n = r.t.filter(t => HEAD.test(t[0])).length; if (n > best) { best = n; hi = i; } });
+  const body = rows.slice(hi + 1).filter(r => !/schedule/i.test(r.t.map(t => t[0]).join(" ")) || r.t.length > 2);
+  // columns: the gaps that run down the whole body of the table
+  const x0 = Math.min(...tokens.map(t => t[1])), x1 = Math.max(...tokens.map(t => t[1] + t[3])), cover = new Uint8Array(Math.max(1, x1 - x0 + 1));
+  body.forEach(r => r.t.forEach(t => { for (let x = t[1]; x < t[1] + t[3]; x++) cover[x - x0] = 1; }));
+  const segs = []; let st = -1, gap = 0;
+  for (let x = 0; x <= cover.length; x++) {
+    if (x < cover.length && cover[x]) { if (st < 0) st = x; gap = 0; }
+    else if (st >= 0) { gap++; if (gap >= mh * 0.8 || x === cover.length) { segs.push([x0 + st, x0 + x - gap]); st = -1; gap = 0; } }
+  }
+  if (!segs.length) segs.push([x0, x1]);
+  const colOf = t => { const cx = t[1] + t[3] / 2; let bi = 0, bd = Infinity; segs.forEach((g, i) => { const d = cx < g[0] ? g[0] - cx : cx > g[1] ? cx - g[1] : 0; if (d < bd) { bd = d; bi = i; } }); return bi; };
+  // heading text per column (two-line headings are joined)
+  const heads = segs.map(() => []);
+  if (hi >= 0) rows.slice(Math.max(0, hi - 1), hi + 1).forEach(r => r.t.forEach(t => { if (hi > 0 && r === rows[hi - 1] && !HEAD.test(t[0]) && r.t.length < 2) return; heads[colOf(t)].push(t[0]); }));
+  const cols = segs.map((g, i) => { const name = heads[i].join(" ").trim(); return { name: name || `Column ${i + 1}`, field: name ? fieldOfHead(name) : i === 0 ? "label" : "desc" }; });
+  if (!cols.some(c => c.field === "label")) cols[0].field = "label";
+  const li = cols.findIndex(c => c.field === "label");
+  // a body row with nothing in the Type column carries on the row above (wrapped description)
+  const out = [];
+  body.forEach(r => {
+    const cells = segs.map(() => []);
+    r.t.forEach(t => cells[colOf(t)].push(t[0]));
+    const vals = cells.map(c => c.join(" ").trim());
+    if (!vals.some(Boolean)) return;
+    if (!vals[li] && out.length) { vals.forEach((v, i) => { if (v) out[out.length - 1][i] = (out[out.length - 1][i] + " " + v).trim(); }); return; }
+    out.push(vals);
+  });
+  return { cols, rows: out };
+}
+let schedState = null;
+async function readSchedule(pg, r) {
+  if (r.w < 30 || r.h < 20) return toast("That box is too small. Drag around the whole schedule.");
+  const inside = t => { const cx = t[1] + t[3] / 2, cy = t[2] + t[4] / 2; return cx >= r.x && cx <= r.x + r.w && cy >= r.y && cy <= r.y + r.h; };
+  let tokens = (pg.words || []).filter(t => !t[5] && inside(t)), how = "pdf";
+  if (tokens.length < 4) {
+    how = "ocr";
+    busy("Reading the schedule…", 0, "Getting the reader ready (first time takes a little longer)");
+    try { tokens = await ocrWords(pg, r); } catch (e) { busy(null, null); return toast("The picture reader didn't load. Check your connection and try again."); }
+    busy(null, null);
+  }
+  const res = parseSchedule(tokens);
+  if (!res.rows.length) return toast("No rows found in that box. Try boxing just the schedule table, header row included.");
+  const kinds = CATS.filter(c => c.fam === "lights" && c.key !== "fans").flatMap(c => c.types.map(t => `${c.key}|${t}`));
+  const field = f => i => res.cols.map((c, k) => c.field === f ? i[k] : "").filter(Boolean).join(" ");
+  schedState = { pg, how, kinds, rows: res.rows.map(v => {
+    const row = { use: true }; ["label", "maker", "model", "desc", "watts", "volts", "mount"].forEach(f => { row[f] = field(f)(v); });
+    row.label = row.label.replace(/^type\s+/i, "").slice(0, 20);
+    row.kind = guessKind(`${row.desc} ${row.model} ${row.maker}`);
+    row.em = /\b(em|emergency|battery|egress)\b/i.test(`${row.desc} ${row.model}`) && !/^emer\|/.test(row.kind);
+    if (/^(type|mark|fixture)$/i.test(row.label)) row.use = false;
+    return row; }) };
+  $("schedImg").src = await cropOf(pg, { id: "sched", ...r }, 1400);
+  $("schedHint").textContent = (how === "pdf" ? "Read from the PDF's own text. " : "Read from the picture of the sheet (OCR), so check the spelling. ") + "Fix anything that's off, uncheck rows you don't want, pick the toolbox kind for each, then add them. Nothing is added until you click Add.";
+  renderSched();
+  $("schedModal").hidden = false;
+}
+function renderSched() {
+  const st = schedState, kindSel = v => [...new Set(st.kinds.map(k => k.split("|")[0]))].map(ck => `<optgroup label="${esc(catOf(ck).name)}">${st.kinds.filter(k => k.startsWith(ck + "|")).map(k => `<option value="${esc(k)}"${k === v ? " selected" : ""}>${esc(k.split("|")[1])}</option>`).join("")}</optgroup>`).join("");
+  $("schedTbl").innerHTML = `<thead><tr><th>Add</th><th>Type</th><th>Toolbox kind</th><th>EM</th><th>Manufacturer</th><th>Catalog / model</th><th>Description</th><th>Watts</th><th>Volts</th><th>Mounting</th></tr></thead><tbody>` +
+    st.rows.map((r, i) => `<tr class="${r.use ? "" : "off"}"><td><input type="checkbox" data-i="${i}" data-f="use"${r.use ? " checked" : ""} aria-label="Add this row"></td>
+      <td class="k"><input type="text" data-i="${i}" data-f="label" value="${esc(r.label)}" aria-label="Type"></td>
+      <td><select data-i="${i}" data-f="kind" aria-label="Toolbox kind" style="min-width:150px">${kindSel(r.kind)}</select></td>
+      <td><input type="checkbox" data-i="${i}" data-f="em"${r.em ? " checked" : ""} aria-label="Emergency battery"></td>
+      ${["maker", "model", "desc", "watts", "volts", "mount"].map(f => `<td><input type="text" data-i="${i}" data-f="${f}" value="${esc(r[f])}" aria-label="${f}"></td>`).join("")}</tr>`).join("") + `</tbody>`;
+  $("schedTbl").querySelectorAll("[data-f]").forEach(el => el.onchange = () => { const r = st.rows[el.dataset.i]; r[el.dataset.f] = el.type === "checkbox" ? el.checked : el.value.trim(); if (el.dataset.f === "use") el.closest("tr").className = el.checked ? "" : "off"; });
+  $("schedSave").textContent = `Add ${st.rows.filter(r => r.use && r.label).length} types to my toolbox`;
+  $("schedTbl").querySelectorAll('[data-f="use"]').forEach(el => el.addEventListener("change", () => { $("schedSave").textContent = `Add ${st.rows.filter(r => r.use && r.label).length} types to my toolbox`; }));
+}
+$("schedAddRow").onclick = () => { schedState.rows.push({ use: true, label: "", maker: "", model: "", desc: "", watts: "", volts: "", mount: "", kind: "ceil|Surface-mount light", em: false }); renderSched(); };
+$("schedCancel").onclick = () => { $("schedModal").hidden = true; };
+$("schedModal").addEventListener("keydown", e => { if (e.key === "Escape") $("schedModal").hidden = true; });
+$("schedForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const list = countsList(), rows = schedState.rows.filter(r => r.use && r.label);
+  if (!rows.length) return toast("Check at least one row that has a Type.");
+  remember([]);
+  let made = 0, upd = 0;
+  rows.forEach(r => {
+    const [cat, kindName] = r.kind.split("|"), base = "C-" + cat;
+    const f = { kindName, label: r.label, em: !!r.em && catEm(catOf(cat), kindName), maker: r.maker, model: r.model, desc: r.desc, watts: r.watts, volts: r.volts, mount: r.mount };
+    const c = list.find(x => x.base === base && (x.label || "").toLowerCase() === r.label.toLowerCase() && x.kindName === kindName);
+    if (c) { Object.assign(c, f); upd++; }
+    else { list.push({ id: uid(), base, tag: "", color: PALETTE[list.length % PALETTE.length], amps: "", ...f }); made++; }
+  });
+  if (job) { job.updated = new Date().toISOString(); saveJob(job); }
+  $("schedModal").hidden = true; renderCounts(); drawOverlay();
+  toast(`${made} fixture type${made === 1 ? "" : "s"} added${upd ? `, ${upd} updated` : ""}. Click one under Counts to start placing it.`);
+});
 function setHl(m) {
   hlMode = hlMode === m ? null : m;
   if (hlMode && tool) setTool(null);
-  $("hlYBtn").setAttribute("aria-pressed", hlMode === "y"); $("hlRBtn").setAttribute("aria-pressed", hlMode === "r"); $("roomBtn").setAttribute("aria-pressed", hlMode === "room");
+  $("hlYBtn").setAttribute("aria-pressed", hlMode === "y"); $("hlRBtn").setAttribute("aria-pressed", hlMode === "r"); $("roomBtn").setAttribute("aria-pressed", hlMode === "room"); $("schedBtn").setAttribute("aria-pressed", hlMode === "sched");
   $("sheet").style.cursor = hlMode ? "crosshair" : "";
+  if (hlMode === "sched") toast("Schedule reader: drag a box around the whole light fixture schedule, header row included.");
   if (hlMode === "room") toast("Typical room: drag a box around one room you marked up. Click a room box to change it. Click the button again to stop.");
-  else if (hlMode) toast(hlMode === "y" ? "Yellow highlighter: drag a box over the note. Click the button again to stop." : "Red highlighter: drag a box over the note for the supplier. Click the button again to stop.");
+  else if (hlMode === "y" || hlMode === "r") toast(hlMode === "y" ? "Yellow highlighter: drag a box over the note. Click the button again to stop." : "Red highlighter: drag a box over the note for the supplier. Click the button again to stop.");
 }
 $("hlYBtn").onclick = () => setHl("y");
 $("hlRBtn").onclick = () => setHl("r");
 $("roomBtn").onclick = () => setHl("room");
+$("schedBtn").onclick = () => setHl("sched");
 const hlAt = (pg, q) => (pg.hl || []).slice().reverse().find(h => q[0] >= h.x && q[0] <= h.x + h.w && q[1] >= h.y && q[1] <= h.y + h.h);
 $("sheet").addEventListener("pointerdown", e => {
   if (!hlMode || e.button !== 0 || !pages[current]) return;
@@ -1716,8 +1890,14 @@ $("sheet").addEventListener("pointerup", e => {
   const d = hlDrag, pg = pages[current]; hlDrag = null;
   if (!d.end || Math.hypot(e.clientX - d.cx, e.clientY - d.cy) < 8) { // a click: open a highlight that's there
     if (hlMode === "room") { const m = roomAt(pg, d.start); drawOverlay(); if (m) openRoom(pg, m); return; }
+    if (hlMode === "sched") { drawOverlay(); return; }
     const h = hlAt(pg, d.start); drawOverlay();
     if (h) openHl(pg, h);
+    return;
+  }
+  if (hlMode === "sched") {
+    const r = { x: Math.round(Math.min(d.start[0], d.end[0])), y: Math.round(Math.min(d.start[1], d.end[1])), w: Math.round(Math.abs(d.end[0] - d.start[0])), h: Math.round(Math.abs(d.end[1] - d.start[1])) };
+    setHl("sched"); drawOverlay(); readSchedule(pg, r);
     return;
   }
   if (hlMode === "room") {
@@ -3880,7 +4060,7 @@ $("labelForm").addEventListener("submit", e => {
 document.addEventListener("keydown", e => {
   if (!$("ctxMenu").hidden) return;
   const typing = !!e.target.closest("input, select, textarea");
-  if (!$("scaleModal").hidden || !$("roomModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden || !$("wireModal").hidden || !$("sendModal").hidden || !$("ampModal").hidden || !$("takeoffModal").hidden || !$("hlModal").hidden) return;
+  if (!$("scaleModal").hidden || !$("roomModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden || !$("wireModal").hidden || !$("sendModal").hidden || !$("ampModal").hidden || !$("takeoffModal").hidden || !$("hlModal").hidden || !$("schedModal").hidden) return;
   if (!typing && (e.ctrlKey || e.metaKey) && !e.altKey) {
     const key = e.key.toLowerCase();
     if (key === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
