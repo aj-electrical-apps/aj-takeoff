@@ -274,6 +274,9 @@ button { cursor: pointer; }
 .modal { position: fixed; inset: 0; z-index: 25; display: grid; place-items: center; background: rgb(0 0 0 / .35); padding: 16px; }
 .modal-card { width: min(460px, 100%); max-height: 100%; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 14px; }
 .modal-card h2 { margin: 0; font-size: 20px; text-wrap: balance; }
+.job-folder { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 6px; }
+.job-folder p { margin: 0; }
+.jf-acts { display: flex; gap: 6px; flex-wrap: wrap; }
 .modal-card.wide { width: min(980px, 100%); }
 .ts-tabs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .ts-tabs .btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
@@ -438,7 +441,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v65</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v66</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -696,6 +699,11 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <button class="btn" type="button" id="fileOpen">Open a job file…<small>From Google Drive, Downloads or an email</small></button>
       <button class="btn" type="button" id="filePdf">Save drawings as a PDF…<small>Marked-up sheets that nobody can change</small></button>
       <button class="btn" type="button" id="fileEmail">Email this job…<small>Sends a link that opens the job in the app</small></button>
+    </div>
+    <div class="job-folder" id="jobFolderBox">
+      <div><b>Job folder</b> <span class="hint" id="jobFolderName">None yet</span></div>
+      <p class="hint">Link a folder in your Google Drive to this job. Every Save then goes straight into that folder, and opening the job loads the newest copy from it.</p>
+      <div class="jf-acts"><button class="btn sm" type="button" id="jobFolderPick">Link a folder…</button><button class="btn sm" type="button" id="jobFolderCheck" hidden>Open the newest copy</button><button class="btn sm" type="button" id="jobFolderDrop" hidden>Unlink</button></div>
     </div>
     <p class="hint" id="driveTip">Don't see Google Drive in the Save window? Install <a href="https://www.google.com/drive/download/" target="_blank" rel="noopener">Google Drive for desktop</a> once, and it shows up there as Google Drive.</p>
     <p class="hint" id="fileWhere" hidden></p>
@@ -4340,7 +4348,7 @@ async function readProject(file) {
   const base = 22 + n;
   return { head, bytes: pg => file.slice(base + pg.at, base + pg.at + pg.size).arrayBuffer() };
 }
-async function importProject(file) {
+async function importProject(file, folderAt) {
   let pr;
   try { pr = await readProject(file); } catch (e) { return toast("That isn't an AJ Takeoff job file. Job files end in .ajtakeoff."); }
   const { head } = pr, n = head.pages.length;
@@ -4350,19 +4358,20 @@ async function importProject(file) {
     const old = (await getAll("pages")).filter(r => r.jobId === head.job.id);
     const was = new Map(old.map(r => [r.id, r]));
     const j = { ...newJobRecord({}), ...(jobs.find(x => x.id === head.job.id) || {}), ...head.job };
+    if (folderAt) j.folderAt = folderAt;
     const rows = [];
     for (let i = 0; i < n; i++) {
       busy("Opening job file…", (i + 1) / n, `Sheet ${i + 1} of ${n}`);
       const { at, size, type, ...m } = head.pages[i];
       const blob = new Blob([await pr.bytes(head.pages[i])], { type: type || "image/jpeg" });
-      rows.push({ ...m, fileId: (was.get(m.id) || {}).fileId || null, jobId: j.id, order: i, blob });
+      rows.push({ ...m, fileId: (was.get(m.id) || {}).fileId || null, words: (was.get(m.id) || {}).words || null, jobId: j.id, order: i, blob });
     }
     await store(s => { old.forEach(r => s.delete(r.id)); rows.forEach(r => s.put(r)); });
     await putJobLocal(j);
     jobs = jobs.filter(x => x.id !== j.id).concat(j);
     busy(null, null);
-    await openJob(j);
-    toast(`Opened ${j.name}: ${n} sheet${n === 1 ? "" : "s"}.`);
+    const fb = folderBusy; folderBusy = true; try { await openJob(j); } finally { folderBusy = fb; }
+    toast(folderAt ? `Opened the newest copy of ${j.name} from its job folder.` : `Opened ${j.name}: ${n} sheet${n === 1 ? "" : "s"}.`);
   } catch (e) {
     busy(null, null);
     toast("That job file couldn't be opened. It may be damaged or not fully downloaded.");
@@ -4386,6 +4395,52 @@ async function packJob() {
   finally { busy(null, null); }
 }
 const fileHandles = {}; // job id -> the file the viewer picked this visit, so Ctrl+S saves over it
+/* job folder: a folder (in Google Drive for desktop) linked to a job. Its handle is kept in the "appx" store
+   under "<job id>|folder" with the job file's name; Chrome and Edge on a computer only. */
+const folderOk = () => !!window.showDirectoryPicker;
+async function folderRec(jobId) { if (!jobId || !folderOk()) return null; try { const d = await db(); return await new Promise(res => { const g = d.transaction("appx").objectStore("appx").get(jobId + "|folder"); g.onsuccess = () => res(g.result || null); g.onerror = () => res(null); }); } catch (e) { return null; } }
+const folderSet = (jobId, r) => store(s => r ? s.put({ ...r, id: jobId + "|folder", jobId }) : s.delete(jobId + "|folder"), "appx");
+async function folderAllowed(r, ask) {
+  let p = await r.handle.queryPermission({ mode: "readwrite" });
+  if (p !== "granted" && ask) { try { p = await r.handle.requestPermission({ mode: "readwrite" }); } catch (e) {} }
+  return p === "granted";
+}
+// the newest job file in the folder: the one this job saves, else any .ajtakeoff file for this job
+async function folderNewest(r) {
+  let best = null;
+  for await (const [name, h] of r.handle.entries()) {
+    if (h.kind !== "file" || !/\.ajtakeoff$/i.test(name)) continue;
+    const f = await h.getFile();
+    if (name !== r.file && !(await fileIsJob(f, job && job.id))) continue;
+    if (!best || f.lastModified > best.lastModified) best = f;
+  }
+  return best;
+}
+async function fileIsJob(f, id) { try { const { head } = await readProject(f); return head.job.id === id; } catch (e) { return false; } }
+let folderBusy = false;
+async function folderCheck(ask, force) {
+  const j = job; if (!j || folderBusy) return;
+  const r = await folderRec(j.id); if (!r) return;
+  folderBusy = true;
+  try {
+    if (!(await folderAllowed(r, ask))) { if (!ask) savedTo(`This job has a folder (${r.handle.name}). Open Save / Open and click Open the newest copy to check it.`); return; }
+    const f = await folderNewest(r);
+    if (!f) { if (force) toast("No saved copy of this job in that folder yet. Click Save job to put one there."); return; }
+    if (!force && f.lastModified <= (j.folderAt || 0) + 1000) return; // nothing newer than what's here
+    const when = new Date(f.lastModified).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    const changedHere = j.updated && Date.parse(j.updated) > (j.folderAt || 0) + 5000;
+    if (changedHere && !confirm(`The job folder has a copy saved ${when}. This computer has changes that aren't in it. Open the folder copy anyway? (Cancel keeps what's on this computer.)`)) return;
+    await importProject(f, f.lastModified);
+  } catch (e) { toast("Couldn't read the job folder. It may have moved or been renamed. Link it again under Save / Open."); }
+  finally { folderBusy = false; }
+}
+async function showFolder() {
+  const r = job && await folderRec(job.id);
+  $("jobFolderBox").hidden = !job || !folderOk();
+  $("jobFolderName").textContent = r ? r.handle.name + (r.file ? ` · saves as ${r.file}` : "") : "None yet";
+  $("jobFolderPick").textContent = r ? "Change folder…" : "Link a folder…";
+  $("jobFolderCheck").hidden = $("jobFolderDrop").hidden = !r;
+}
 function savedTo(msg) {
   const w = $("fileWhere"); w.textContent = msg; w.hidden = false;
   toast(msg);
@@ -4393,6 +4448,19 @@ function savedTo(msg) {
 async function saveProject(again) {
   const file = await packJob();
   if (!file) return false;
+  const jf = await folderRec(job.id);
+  if (jf) {
+    try {
+      if (!(await folderAllowed(jf, true))) throw new Error("perm");
+      const fh = await jf.handle.getFileHandle(jf.file || file.name, { create: true });
+      const w = await fh.createWritable(); await w.write(file); await w.close();
+      job.folderAt = (await fh.getFile()).lastModified; await putJobLocal(job);
+      if (!jf.file) { jf.file = file.name; await folderSet(job.id, jf); }
+      savedTo(`Saved to the job folder ${jf.handle.name} at ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`);
+      showFolder();
+      return true;
+    } catch (e) { toast("Couldn't save into the job folder. Pick where to save it instead."); }
+  }
   if (window.showSaveFilePicker) {
     try {
       let h = again ? fileHandles[job.id] : null;
@@ -4630,13 +4698,28 @@ function showFiles(sent) {
     : "A job file holds every sheet, count, run and scale in one file that ends in .ajtakeoff. Keep it anywhere, like your Google Drive, and open it in this app on any computer, tablet or phone.";
   const none = !job || !pages.some(p => !p.example);
   $("fileSave").disabled = $("fileEmail").disabled = none;
-  $("fileModal").hidden = false;
+  $("fileModal").hidden = false; showFolder();
   (sent || none ? $("fileOpen") : $("fileSave")).focus();
 }
 $("fileBtn").onclick = () => showFiles(false);
 $("fileClose").onclick = () => { $("fileModal").hidden = true; };
 $("fileModal").addEventListener("keydown", e => { if (e.key === "Escape") $("fileModal").hidden = true; });
 $("fileSave").onclick = () => saveProject(false);
+$("jobFolderPick").onclick = async () => {
+  if (!job) return;
+  try {
+    const h = await window.showDirectoryPicker({ id: "ajjobfolder", mode: "readwrite" });
+    const old = await folderRec(job.id);
+    await folderSet(job.id, { handle: h, file: old && old.handle.name === h.name ? old.file : "" });
+    job.folderAt = 0; await putJobLocal(job);
+    showFolder();
+    const r = await folderRec(job.id), f = await folderNewest(r);
+    if (f) { toast("That folder already has a copy of this job."); folderCheck(true, true); }
+    else saveProject(true);
+  } catch (e) { if (!e || e.name !== "AbortError") toast("Couldn't use that folder. Try another one."); }
+};
+$("jobFolderCheck").onclick = () => folderCheck(true, true);
+$("jobFolderDrop").onclick = async () => { await folderSet(job.id, null); showFolder(); toast("Job folder unlinked. The files in it stay where they are."); };
 $("fileEmail").onclick = emailProject;
 $("filePdf").onclick = savePdf;
 $("fileOpen").onclick = $("jobsOpenFile").onclick = () => $("projInput").click();
@@ -4712,6 +4795,7 @@ async function openJob(j) {
   loadTabs();
   if (tabs.length && !tabs.includes(pages[current]?.id)) current = Math.max(0, pages.findIndex(p => p.id === tabs[tabs.length - 1]));
   renderAll();
+  folderCheck(true);
 }
 function newJobRecord(fields) {
   const now = new Date().toISOString();
