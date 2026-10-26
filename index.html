@@ -348,6 +348,8 @@ td .bid-ln[data-q], td .bid-ln[data-s] { width: calc(100% - 80px); }
 .sched-tbl input[type=text], .sched-tbl select { width: 100%; min-width: 70px; font: inherit; font-size: 12px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 3px 4px; }
 .sched-tbl td.k input { width: 64px; min-width: 0; font-weight: 600; }
 .sched-tbl tr.off td { opacity: .45; }
+.sched-tbl select.sched-unsure { background: #fff3bf; color: #5c3c00; border-color: #f59f00; }
+.sched-why { display: block; font-size: 10px; color: var(--muted, #888); margin-top: 2px; }
 .sched-src { width: 100%; border: 1px solid var(--line); border-radius: 6px; background: #fff; max-height: 180px; object-fit: contain; }
 .mk-hl.room { fill: rgb(28 126 214 / .07); stroke: #1c7ed6; stroke-width: 2; stroke-dasharray: 8 4; }
 .mk-room-lbl { fill: #1864ab; font-weight: 700; paint-order: stroke; stroke: #fff; }
@@ -441,7 +443,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v66</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v67</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -1495,7 +1497,7 @@ const countsList = () => job ? (job.counts || (job.counts = [])) : exampleCounts
 function devInfo(t) {
   const c = countsList().find(c => c.id === t);
   if (c) { const b = DEVICES[c.base] || Object.values(DEVICES)[0]; return { ...b, id: c.id, base: c.base, color: c.color || b.color, tag: c.tag || "", desc: c.desc || "", custom: true,
-    sMaker: c.maker || "", sModel: c.model || "", sWatts: c.watts || "", sVolts: c.volts || "", sMount: c.mount || "", amps: c.amps || "", label: c.label || "", fanKind: c.fanKind || "", drop: c.drop || null, kindName: c.kindName || "", em: !!c.em, miscQty: c.miscQty, miscUnit: c.miscUnit || "", sup: !!c.sup }; }
+    sMaker: c.maker || "", sModel: c.model || "", sWatts: c.watts || "", sVolts: c.volts || "", sMount: c.mount || "", amps: c.amps || "", label: c.label || "", fanKind: c.fanKind || "", drop: c.drop || null, kindName: c.kindName || "", em: !!c.em, miscQty: c.miscQty, miscUnit: c.miscUnit || "", sup: !!c.sup, sched: !!c.sched }; }
   return DEVICES[t];
 }
 const ampsLine = d => [d.amps && `${d.amps}A`, d.sVolts].filter(Boolean).join(" ");
@@ -1529,9 +1531,11 @@ function renderCounts() {
   $("cntTotals").hidden = !all.length;
   let sheetTot = 0, allTot = 0;
   // sections in toolbox order; a closed section hides its counts until it's clicked open again
-  const secKey = d => catOf(d.group) ? d.group : (GROUPS.find(g => g.key === d.group) ? d.group : "other");
-  const secName = k => catOf(k) ? catOf(k).name : k === "other" ? "Other" : SECTION[k] || (GROUPS.find(g => g.key === k) || {}).name || k;
-  all.sort((a, b) => secRank(secKey(a)) - secRank(secKey(b)));
+  // types read from a fixture schedule get their own section at the top (pricing still follows their kind)
+  const secKey = d => d.sched ? "sched" : catOf(d.group) ? d.group : (GROUPS.find(g => g.key === d.group) ? d.group : "other");
+  const secName = k => k === "sched" ? "From the fixture schedule" : catOf(k) ? catOf(k).name : k === "other" ? "Other" : SECTION[k] || (GROUPS.find(g => g.key === k) || {}).name || k;
+  const rankOf = d => secKey(d) === "sched" ? -1 : secRank(secKey(d));
+  all.sort((a, b) => rankOf(a) - rankOf(b));
   const closed = cntClosed(), keys = [...new Set(all.map(secKey))];
   $("cntFoldAll").hidden = keys.length < 2;
   $("cntFoldAll").textContent = keys.length && keys.every(k => closed.includes(k)) ? "Open all" : "Close all";
@@ -1763,8 +1767,9 @@ const KIND_RULES = [[/exit/i, "emer", "Exit sign"], [/bug.?eye|emergency (light|
   [/wall\s*pack/i, "ext", "Wall pack"], [/flood/i, "ext", "Floodlight"], [/canopy|garage/i, "ext", "Canopy light"], [/soffit/i, "ext", "Soffit light"], [/pole|area light|site light|parking/i, "ext", "Pole light"], [/bollard/i, "ext", "Bollard"], [/gooseneck/i, "ext", "Gooseneck"],
   [/high\s*bay|highbay|low\s*bay/i, "open", "High bay"], [/chandelier/i, "open", "Chandelier"], [/track/i, "open", "Track light"], [/linear.*pendant|pendant.*linear|suspended linear|direct.?indirect/i, "open", "Linear pendant"], [/pendant/i, "open", "Decorative pendant"],
   [/2\s*x\s*4|2'\s*x\s*4'|24\s*x\s*48/i, "ceil", "2x4 lay-in"], [/2\s*x\s*2|2'\s*x\s*2'|24\s*x\s*24/i, "ceil", "2x2 lay-in"], [/1\s*x\s*4|1'\s*x\s*4'/i, "ceil", "1x4 lay-in"], [/down\s*light|downlight|recessed|\bcan\b|wafer/i, "ceil", "Recessed downlight"],
+  [/troffer|lay-?in|grid ceiling/i, "ceil", "2x4 lay-in"], [/surface|flush|drum|ceiling mount/i, "ceil", "Surface-mount light"],
   [/vapor|wet location|enclosed.*gasket/i, "ceil", "Vapor-tight light"], [/wrap/i, "ceil", "Wraparound light"], [/strip|linear/i, "ceil", "Strip light"], [/step|stair/i, "wall", "Step / stair light"], [/wall/i, "wall", "Wall sconce"]];
-const guessKind = txt => { for (const [re, cat, t] of KIND_RULES) if (re.test(txt)) return `${cat}|${t}`; return "ceil|Surface-mount light"; };
+const guessKind = txt => { for (const [re, cat, t] of KIND_RULES) if (re.test(txt)) return { kind: `${cat}|${t}`, why: (txt.match(re) || [""])[0] }; return { kind: "ceil|Surface-mount light", why: "" }; };
 function parseSchedule(tokens) {
   if (!tokens.length) return { cols: [], rows: [] };
   const hs = tokens.map(t => t[4]).sort((a, b) => a - b), mh = hs[Math.floor(hs.length / 2)] || 10;
@@ -1826,12 +1831,12 @@ async function readSchedule(pg, r) {
   schedState = { pg, how, kinds, rows: res.rows.map(v => {
     const row = { use: true }; ["label", "maker", "model", "desc", "watts", "volts", "mount"].forEach(f => { row[f] = field(f)(v); });
     row.label = row.label.replace(/^type\s+/i, "").slice(0, 20);
-    row.kind = guessKind(`${row.desc} ${row.model} ${row.maker}`);
+    const g = guessKind(`${row.desc} ${row.model} ${row.maker}`); row.kind = g.kind; row.why = g.why; row.sure = !!g.why;
     row.em = /\b(em|emergency|battery|egress)\b/i.test(`${row.desc} ${row.model}`) && !/^emer\|/.test(row.kind);
     if (/^(type|mark|fixture)$/i.test(row.label)) row.use = false;
     return row; }) };
   $("schedImg").src = await cropOf(pg, { id: "sched", ...r }, 1400);
-  $("schedHint").textContent = (how === "pdf" ? "Read from the PDF's own text. " : "Read from the picture of the sheet (OCR), so check the spelling. ") + "Fix anything that's off, uncheck rows you don't want, pick the toolbox kind for each, then add them. Nothing is added until you click Add.";
+  $("schedHint").textContent = (how === "pdf" ? "Read from the PDF's own text. " : "Read from the picture of the sheet (OCR), so check the spelling. ") + "The toolbox kind sets the parts list and labor hours, so check it on every row. Yellow ones are guesses the reader wasn't sure of. Fix anything that's off, uncheck rows you don't want, then add them.";
   renderSched();
   $("schedModal").hidden = false;
 }
@@ -1840,14 +1845,14 @@ function renderSched() {
   $("schedTbl").innerHTML = `<thead><tr><th>Add</th><th>Type</th><th>Toolbox kind</th><th>EM</th><th>Manufacturer</th><th>Catalog / model</th><th>Description</th><th>Watts</th><th>Volts</th><th>Mounting</th></tr></thead><tbody>` +
     st.rows.map((r, i) => `<tr class="${r.use ? "" : "off"}"><td><input type="checkbox" data-i="${i}" data-f="use"${r.use ? " checked" : ""} aria-label="Add this row"></td>
       <td class="k"><input type="text" data-i="${i}" data-f="label" value="${esc(r.label)}" aria-label="Type"></td>
-      <td><select data-i="${i}" data-f="kind" aria-label="Toolbox kind" style="min-width:150px">${kindSel(r.kind)}</select></td>
+      <td><select data-i="${i}" data-f="kind" aria-label="Toolbox kind" class="${r.sure ? "" : "sched-unsure"}" style="min-width:150px">${kindSel(r.kind)}</select><small class="sched-why">${r.sure ? (r.why ? `picked from "${esc(r.why)}"` : "you picked this") : "not sure, please pick"}</small></td>
       <td><input type="checkbox" data-i="${i}" data-f="em"${r.em ? " checked" : ""} aria-label="Emergency battery"></td>
       ${["maker", "model", "desc", "watts", "volts", "mount"].map(f => `<td><input type="text" data-i="${i}" data-f="${f}" value="${esc(r[f])}" aria-label="${f}"></td>`).join("")}</tr>`).join("") + `</tbody>`;
-  $("schedTbl").querySelectorAll("[data-f]").forEach(el => el.onchange = () => { const r = st.rows[el.dataset.i]; r[el.dataset.f] = el.type === "checkbox" ? el.checked : el.value.trim(); if (el.dataset.f === "use") el.closest("tr").className = el.checked ? "" : "off"; });
+  $("schedTbl").querySelectorAll("[data-f]").forEach(el => el.onchange = () => { const r = st.rows[el.dataset.i]; r[el.dataset.f] = el.type === "checkbox" ? el.checked : el.value.trim(); if (el.dataset.f === "use") el.closest("tr").className = el.checked ? "" : "off"; if (el.dataset.f === "kind") { r.sure = true; r.why = ""; el.classList.remove("sched-unsure"); el.nextElementSibling.textContent = "you picked this"; } });
   $("schedSave").textContent = `Add ${st.rows.filter(r => r.use && r.label).length} types to my toolbox`;
   $("schedTbl").querySelectorAll('[data-f="use"]').forEach(el => el.addEventListener("change", () => { $("schedSave").textContent = `Add ${st.rows.filter(r => r.use && r.label).length} types to my toolbox`; }));
 }
-$("schedAddRow").onclick = () => { schedState.rows.push({ use: true, label: "", maker: "", model: "", desc: "", watts: "", volts: "", mount: "", kind: "ceil|Surface-mount light", em: false }); renderSched(); };
+$("schedAddRow").onclick = () => { schedState.rows.push({ use: true, label: "", maker: "", model: "", desc: "", watts: "", volts: "", mount: "", kind: "ceil|Surface-mount light", em: false, sure: false }); renderSched(); };
 $("schedCancel").onclick = () => { $("schedModal").hidden = true; };
 $("schedModal").addEventListener("keydown", e => { if (e.key === "Escape") $("schedModal").hidden = true; });
 $("schedForm").addEventListener("submit", e => {
@@ -1860,8 +1865,8 @@ $("schedForm").addEventListener("submit", e => {
     const [cat, kindName] = r.kind.split("|"), base = "C-" + cat;
     const f = { kindName, label: r.label, em: !!r.em && catEm(catOf(cat), kindName), maker: r.maker, model: r.model, desc: r.desc, watts: r.watts, volts: r.volts, mount: r.mount };
     const c = list.find(x => x.base === base && (x.label || "").toLowerCase() === r.label.toLowerCase() && x.kindName === kindName);
-    if (c) { Object.assign(c, f); upd++; }
-    else { list.push({ id: uid(), base, tag: "", color: PALETTE[list.length % PALETTE.length], amps: "", ...f }); made++; }
+    if (c) { Object.assign(c, f, { sched: true }); upd++; }
+    else { list.push({ id: uid(), base, tag: "", color: PALETTE[list.length % PALETTE.length], amps: "", sched: true, ...f }); made++; }
   });
   if (job) { job.updated = new Date().toISOString(); saveJob(job); }
   $("schedModal").hidden = true; renderCounts(); drawOverlay();
