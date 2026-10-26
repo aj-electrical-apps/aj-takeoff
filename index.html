@@ -429,7 +429,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v60</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v61</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -1882,7 +1882,7 @@ function dboRows(counts) {
     add(Math.max(15, parseInt(d.amps, 10) || 20), polesFor(d.sVolts || d.voltage), Math.ceil(c.qty), `${Math.ceil(c.qty)} ${c.name}`);
   });
   return [...bk.values()].sort((a, b) => a.poles - b.poles || a.amps - b.amps).map(b => ({ id: `dbo:${b.amps}|${b.poles}`, dbo: true, asm: "", feed: null, label: "",
-    name: `${b.amps}A ${b.poles}-pole breaker`, what: b.why.join(" · "), qty: b.qty, by: [], color: "#555", group: "dbo", code: `bkr|${b.poles}` }));
+    name: `${b.amps}A ${b.poles}-pole breaker (design build)`, what: b.why.join(" · "), qty: b.qty, by: [], color: "#555", group: "gr", code: `bkr|${b.poles}` })); // listed under Panels & gear (Jonathan 2026-10-26)
 }
 // counts broken out by section, in toolbox order
 // count sections in sheet order: the older groups sit with their family (sconces and other fixture types go with the lights)
