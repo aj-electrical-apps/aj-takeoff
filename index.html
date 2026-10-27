@@ -465,7 +465,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v74</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v75</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -694,10 +694,10 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="modal" id="newModal" hidden role="dialog" aria-modal="true" aria-labelledby="newTitle">
   <div class="modal-card">
-    <h2 id="newTitle">Save this job first?</h2>
+    <h2 id="newTitle">Save project first?</h2>
     <p class="hint" id="newWhy"></p>
     <div class="file-acts">
-      <button class="btn primary" type="button" id="newSave">Save to Drive, then start new<small id="newSaveSub">You pick the folder, like Google Drive</small></button>
+      <button class="btn primary" type="button" id="newSave"><span id="newSaveT">Save project, then start new</span><small id="newSaveSub">You pick the folder, like Google Drive</small></button>
       <button class="btn" type="button" id="newSkip">Don't save, start new<small>It stays on this device and in your job list</small></button>
     </div>
     <div class="actions"><button class="btn" type="button" id="newCancel">Cancel</button></div>
@@ -4994,19 +4994,21 @@ $("fileClose").onclick = () => { $("fileModal").hidden = true; };
 $("fileModal").addEventListener("keydown", e => { if (e.key === "Escape") $("fileModal").hidden = true; });
 $("fileSave").onclick = () => saveProject(false);
 $("jobFolderPick").onclick = () => linkFolder();
-async function linkFolder() {
-  if (!job) return;
+async function linkFolder(noSave) {
+  if (!job) return false;
   try {
     const h = await window.showDirectoryPicker({ id: "ajjobfolder", mode: "readwrite" });
     const old = await folderRec(job.id);
     await folderSet(job.id, { handle: h, file: old && old.handle.name === h.name ? old.file : "" });
     job.folderAt = 0; await putJobLocal(job);
     showFolder();
+    if (noSave) return true;
     const r = await folderRec(job.id), f = await folderNewest(r);
     if (f) { toast("That folder already has a copy of this job."); folderCheck(true, true); }
     else if (!pages.length) toast(`Linked to ${h.name}. Upload the plans, and every Save goes into that folder.`);
     else saveProject(true);
-  } catch (e) { if (!e || e.name !== "AbortError") toast("Couldn't use that folder. Try another one."); }
+    return true;
+  } catch (e) { if (!e || e.name !== "AbortError") toast("Couldn't use that folder. Try another one."); return false; }
 }
 $("jfLink").onclick = () => { $("jfModal").hidden = true; linkFolder(); };
 $("jfSkip").onclick = () => { $("jfModal").hidden = true; toast("Job started. You can link a folder later under Save / Open. Upload its plans to begin."); };
@@ -5025,8 +5027,10 @@ $("newJobBtn").onclick = async () => {
   if (!job || !pages.some(p => !p.example)) return showJobs("new");
   commitName();
   const viaConnector = !!(await mcpReady);
-  $("newWhy").textContent = `Before starting a new job, do you want to save ${job.name} to Google Drive? Either way it stays in your job list on this device.`;
-  $("newSaveSub").textContent = viaConnector ? "Saves to the AJ Takeoff Jobs folder in your Google Drive" : "You pick the folder, like Google Drive";
+  const jf = viaConnector ? null : await folderRec(job.id);
+  $("newWhy").textContent = `Save ${job.name} before starting a new job. Either way it stays in your job list on this device.`;
+  $("newSaveT").textContent = jf || viaConnector || !folderOk() ? "Save project, then start new" : "Pick a job folder, save, then start new";
+  $("newSaveSub").textContent = viaConnector ? "Saves to the AJ Takeoff Jobs folder in your Google Drive" : jf ? `Saves straight into the job folder ${jf.handle.name}, with today's date` : folderOk() ? "Pick this job's folder once. After that every Save goes there by itself" : "You pick where to save it, like Google Drive";
   $("newModal").hidden = false; $("newSave").focus();
 };
 $("newSave").onclick = async () => {
@@ -5036,7 +5040,11 @@ $("newSave").onclick = async () => {
     syncWanted = true; await runSync();
     ok = $("driveStatus").className.indexOf("bad") < 0;
     if (!ok) toast("Couldn't save to Google Drive, so the new job wasn't started. Try again, or pick Don't save.");
-  } else ok = await saveProject(false);
+  } else {
+    // no job folder yet: link one now (still inside the click, so the folder picker may open), then save into it
+    if (folderOk() && !(await folderRec(job.id)) && !(await linkFolder(true))) return toast("No folder picked, so nothing was saved. Click New job again when you're ready.");
+    ok = await saveProject(false);
+  }
   if (ok) showJobs("new");
 };
 $("newSkip").onclick = () => { $("newModal").hidden = true; showJobs("new"); };
