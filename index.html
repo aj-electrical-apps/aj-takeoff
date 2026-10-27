@@ -371,6 +371,14 @@ td .bid-ln[data-q], td .bid-ln[data-s] { width: calc(100% - 80px); }
 .co-tbl tr.on td { background: #fff4e6; }
 .co-tbl .n { font-family: var(--font-mono); white-space: nowrap; }
 .modal-card.co-card { width: min(980px, 100%); }
+.modal-card.pg-card { width: min(1100px, 100%); }
+.pg-tools { display: flex; gap: 8px; align-items: center; }
+.pg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; max-height: 60vh; overflow-y: auto; padding: 2px; }
+.pg-tile { display: grid; gap: 4px; padding: 6px; border: 2px solid var(--line); border-radius: 8px; background: var(--bg); cursor: pointer; text-align: left; color: var(--fg); font: inherit; }
+.pg-tile[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.pg-tile canvas { width: 100%; aspect-ratio: 3 / 2; object-fit: contain; background: #fff; border: 1px solid var(--line); border-radius: 4px; }
+.pg-tile .pg-l { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; }
+.pg-tile .pg-t { font-size: 11px; color: var(--muted, #888); font-family: var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .repl-old { outline: 3px dashed #f76707; outline-offset: -3px; }
 .btn.tool.hl-room[aria-pressed="true"] { background: #d0ebff; border-color: #1c7ed6; color: #0b3d6e; }
 .note-item { display: grid; grid-template-columns: 220px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: start; }
@@ -476,7 +484,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v76</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v77</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -800,6 +808,16 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <div class="trk-wrap"><table class="co-tbl" id="coTbl"></table></div>
     <p class="empty" id="coEmpty">No change orders on this job yet.</p>
     <div class="actions"><button class="btn" type="button" id="coClose">Close</button><button class="btn primary" type="button" id="coNew">+ New change order</button></div>
+  </div>
+</div>
+
+<div class="modal" id="pgModal" hidden role="dialog" aria-modal="true" aria-labelledby="pgTitle">
+  <div class="modal-card pg-card">
+    <h2 id="pgTitle">Pick the pages to add</h2>
+    <p class="hint" id="pgHint"></p>
+    <div class="pg-tools" id="pgTools"><button class="btn sm" type="button" id="pgAll">All</button><button class="btn sm" type="button" id="pgNone">None</button><span class="hint" id="pgCount"></span></div>
+    <div class="pg-grid" id="pgGrid"></div>
+    <div class="actions"><button class="btn" type="button" id="pgCancel">Cancel</button><button class="btn primary" type="button" id="pgOk">Add pages</button></div>
   </div>
 </div>
 
@@ -1172,17 +1190,28 @@ async function addFiles(files) {
       const isPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
       if (!isPdf) { docs.push({ f }); total++; continue; }
       if (!window.pdfjsLib) { toast("The PDF reader didn't load. Check your connection and reload."); continue; }
-      try { const pdf = await pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise; docs.push({ f, pdf }); total += pdf.numPages; }
+      try {
+        const pdf = await pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise;
+        let want = Array.from({ length: pdf.numPages }, (_, i) => i + 1);
+        if (pdf.numPages > 1) {
+          busy(null, null);
+          want = await pickPages(pdf, f.name, { multi: true, all: startCount === 0 });
+          busy("Reading files…", 0);
+          if (!want || !want.length) { pdf.destroy(); continue; }
+        }
+        docs.push({ f, pdf, want }); total += want.length;
+      }
       catch (e) { bad = true; }
     }
     skipped = Math.max(0, total - room); total = Math.min(total, room);
     progress();
     const inFlight = [];
     const drain = async max => { while (inFlight.length > max) { const r = await inFlight.shift(); add(r[0], r[1], r[2], r[3]); } };
-    for (const { f, pdf } of docs) {
+    for (const { f, pdf, want } of docs) {
       if (me.stop || job !== myJob) break;
       if (!pdf) { if (room-- <= 0) break; inFlight.push(Promise.resolve([f, null, null])); await drain(0); continue; }
-      for (let n = 1; n <= pdf.numPages && !me.stop && job === myJob; n++) {
+      for (const n of want) {
+        if (me.stop || job !== myJob) break;
         if (room-- <= 0) break;
         try {
           const page = await pdf.getPage(n);
@@ -1197,7 +1226,7 @@ async function addFiles(files) {
           let words = null;
           try { words = textWords((await page.getTextContent()).items, vp); } catch (e) {}
           inFlight.push(encodeSheet(c).then(([big, small]) => [big, 72 * scale, small, words]));
-          await drain(n === 1 && !shown ? 0 : 2);
+          await drain(n === want[0] && !shown ? 0 : 2);
         } catch (e) { bad = true; }
       }
       await drain(0);
@@ -1210,6 +1239,7 @@ async function addFiles(files) {
   if (job !== myJob) return;
   touchJob();
   renderAll();
+  if (!total && !bad) { if (!pages.length) renderAll(); return toast("No pages added."); }
   if (bad) toast("One file or page couldn't be read. It may be damaged or password protected.");
   else if (skipped) toast(`Added up to the ${MAX_PAGES}-page limit. ${skipped} page${skipped > 1 ? "s" : ""} left out.`);
   else if (done > 1) toast(`All ${done} sheets added.`);
@@ -2998,9 +3028,12 @@ $("replInput").onchange = async e => {
   }
   const p = pages[current], adds = pages.map(x => +(String(x.add || "").match(/addendum\s*(\d+)/i) || [])[1] || 0);
   $("replWhy").textContent = `${sheetName(p, current)} gets the new drawing from ${f.name}.`;
-  $("replPageBox").hidden = !replPdf || replPdf.numPages < 2; $("replPage").max = replPdf ? replPdf.numPages : 1;
-  // guess the matching page: same position in the addendum set if it has as many pages, else 1
-  $("replPage").value = replPdf && replPdf.numPages === pages.length ? current + 1 : 1;
+  $("replPageBox").hidden = true; $("replPage").max = replPdf ? replPdf.numPages : 1; $("replPage").value = 1;
+  if (replPdf && replPdf.numPages > 1) {
+    const pick = await pickPages(replPdf, f.name, { multi: false, title: `Pick the new page for ${sheetName(p, current)}` });
+    if (!pick || !pick.length) { replPdf.destroy(); replPdf = null; return; }
+    $("replPage").value = pick[0]; $("replWhy").textContent = `${sheetName(p, current)} gets page ${pick[0]} of ${f.name}.`;
+  }
   $("replAdd").value = `Addendum ${Math.max(0, ...adds) + 1}`;
   $("replModal").hidden = false; $("replAdd").focus();
 };
@@ -3079,6 +3112,51 @@ $("sheet").addEventListener("click", e => {
   saveMeta(p); renderSheet(); drawOverlay(); renderRuns(); renderCounts();
   toast("Markups moved to match the new drawing. Undo puts them back.");
 }, true);
+/* Page picker: thumbnails of a PDF's pages so only the ones you want get added (or the one that replaces a sheet).
+   Thumbnails draw as they scroll into view, a few at a time, so a 200-page set opens quickly. */
+function pickPages(pdf, fileName, { multi = true, all = false, title } = {}) {
+  return new Promise(resolve => {
+    const n = pdf.numPages, on = new Set(multi && all ? Array.from({ length: n }, (_, i) => i + 1) : []);
+    $("pgTitle").textContent = title || (multi ? "Pick the pages to add" : "Pick a page");
+    $("pgHint").textContent = multi ? `${fileName} has ${n} pages. Click the ones you want, then Add pages. Pages you already have don't need to come in again.` : `${fileName} has ${n} pages. Click the one you want.`;
+    $("pgTools").hidden = !multi; $("pgOk").hidden = !multi;
+    const grid = $("pgGrid"); grid.replaceChildren();
+    const count = () => { $("pgCount").textContent = `${on.size} of ${n} picked`; $("pgOk").textContent = on.size ? `Add ${on.size} page${on.size === 1 ? "" : "s"}` : "Add pages"; $("pgOk").disabled = !on.size; };
+    let queue = Promise.resolve(), closed = false;
+    const io = new IntersectionObserver(es => es.forEach(e => {
+      if (!e.isIntersecting || e.target.dataset.drawn) return;
+      e.target.dataset.drawn = "1"; const i = +e.target.dataset.n, cv = e.target.querySelector("canvas"), tx = e.target.querySelector(".pg-t");
+      queue = queue.then(async () => {
+        if (closed) return;
+        try {
+          const pg = await pdf.getPage(i), v1 = pg.getViewport({ scale: 1 }), vp = pg.getViewport({ scale: 300 / Math.max(v1.width, v1.height) });
+          cv.width = Math.round(vp.width); cv.height = Math.round(vp.height);
+          const x = cv.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, cv.width, cv.height);
+          await pg.render({ canvasContext: x, viewport: vp }).promise;
+          // the sheet number is usually the biggest short text near the bottom right, like E-101
+          try { const it = (await pg.getTextContent()).items.filter(t => /^[A-Z]{1,3}[-.]?\d{1,3}(\.\d+)?[A-Z]?$/.test(t.str.trim())); if (it.length) { it.sort((a, b) => Math.abs(b.transform[3]) - Math.abs(a.transform[3]) || b.transform[4] - a.transform[4]); tx.textContent = it[0].str.trim(); } } catch (er) {}
+          pg.cleanup();
+        } catch (er) {}
+      });
+    }), { root: grid, rootMargin: "200px" });
+    for (let i = 1; i <= n; i++) {
+      const b = document.createElement("button"); b.type = "button"; b.className = "pg-tile"; b.dataset.n = i; b.setAttribute("aria-pressed", on.has(i));
+      b.innerHTML = `<canvas width="300" height="200" aria-hidden="true"></canvas><span class="pg-l">Page ${i}${multi ? `<input type="checkbox" tabindex="-1" aria-hidden="true"${on.has(i) ? " checked" : ""}>` : ""}</span><span class="pg-t"></span>`;
+      b.onclick = () => {
+        if (!multi) return done([i]);
+        on.has(i) ? on.delete(i) : on.add(i); b.setAttribute("aria-pressed", on.has(i)); b.querySelector("input").checked = on.has(i); count();
+      };
+      grid.appendChild(b); io.observe(b);
+    }
+    const setAll = v => { grid.querySelectorAll(".pg-tile").forEach(b => { const i = +b.dataset.n; v ? on.add(i) : on.delete(i); b.setAttribute("aria-pressed", v); b.querySelector("input").checked = v; }); count(); };
+    const done = r => { closed = true; io.disconnect(); $("pgModal").hidden = true; $("pgModal").onkeydown = null; resolve(r); };
+    $("pgAll").onclick = () => setAll(true); $("pgNone").onclick = () => setAll(false);
+    $("pgOk").onclick = () => done([...on].sort((a, b) => a - b));
+    $("pgCancel").onclick = () => done(null);
+    $("pgModal").onkeydown = e => { if (e.key === "Escape") done(null); };
+    count(); $("pgModal").hidden = false; grid.scrollTop = 0; (multi ? $("pgOk") : grid.querySelector(".pg-tile")).focus();
+  });
+}
 let asmKey = null;
 /* Parts lists as a spreadsheet: one row per part (Section, Item, Part, Qty each). Jonathan edits it in Excel and loads it back. */
 let xlsLoad = null;
@@ -4562,7 +4640,7 @@ $("labelForm").addEventListener("submit", e => {
 document.addEventListener("keydown", e => {
   if (!$("ctxMenu").hidden) return;
   const typing = !!e.target.closest("input, select, textarea");
-  if (!$("scaleModal").hidden || !$("roomModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden || !$("wireModal").hidden || !$("sendModal").hidden || !$("ampModal").hidden || !$("takeoffModal").hidden || !$("hlModal").hidden || !$("schedModal").hidden || !$("trkModal").hidden || !$("jfModal").hidden || !$("coModal").hidden || !$("replModal").hidden) return;
+  if (!$("scaleModal").hidden || !$("roomModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden || !$("wireModal").hidden || !$("sendModal").hidden || !$("ampModal").hidden || !$("takeoffModal").hidden || !$("hlModal").hidden || !$("schedModal").hidden || !$("trkModal").hidden || !$("jfModal").hidden || !$("coModal").hidden || !$("replModal").hidden || !$("pgModal").hidden) return;
   if (!typing && (e.ctrlKey || e.metaKey) && !e.altKey) {
     const key = e.key.toLowerCase();
     if (key === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
