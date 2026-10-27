@@ -461,7 +461,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v72</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v73</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -2119,8 +2119,8 @@ function takeoffRows() {
     if (per !== 1) by.forEach(x => { x[1] = Math.round(x[1] * per * 100) / 100; });
     const qty = by.reduce((t, x) => t + x[1], 0);
     if (!qty) return;
-    const what = d.custom ? [d.kind !== nameOf(d) && !d.fanKind && !d.kindName && !nameOf(d).startsWith(d.kind) ? d.kind : "", [d.sMaker, d.sModel].filter(Boolean).join(" "), d.sMount && `Mount ${d.sMount}`].filter(Boolean).join(" · ") : `${d.maker} ${d.model}`;
-    counts.push({ id: d.id, label: d.label || "", asm: d.kindName ? `${d.group}|${d.kindName}` : "", em: !!(d.kindName && d.em), feed: feedable(d) ? feedFor(d) : null, name: nameOf(d), what: typeTitled(d) ? [kindSub(d), [d.sMaker, d.sModel].filter(Boolean).join(" ")].filter(Boolean).join(" · ") : d.kindName && d.em ? ["With emergency battery", what].filter(Boolean).join(" · ") : what, qty, by, color: d.color, group: d.group, ...(d.group === "misc" ? { misc: true, unit: d.miscUnit || "ea", sup: !!d.sup } : {}) });
+    const what = d.custom ? [d.kind !== nameOf(d) && !d.fanKind && !d.kindName && !nameOf(d).startsWith(d.kind) ? d.kind : "", [d.sMaker, d.sModel].filter(Boolean).join(" "), d.sched && d.desc, d.sched && d.sWatts && d.sWatts + (/w$/i.test(d.sWatts) ? "" : "W"), d.sched && d.cct, d.sMount && `Mount ${d.sMount}`].filter(Boolean).join(" · ") : `${d.maker} ${d.model}`;
+    counts.push({ id: d.id, label: d.label || "", asm: d.kindName ? `${d.group}|${d.kindName}` : "", em: !!(d.kindName && d.em), feed: feedable(d) ? feedFor(d) : null, name: nameOf(d), what: typeTitled(d) ? [kindSub(d), [d.sMaker, d.sModel].filter(Boolean).join(" "), d.sched && d.desc, d.sched && d.sWatts && d.sWatts + (/w$/i.test(d.sWatts) ? "" : "W"), d.sched && d.cct].filter(Boolean).join(" · ") : d.kindName && d.em ? ["With emergency battery", what].filter(Boolean).join(" · ") : what, qty, by, color: d.color, group: d.group, ...(d.group === "misc" ? { misc: true, unit: d.miscUnit || "ea", sup: !!d.sup } : {}) });
   });
   const lfOf = id => pages.reduce((t, pg) => t + (pg.ftPerPx ? pg.runs.filter(r => (r.typeId || null) === id).reduce((a, r) => a + runPx(pg, r) * pg.ftPerPx, 0) : 0), 0);
   const ex = extraOf();
