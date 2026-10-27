@@ -476,7 +476,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v76</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v77</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -2816,7 +2816,15 @@ async function trkAddJob(quiet) {
   let ours = 0, est = null;
   try {
     const t = propTotals(); ours = Math.round(t.total) || 0;
-    if (t.total > 0) est = { hrs: t.hrs, rate: t.rate, prod: t.prod, labor: t.labor, laborUp: t.laborUp, mat: t.mat, matUp: t.matUp, tax: t.tax, sub: t.sub, subUp: t.subUp, total: t.total, at: new Date().toISOString() };
+    if (t.total > 0 && !coCur()) {
+      // the counts with their man hours, and who is quoting the material and the sub work
+      const p = propOf(), r2 = v => Math.round(v * 1000) / 1000;
+      const items = bidRows().filter(r => r.qty).map(r => ({ sec: r.sec, name: r.name, qty: r.qty, unit: r.unit, hEach: r.h, hrs: r2(r.hrs) }))
+        .concat((bidOf().lines || []).filter(l => +l.qty).map(l => ({ sec: "Other lines", name: l.desc || "", qty: +l.qty, unit: "ea", hEach: +l.h || 0, hrs: r2((+l.qty || 0) * (+l.h || 0)) })));
+      const quotes = p.quotes.filter(q => qAmt(q) || q.vendor).map(q => ({ name: q.name, supplier: q.vendor || "", natl: q.natl || "", amount: qAmt(q) }));
+      const subs = p.subs.filter(x => +(x.useVe && +x.ve ? x.ve : x.amt) || x.vendor).map(x => ({ name: x.name, vendor: x.vendor || "", amount: +(x.useVe && +x.ve ? x.ve : x.amt) || 0 }));
+      est = { hrs: t.hrs, rate: t.rate, prod: t.prod, labor: t.labor, laborUp: t.laborUp, mat: t.mat, matUp: t.matUp, tax: t.tax, sub: t.sub, subUp: t.subUp, total: t.total, items, quotes, subs, at: new Date().toISOString() };
+    }
   } catch (e) {}
   const had = trkRows.find(r => r.jobId === job.id);
   const row = { ...(had || { id: uid(), jobId: job.id, place: "", result: "", win: "", notes: "", date: job.bidDate || trkToday() }), job: job.name, gc: job.customer || (had && had.gc) || "", at: new Date().toISOString() };
