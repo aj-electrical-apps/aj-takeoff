@@ -460,7 +460,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v70</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v71</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -2711,11 +2711,17 @@ const trkOff = r => +r.ours && +r.win ? (r.ours - r.win) / r.win * 100 : null;
 // adds the open job, or updates its price, name, GC and bid date; results stay as they were
 async function trkAddJob(quiet) {
   if (!job) return quiet || toast("Open a job first.");
-  let ours = 0; try { ours = Math.round(propTotals().total) || 0; } catch (e) {}
+  // est: the estimate numbers the Pricing, Production & Bonuses app reads when a won bid becomes a job there
+  let ours = 0, est = null;
+  try {
+    const t = propTotals(); ours = Math.round(t.total) || 0;
+    if (t.total > 0) est = { hrs: t.hrs, rate: t.rate, prod: t.prod, labor: t.labor, laborUp: t.laborUp, mat: t.mat, matUp: t.matUp, tax: t.tax, sub: t.sub, subUp: t.subUp, total: t.total, at: new Date().toISOString() };
+  } catch (e) {}
   const had = trkRows.find(r => r.jobId === job.id);
   const row = { ...(had || { id: uid(), jobId: job.id, place: "", result: "", win: "", notes: "", date: job.bidDate || trkToday() }), job: job.name, gc: job.customer || (had && had.gc) || "", at: new Date().toISOString() };
   if (job.bidDate) row.date = job.bidDate;
   if (ours) row.ours = ours;
+  if (est) row.est = est;
   await trkSend([row]);
   if (!$("trkModal").hidden) renderTrk();
   if (!quiet) toast(had ? `Updated ${job.name} in the Bid tracker.` : `Added ${job.name} to the Bid tracker.`);
