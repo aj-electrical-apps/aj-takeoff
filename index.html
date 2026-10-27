@@ -379,6 +379,8 @@ td .bid-ln[data-q], td .bid-ln[data-s] { width: calc(100% - 80px); }
 .pg-tile canvas { width: 100%; aspect-ratio: 3 / 2; object-fit: contain; background: #fff; border: 1px solid var(--line); border-radius: 4px; }
 .pg-tile .pg-l { display: flex; justify-content: space-between; align-items: center; font-size: 13px; font-weight: 600; }
 .pg-tile .pg-t { font-size: 11px; color: var(--muted, #888); font-family: var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.co-tbl tr.lbl-check td { background: #fff9db; }
+.co-tbl .lbl-why { font-size: 12px; color: #a66b00; }
 .repl-old { outline: 3px dashed #f76707; outline-offset: -3px; }
 .btn.tool.hl-room[aria-pressed="true"] { background: #d0ebff; border-color: #1c7ed6; color: #0b3d6e; }
 .note-item { display: grid; grid-template-columns: 220px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: start; }
@@ -484,7 +486,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v78</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v79</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -618,6 +620,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
           <button class="btn tool" id="replBtn" type="button" title="Addendum: swap this sheet for a revised drawing and keep your markups">Replace sheet</button>
           <button class="btn tool" id="replOld" type="button" aria-pressed="false" title="Flip between the old and new drawing" hidden>Show old</button>
           <button class="btn tool" id="replAlign" type="button" aria-pressed="false" title="Click 2 spots on the old drawing and the same 2 on the new one, and your markups move to match" hidden>Line up</button>
+          <button class="btn tool hl-sched" id="lblBtn" type="button" aria-pressed="false" title="Name every sheet: drag a box around the sheet number in the title block on one sheet, and every sheet gets named from that spot">Auto-name sheets</button>
           <button class="btn tool hl-sched" id="schedBtn" type="button" aria-pressed="false" title="Schedule reader: drag a box around the light fixture schedule and it reads the types into your toolbox. No AI, nothing leaves this computer.">Read schedule</button>
         </div>
         <div class="zoomrow">
@@ -808,6 +811,15 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <div class="trk-wrap"><table class="co-tbl" id="coTbl"></table></div>
     <p class="empty" id="coEmpty">No change orders on this job yet.</p>
     <div class="actions"><button class="btn" type="button" id="coClose">Close</button><button class="btn primary" type="button" id="coNew">+ New change order</button></div>
+  </div>
+</div>
+
+<div class="modal" id="lblModal" hidden role="dialog" aria-modal="true" aria-labelledby="lblTitle">
+  <div class="modal-card trk-card">
+    <h2 id="lblTitle">Name the sheets</h2>
+    <p class="hint" id="lblHint"></p>
+    <div class="trk-wrap"><table class="co-tbl" id="lblTbl"></table></div>
+    <div class="actions"><button class="btn" type="button" id="lblCancel">Cancel</button><button class="btn primary" type="button" id="lblOk">Name sheets</button></div>
   </div>
 </div>
 
@@ -1936,15 +1948,16 @@ function loadTess() {
   if (window.Tesseract) return Promise.resolve();
   return tessLoad || (tessLoad = new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = TESS + "tesseract.min.js"; sc.onload = res; sc.onerror = () => { tessLoad = null; rej(new Error("load")); }; document.head.appendChild(sc); }));
 }
-async function ocrWords(pg, r) {
+async function ocrWords(pg, r, what = "Reading the schedule…", small) {
   await loadTess();
-  const img = await createImageBitmap(pg.blob), sc = Math.max(1, Math.min(3, 3000 / Math.max(r.w, r.h))), c = document.createElement("canvas");
+  // small: a short label like a sheet number, sized so its letters come out a size the reader likes
+  const img = await createImageBitmap(pg.blob), sc = small ? Math.max(.5, Math.min(3, 160 / r.h)) : Math.max(1, Math.min(3, 3000 / Math.max(r.w, r.h))), c = document.createElement("canvas");
   c.width = Math.round(r.w * sc); c.height = Math.round(r.h * sc);
   const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(img, r.x, r.y, r.w, r.h, 0, 0, c.width, c.height); img.close && img.close();
   const wk = await Tesseract.createWorker("eng", 1, { workerPath: TESS + "worker.min.js", corePath: "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1", langPath: "https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng@1.0.0/4.0.0_best_int",
-    logger: m => { if (m.status === "recognizing text") busy("Reading the schedule…", m.progress, "Reading the picture of the schedule (OCR), on this computer"); } });
+    logger: m => { if (m.status === "recognizing text") busy(what, m.progress, "Reading the picture of the schedule (OCR), on this computer"); } });
   try {
-    await wk.setParameters({ preserve_interword_spaces: "1" });
+    await wk.setParameters(small ? { tessedit_pageseg_mode: "11" } : { preserve_interword_spaces: "1" });
     const { data } = await wk.recognize(c);
     return (data.words || []).filter(w => w.text.trim() && w.confidence > 20).map(w => [w.text.trim(), Math.round(r.x + w.bbox.x0 / sc), Math.round(r.y + w.bbox.y0 / sc), Math.round((w.bbox.x1 - w.bbox.x0) / sc), Math.round((w.bbox.y1 - w.bbox.y0) / sc)]);
   } finally { wk.terminate(); }
@@ -2097,9 +2110,10 @@ $("schedForm").addEventListener("submit", e => {
 function setHl(m) {
   hlMode = hlMode === m ? null : m;
   if (hlMode && tool) setTool(null);
-  $("hlYBtn").setAttribute("aria-pressed", hlMode === "y"); $("hlRBtn").setAttribute("aria-pressed", hlMode === "r"); $("roomBtn").setAttribute("aria-pressed", hlMode === "room"); $("schedBtn").setAttribute("aria-pressed", hlMode === "sched");
+  $("hlYBtn").setAttribute("aria-pressed", hlMode === "y"); $("hlRBtn").setAttribute("aria-pressed", hlMode === "r"); $("roomBtn").setAttribute("aria-pressed", hlMode === "room"); $("schedBtn").setAttribute("aria-pressed", hlMode === "sched"); $("lblBtn").setAttribute("aria-pressed", hlMode === "lbl");
   $("sheet").style.cursor = hlMode ? "crosshair" : "";
   if (hlMode === "sched") toast("Schedule reader: drag a box around the whole light fixture schedule, header row included.");
+  if (hlMode === "lbl") toast("Auto-name: drag a box around the sheet number in the title block, like E-101. Leave a little room around it.");
   if (hlMode === "room") toast("Typical room: drag a box around one room you marked up. Click a room box to change it. Click the button again to stop.");
   else if (hlMode === "y" || hlMode === "r") toast(hlMode === "y" ? "Yellow highlighter: drag a box over the note. Click the button again to stop." : "Red highlighter: drag a box over the note for the supplier. Click the button again to stop.");
 }
@@ -2107,6 +2121,7 @@ $("hlYBtn").onclick = () => setHl("y");
 $("hlRBtn").onclick = () => setHl("r");
 $("roomBtn").onclick = () => setHl("room");
 $("schedBtn").onclick = () => setHl("sched");
+$("lblBtn").onclick = () => setHl("lbl");
 const hlAt = (pg, q) => (pg.hl || []).slice().reverse().find(h => q[0] >= h.x && q[0] <= h.x + h.w && q[1] >= h.y && q[1] <= h.y + h.h);
 $("sheet").addEventListener("pointerdown", e => {
   if (!hlMode || e.button !== 0 || !pages[current]) return;
@@ -2125,9 +2140,14 @@ $("sheet").addEventListener("pointerup", e => {
   const d = hlDrag, pg = pages[current]; hlDrag = null;
   if (!d.end || Math.hypot(e.clientX - d.cx, e.clientY - d.cy) < 8) { // a click: open a highlight that's there
     if (hlMode === "room") { const m = roomAt(pg, d.start); drawOverlay(); if (m) openRoom(pg, m); return; }
-    if (hlMode === "sched") { drawOverlay(); return; }
+    if (hlMode === "sched" || hlMode === "lbl") { drawOverlay(); return; }
     const h = hlAt(pg, d.start); drawOverlay();
     if (h) openHl(pg, h);
+    return;
+  }
+  if (hlMode === "lbl") {
+    const r = { x: Math.min(d.start[0], d.end[0]), y: Math.min(d.start[1], d.end[1]), w: Math.abs(d.end[0] - d.start[0]), h: Math.abs(d.end[1] - d.start[1]) };
+    setHl("lbl"); drawOverlay(); autoName(pg, r);
     return;
   }
   if (hlMode === "sched") {
@@ -3174,6 +3194,59 @@ function pickPages(pdf, fileName, { multi = true, all = false, title } = {}) {
     count(); $("pgModal").hidden = false; grid.scrollTop = 0; (multi ? $("pgOk") : grid.querySelector(".pg-tile")).focus();
   });
 }
+/* Auto-name sheets: one box around the sheet number on one sheet; the same spot on every sheet is read
+   (the PDF's own text, or OCR for scans) and the names are shown to check before they're used. */
+const SHEET_NO = /\b[A-Z]{1,3}[-.]?\d{1,3}(?:\.\d{1,2})?[A-Z]?\b/;
+let lblState = null;
+async function autoName(pg0, r) {
+  if (r.w < 8 || r.h < 8) return toast("That box was too small. Drag a box around the sheet number.");
+  const dims = async p => { if (!p.dims) { const b = await createImageBitmap(p.blob); p.dims = [b.width, b.height]; b.close && b.close(); } return p.dims; };
+  const [W0, H0] = await dims(pg0), fr = { x: r.x / W0, y: r.y / H0, w: r.w / W0, h: r.h / H0 };
+  const rows = [], list = pages.filter(p => !p.example);
+  try {
+    for (let i = 0; i < list.length; i++) {
+      const p = list[i];
+      busy("Reading sheet numbers…", i / list.length, `Sheet ${i + 1} of ${list.length}`);
+      const [W, H] = await dims(p);
+      // a little extra room, since title blocks shift a bit from sheet to sheet
+      const box = { x: Math.max(0, Math.round((fr.x - fr.w * .15) * W)), y: Math.max(0, Math.round((fr.y - fr.h * .15) * H)), w: Math.round(fr.w * 1.3 * W), h: Math.round(fr.h * 1.3 * H) };
+      let words = (p.words || []).filter(w => { const cx = w[1] + w[3] / 2, cy = w[2] + w[4] / 2; return cx >= box.x && cx <= box.x + box.w && cy >= box.y && cy <= box.y + box.h; });
+      let how = "pdf";
+      if (!p.words || !p.words.length) { how = "ocr"; try { words = await ocrWords(p, box, `Reading sheet ${i + 1} of ${list.length} (picture reader)`, true); } catch (e) { words = []; } }
+      words.sort((a, b) => Math.abs(a[2] - b[2]) > Math.min(a[4], b[4]) / 2 ? a[2] - b[2] : a[1] - b[1]);
+      const text = words.map(w => w[0]).join(" ").replace(/\s+/g, " ").trim();
+      // biggest text that looks like a sheet number wins, else everything in the box
+      const nos = words.filter(w => SHEET_NO.test(w[0])).sort((a, b) => b[4] - a[4]);
+      const name = nos.length ? nos[0][0].match(SHEET_NO)[0] : text.slice(0, 40);
+      rows.push({ p, i: pages.indexOf(p), name, use: !!name, why: !name ? "Nothing found there" : !nos.length ? "Doesn't look like a sheet number" : how === "ocr" ? "Read from the picture, check it" : "" });
+    }
+  } finally { busy(null, null); }
+  const seen = {}; rows.forEach(x => { if (x.name) seen[x.name] = (seen[x.name] || 0) + 1; });
+  rows.forEach(x => { if (x.name && seen[x.name] > 1 && !x.why) x.why = "Same name as another sheet"; });
+  lblState = rows; renderLbl(); $("lblModal").hidden = false;
+}
+function renderLbl() {
+  const rows = lblState, bad = rows.filter(x => x.why).length;
+  $("lblHint").textContent = `${rows.length - bad} of ${rows.length} look right. Yellow ones need a look. Fix any name, uncheck any you don't want changed, then click Name sheets. You can add the title after the number, like "E-101 First Floor Lighting".`;
+  $("lblTbl").innerHTML = `<thead><tr><th>Use</th><th>Sheet</th><th>Name now</th><th>New name</th></tr></thead><tbody>` + rows.map((x, k) => `<tr class="${x.why ? "lbl-check" : ""}">
+    <td><input type="checkbox" data-k="${k}" data-f="use"${x.use ? " checked" : ""} aria-label="Use this name" style="width:auto;height:auto"></td>
+    <td class="n">${String(x.i + 1).padStart(3, "0")}</td><td>${esc(x.p.name || "")}</td>
+    <td><input data-k="${k}" data-f="name" value="${esc(x.name)}" aria-label="New name">${x.why ? `<div class="lbl-why">${esc(x.why)}</div>` : ""}</td></tr>`).join("") + "</tbody>";
+  const n = rows.filter(x => x.use && x.name.trim()).length; $("lblOk").textContent = `Name ${n} sheet${n === 1 ? "" : "s"}`;
+}
+$("lblTbl").addEventListener("change", e => {
+  const k = e.target.dataset.k; if (k == null) return; const x = lblState[k];
+  if (e.target.dataset.f === "use") x.use = e.target.checked; else { x.name = e.target.value.trim(); x.use = !!x.name; e.target.closest("tr").querySelector('[data-f="use"]').checked = x.use; }
+  const n = lblState.filter(x => x.use && x.name.trim()).length; $("lblOk").textContent = `Name ${n} sheet${n === 1 ? "" : "s"}`;
+});
+$("lblCancel").onclick = () => { $("lblModal").hidden = true; lblState = null; };
+$("lblModal").addEventListener("keydown", e => { if (e.key === "Escape") $("lblCancel").click(); });
+$("lblOk").onclick = () => {
+  let n = 0;
+  lblState.filter(x => x.use && x.name.trim()).forEach(x => { x.p.name = x.name.trim(); saveMeta(x.p); n++; });
+  $("lblModal").hidden = true; lblState = null; touchJob(); renderAll(true);
+  toast(`${n} sheet${n === 1 ? "" : "s"} named.`);
+};
 let asmKey = null;
 /* Parts lists as a spreadsheet: one row per part (Section, Item, Part, Qty each). Jonathan edits it in Excel and loads it back. */
 let xlsLoad = null;
@@ -4657,7 +4730,7 @@ $("labelForm").addEventListener("submit", e => {
 document.addEventListener("keydown", e => {
   if (!$("ctxMenu").hidden) return;
   const typing = !!e.target.closest("input, select, textarea");
-  if (!$("scaleModal").hidden || !$("roomModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden || !$("wireModal").hidden || !$("sendModal").hidden || !$("ampModal").hidden || !$("takeoffModal").hidden || !$("hlModal").hidden || !$("schedModal").hidden || !$("trkModal").hidden || !$("jfModal").hidden || !$("coModal").hidden || !$("replModal").hidden || !$("pgModal").hidden) return;
+  if (!$("scaleModal").hidden || !$("roomModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden || !$("wireModal").hidden || !$("sendModal").hidden || !$("ampModal").hidden || !$("takeoffModal").hidden || !$("hlModal").hidden || !$("schedModal").hidden || !$("trkModal").hidden || !$("jfModal").hidden || !$("coModal").hidden || !$("replModal").hidden || !$("pgModal").hidden || !$("lblModal").hidden) return;
   if (!typing && (e.ctrlKey || e.metaKey) && !e.altKey) {
     const key = e.key.toLowerCase();
     if (key === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
