@@ -197,6 +197,7 @@ button { cursor: pointer; }
 .tbx .sched-box { border-color: #2f9e44; }
 .tbx .sched-box summary { color: #2b8a3e; }
 .sched-empty { margin: 0 6px 4px; font-size: 12px; }
+.sched-acts { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 6px 2px; }
 .dev { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; text-align: left; padding: 5px 6px; border: 1px solid transparent; border-radius: 5px; background: none; }
 .dev:hover { border-color: var(--line); background: var(--panel); }
 .dev[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
@@ -460,7 +461,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v71</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v72</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -866,6 +867,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <p class="hint" id="schedHint"></p>
     <img id="schedImg" class="sched-src" alt="The schedule you boxed">
     <div class="sched-wrap"><table class="sched-tbl" id="schedTbl"></table></div>
+    <datalist id="cctList"><option>Selectable 3000/3500/4000/5000K</option><option>2700K</option><option>3000K</option><option>3500K</option><option>4000K</option><option>5000K</option></datalist>
     <div class="actions">
       <button class="btn" type="button" id="schedAddRow">+ Add a row</button>
       <span class="spacer"></span>
@@ -1511,14 +1513,18 @@ function renderSchedBox() {
   const list = countsList().filter(c => c.sched), p = pages[current];
   det.innerHTML = `<summary><svg viewBox="-10 -10 20 20" aria-hidden="true"><rect x="-8" y="-7" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M-8 -2H8M-3 -7V7" stroke="currentColor" stroke-width="1.4"/></svg>Fixture schedule<span class="gcount">${list.length ? list.length + " types" : ""}</span></summary>`;
   const wrap = document.createElement("div"); wrap.className = "tbx-items";
-  if (!list.length) wrap.innerHTML = `<p class="hint sched-empty">This job's own fixture types go here. Click <b>Read schedule</b> under Tools and drag a box around the light fixture schedule.</p>`;
+  if (!list.length) wrap.innerHTML = `<p class="hint sched-empty">This job's own fixture types go here. Click <b>Read schedule</b> under Tools and drag a box around the light fixture schedule. On a design build job, click <b>Design build schedule</b> for a ready-made one.</p>`;
+  const acts = document.createElement("div"); acts.className = "sched-acts";
+  acts.innerHTML = `<button class="btn sm" type="button" data-dbos title="Generic fixtures with typical wattages and a color temperature on each">Design build schedule</button>${list.length ? `<button class="btn sm" type="button" data-sedit title="Change wattage, color temperature or anything else">Edit</button>` : ""}`;
+  acts.querySelector("[data-dbos]").onclick = dboSchedule; const ed = acts.querySelector("[data-sedit]"); if (ed) ed.onclick = editSchedule;
+  wrap.appendChild(acts);
   list.forEach(c => {
     const d = devInfo(c.id), b = document.createElement("button"); b.type = "button"; b.className = "dev"; b.dataset.sched = c.id;
     b.setAttribute("aria-pressed", tool === "place" && placeType === c.id);
     b.title = specOf(d) || nameOf(d);
     b.appendChild(swatch(d));
     const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = nameOf(d);
-    const sm = document.createElement("small"); sm.textContent = [d.kindName + (d.em ? " E" : ""), [d.sMaker, d.sModel].filter(Boolean).join(" ")].filter(Boolean).join(" · "); nm.appendChild(sm);
+    const sm = document.createElement("small"); sm.textContent = [d.kindName + (d.em ? " E" : ""), [d.sMaker, d.sModel].filter(Boolean).join(" "), d.sWatts && d.sWatts + (/w$/i.test(d.sWatts) ? "" : "W"), d.cct && (d.cct.startsWith("Selectable") ? "CCT select" : d.cct)].filter(Boolean).join(" · "); nm.appendChild(sm);
     const ct = document.createElement("span"); ct.className = "ct"; ct.textContent = p ? qtyOn(p, c.id) || "" : "";
     b.append(nm, ct);
     b.onclick = () => setTool("place", c.id);
@@ -1573,7 +1579,7 @@ const countsList = () => job ? (job.counts || (job.counts = [])) : exampleCounts
 function devInfo(t) {
   const c = countsList().find(c => c.id === t);
   if (c) { const b = DEVICES[c.base] || Object.values(DEVICES)[0]; return { ...b, id: c.id, base: c.base, color: c.color || b.color, tag: c.tag || "", desc: c.desc || "", custom: true,
-    sMaker: c.maker || "", sModel: c.model || "", sWatts: c.watts || "", sVolts: c.volts || "", sMount: c.mount || "", amps: c.amps || "", label: c.label || "", fanKind: c.fanKind || "", drop: c.drop || null, kindName: c.kindName || "", em: !!c.em, miscQty: c.miscQty, miscUnit: c.miscUnit || "", sup: !!c.sup, sched: !!c.sched }; }
+    sMaker: c.maker || "", sModel: c.model || "", sWatts: c.watts || "", sVolts: c.volts || "", sMount: c.mount || "", cct: c.cct || "", amps: c.amps || "", label: c.label || "", fanKind: c.fanKind || "", drop: c.drop || null, kindName: c.kindName || "", em: !!c.em, miscQty: c.miscQty, miscUnit: c.miscUnit || "", sup: !!c.sup, sched: !!c.sched }; }
   return DEVICES[t];
 }
 const ampsLine = d => [d.amps && `${d.amps}A`, d.sVolts].filter(Boolean).join(" ");
@@ -1589,7 +1595,7 @@ const nameOf = d => !d.custom ? `${d.id} ${d.kind}` : d.tag ? `Type ${d.tag}`
   : d.label ? `${d.kind} ${d.label}` : d.kind;
 // one line for a fixture type: maker and model, then the schedule's description, watts, volts and mounting
 const specOf = d => d.custom
-  ? [[d.sMaker, d.sModel].filter(Boolean).join(" "), d.desc, d.sWatts && `${d.sWatts}${/w$/i.test(d.sWatts) ? "" : " W"}`, d.amps ? (d.tag && ampsLine(d)) : d.sVolts && `${d.sVolts}${/v$/i.test(d.sVolts) ? "" : " V"}`, d.sMount].filter(Boolean).join(" · ")
+  ? [[d.sMaker, d.sModel].filter(Boolean).join(" "), d.desc, d.sWatts && `${d.sWatts}${/w$/i.test(d.sWatts) ? "" : " W"}`, d.cct, d.amps ? (d.tag && ampsLine(d)) : d.sVolts && `${d.sVolts}${/v$/i.test(d.sVolts) ? "" : " V"}`, d.sMount].filter(Boolean).join(" · ")
   : `${d.maker} ${d.model}`;
 
 function renderCounts() {
@@ -1901,33 +1907,62 @@ async function readSchedule(pg, r) {
   }
   const res = parseSchedule(tokens);
   if (!res.rows.length) return toast("No rows found in that box. Try boxing just the schedule table, header row included.");
-  const kinds = CATS.filter(c => c.fam === "lights" && c.key !== "fans").flatMap(c => c.types.map(t => `${c.key}|${t}`));
+  const kinds = schedKinds();
   const field = f => i => res.cols.map((c, k) => c.field === f ? i[k] : "").filter(Boolean).join(" ");
   schedState = { pg, how, kinds, rows: res.rows.map(v => {
     const row = { use: true }; ["label", "maker", "model", "desc", "watts", "volts", "mount"].forEach(f => { row[f] = field(f)(v); });
     row.label = row.label.replace(/^type\s+/i, "").slice(0, 20);
     const g = guessKind(`${row.desc} ${row.model} ${row.maker}`); row.kind = g.kind; row.why = g.why; row.sure = !!g.why;
     row.em = /\b(em|emergency|battery|egress)\b/i.test(`${row.desc} ${row.model}`) && !/^emer\|/.test(row.kind);
+    const k = `${row.desc} ${row.model}`.match(/\b([23456]\d00|6500) ?K\b/i); row.cct = /cct|select|tunable|switchable/i.test(`${row.desc} ${row.model}`) ? CCT_SEL : k ? k[1] + "K" : "";
     if (/^(type|mark|fixture)$/i.test(row.label)) row.use = false;
     return row; }) };
-  $("schedImg").src = await cropOf(pg, { id: "sched", ...r }, 1400);
+  $("schedImg").hidden = false; $("schedImg").src = await cropOf(pg, { id: "sched", ...r }, 1400);
   $("schedHint").textContent = (how === "pdf" ? "Read from the PDF's own text. " : "Read from the picture of the sheet (OCR), so check the spelling. ") + "The toolbox kind sets the parts list and labor hours, so check it on every row. Yellow ones are guesses the reader wasn't sure of. Fix anything that's off, uncheck rows you don't want, then add them.";
   renderSched();
   $("schedModal").hidden = false;
 }
 function renderSched() {
   const st = schedState, kindSel = v => [...new Set(st.kinds.map(k => k.split("|")[0]))].map(ck => `<optgroup label="${esc(catOf(ck).name)}">${st.kinds.filter(k => k.startsWith(ck + "|")).map(k => `<option value="${esc(k)}"${k === v ? " selected" : ""}>${esc(k.split("|")[1])}</option>`).join("")}</optgroup>`).join("");
-  $("schedTbl").innerHTML = `<thead><tr><th>Add</th><th>Type</th><th>Toolbox kind</th><th>EM</th><th>Manufacturer</th><th>Catalog / model</th><th>Description</th><th>Watts</th><th>Volts</th><th>Mounting</th></tr></thead><tbody>` +
+  $("schedTbl").innerHTML = `<thead><tr><th>Add</th><th>Type</th><th>Toolbox kind</th><th>EM</th><th>Manufacturer</th><th>Catalog / model</th><th>Description</th><th>Watts</th><th>Color temp (K)</th><th>Volts</th><th>Mounting</th></tr></thead><tbody>` +
     st.rows.map((r, i) => `<tr class="${r.use ? "" : "off"}"><td><input type="checkbox" data-i="${i}" data-f="use"${r.use ? " checked" : ""} aria-label="Add this row"></td>
       <td class="k"><input type="text" data-i="${i}" data-f="label" value="${esc(r.label)}" aria-label="Type"></td>
       <td><select data-i="${i}" data-f="kind" aria-label="Toolbox kind" class="${r.sure ? "" : "sched-unsure"}" style="min-width:150px">${kindSel(r.kind)}</select><small class="sched-why">${r.sure ? (r.why ? `picked from "${esc(r.why)}"` : "you picked this") : "not sure, please pick"}</small></td>
       <td><input type="checkbox" data-i="${i}" data-f="em"${r.em ? " checked" : ""} aria-label="Emergency battery"></td>
-      ${["maker", "model", "desc", "watts", "volts", "mount"].map(f => `<td><input type="text" data-i="${i}" data-f="${f}" value="${esc(r[f])}" aria-label="${f}"></td>`).join("")}</tr>`).join("") + `</tbody>`;
+      ${["maker", "model", "desc", "watts"].map(f => `<td><input type="text" data-i="${i}" data-f="${f}" value="${esc(r[f] || "")}" aria-label="${f}"></td>`).join("")}
+      <td><input type="text" data-i="${i}" data-f="cct" list="cctList" value="${esc(r.cct || "")}" placeholder="e.g. 4000K" aria-label="Color temperature" style="min-width:215px"></td>
+      ${["volts", "mount"].map(f => `<td><input type="text" data-i="${i}" data-f="${f}" value="${esc(r[f] || "")}" aria-label="${f}"></td>`).join("")}</tr>`).join("") + `</tbody>`;
   $("schedTbl").querySelectorAll("[data-f]").forEach(el => el.onchange = () => { const r = st.rows[el.dataset.i]; r[el.dataset.f] = el.type === "checkbox" ? el.checked : el.value.trim(); if (el.dataset.f === "use") el.closest("tr").className = el.checked ? "" : "off"; if (el.dataset.f === "kind") { r.sure = true; r.why = ""; el.classList.remove("sched-unsure"); el.nextElementSibling.textContent = "you picked this"; } });
   $("schedSave").textContent = `Add ${st.rows.filter(r => r.use && r.label).length} types to my toolbox`;
   $("schedTbl").querySelectorAll('[data-f="use"]').forEach(el => el.addEventListener("change", () => { $("schedSave").textContent = `Add ${st.rows.filter(r => r.use && r.label).length} types to my toolbox`; }));
 }
-$("schedAddRow").onclick = () => { schedState.rows.push({ use: true, label: "", maker: "", model: "", desc: "", watts: "", volts: "", mount: "", kind: "ceil|Surface-mount light", em: false, sure: false }); renderSched(); };
+$("schedAddRow").onclick = () => { schedState.rows.push({ use: true, label: "", maker: "", model: "", desc: "", watts: "", cct: schedState.how === "dbo" ? CCT_SEL : "", volts: "", mount: "", kind: "ceil|Surface-mount light", em: false, sure: false }); renderSched(); };
+/* Design build jobs have no engineer's schedule, so this loads a generic one: typical LED fixtures with
+   usual wattages, and a color temperature on every one (field-selectable by default). Everything stays editable. */
+const CCT_SEL = "Selectable 3000/3500/4000/5000K";
+const DBO_SCHED = [
+  ["A", "ceil|2x4 lay-in", "2x4 LED flat panel", "40", "Lay-in"], ["B", "ceil|2x2 lay-in", "2x2 LED flat panel", "30", "Lay-in"], ["C", "ceil|1x4 lay-in", "1x4 LED flat panel", "30", "Lay-in"],
+  ["D", "ceil|Recessed downlight", '6" LED recessed downlight', "15", "Recessed"], ["E", "ceil|Strip light", "4' LED strip", "32", "Surface"], ["F", "ceil|Wraparound light", "4' LED wraparound", "35", "Surface"],
+  ["G", "ceil|Vapor-tight light", "4' LED vapor tight", "40", "Surface"], ["H", "open|High bay", "LED high bay", "150", "Chain / pendant"], ["J", "open|Linear pendant", "4' LED linear pendant", "40", "Pendant"],
+  ["K", "wall|Vanity light", "LED vanity light", "15", "Wall"], ["L", "ext|Wall pack", "LED wall pack", "40", "Wall"], ["M", "ext|Canopy light", "LED canopy light", "40", "Canopy"],
+  ["N", "ext|Floodlight", "LED floodlight", "75", "Wall / pole"], ["P", "ext|Pole light", "LED area light on pole", "150", "Pole"],
+  ["X", "emer|Exit sign", "LED exit sign, battery backup", "3", "Ceiling / wall"], ["XE", "emer|Exit/emergency combo", "LED exit / emergency combo", "5", "Wall"], ["EM", "emer|Emergency battery light", "LED emergency bug-eye", "3", "Wall"]];
+const schedKinds = () => CATS.filter(c => c.fam === "lights" && c.key !== "fans").flatMap(c => c.types.map(t => `${c.key}|${t}`));
+function openSchedRows(how, rows, hint) {
+  schedState = { pg: null, how, kinds: schedKinds(), rows };
+  $("schedImg").hidden = true; $("schedHint").textContent = hint;
+  renderSched(); $("schedModal").hidden = false;
+}
+function dboSchedule() {
+  const have = countsList().filter(c => c.sched).map(c => (c.label || "").toLowerCase());
+  openSchedRows("dbo", DBO_SCHED.map(([label, kind, desc, watts, mount]) => ({ use: !have.includes(label.toLowerCase()), label, kind, desc, watts, cct: CCT_SEL, volts: "120/277", mount, maker: "", model: "", em: false, sure: true, why: "" })),
+    "Generic fixtures for a design build job, with typical wattages. Change any wattage or color temperature (K), uncheck the ones this job won't use, or add your own with + Add a row. Types already in this job's schedule start unchecked.");
+}
+function editSchedule() {
+  const list = countsList().filter(c => c.sched);
+  openSchedRows("edit", list.map(c => ({ cid: c.id, use: true, label: c.label || "", kind: `${c.base.slice(2)}|${c.kindName}`, em: !!c.em, maker: c.maker || "", model: c.model || "", desc: c.desc || "", watts: c.watts || "", cct: c.cct || "", volts: c.volts || "", mount: c.mount || "", sure: true, why: "" })),
+    "This job's fixture schedule. Change anything, including wattage and color temperature (K), then save. Marks already placed keep their type.");
+}
 $("schedCancel").onclick = () => { $("schedModal").hidden = true; };
 $("schedModal").addEventListener("keydown", e => { if (e.key === "Escape") $("schedModal").hidden = true; });
 $("schedForm").addEventListener("submit", e => {
@@ -1938,13 +1973,15 @@ $("schedForm").addEventListener("submit", e => {
   let made = 0, upd = 0;
   rows.forEach(r => {
     const [cat, kindName] = r.kind.split("|"), base = "C-" + cat;
-    const f = { kindName, label: r.label, em: !!r.em && catEm(catOf(cat), kindName), maker: r.maker, model: r.model, desc: r.desc, watts: r.watts, volts: r.volts, mount: r.mount };
-    const c = list.find(x => x.base === base && (x.label || "").toLowerCase() === r.label.toLowerCase() && x.kindName === kindName);
+    const f = { kindName, label: r.label, em: !!r.em && catEm(catOf(cat), kindName), maker: r.maker, model: r.model, desc: r.desc, watts: r.watts, cct: r.cct || "", volts: r.volts, mount: r.mount };
+    const c = r.cid ? list.find(x => x.id === r.cid) : list.find(x => x.base === base && (x.label || "").toLowerCase() === r.label.toLowerCase() && x.kindName === kindName);
+    if (c && c.base !== base) c.base = base;
     if (c) { Object.assign(c, f, { sched: true }); upd++; }
     else { list.push({ id: uid(), base, tag: "", color: PALETTE[list.length % PALETTE.length], amps: "", sched: true, ...f }); made++; }
   });
   if (job) { job.updated = new Date().toISOString(); saveJob(job); }
   $("schedModal").hidden = true; renderCounts(); drawOverlay();
+  if (schedState.how === "edit") return toast("Fixture schedule saved.");
   toast(`${made} fixture type${made === 1 ? "" : "s"} added${upd ? `, ${upd} updated` : ""}. They're in the Fixture schedule box at the top of the toolbox.`);
 });
 function setHl(m) {
