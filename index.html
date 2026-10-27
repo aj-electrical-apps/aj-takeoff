@@ -290,6 +290,7 @@ button { cursor: pointer; }
 .ts-tabs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .ts-tabs .btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 .ts-tabs .ts-dbo { margin-left: auto; border-style: dashed; }
+.ts-table tr.ts-rooms-h td { background: #1c3d5a; color: #fff; }
 #tsRomex[aria-pressed="true"] { background: #e8590c; border-color: #e8590c; color: #fff; }
 .ts-tabs .ts-dbo[aria-pressed="true"] { background: #2b8a3e; border-color: #2b8a3e; color: #fff; border-style: solid; }
 .ts-all { display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 14px; }
@@ -488,7 +489,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v81</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v82</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -3409,6 +3410,7 @@ function renderTakeoff() {
       <label>Size<select data-f="size">${opt(CSIZES, f.size)}</select></label>` : ""}
       <label>Avg feet per fixture<input type="number" data-f="ft" min="0" max="5000" value="${f.ft}"></label>
       <button class="btn sm" type="button" data-f="done">Done</button></div></td></tr>`; };
+    if (allRooms().length) h += `<tr class="sec ts-rooms-h"><td colspan="4">Typical rooms: one room, then times the rooms (already in the totals below)</td></tr>` + roomBreakRows() + `<tr class="sec ts-rooms-h"><td colspan="4">Whole job totals</td></tr>`;
     bySection(counts).forEach(sec => h += `<tr class="sec"><td colspan="4">${esc(sec.title)}</td></tr>` + sec.rows.map(c => `<tr><td><span class="sw" style="background:${c.color}"></span>${esc(c.name)}${c.what ? `<small>${esc(c.what)}</small>` : ""}<small>${esc(c.by.map(x => `${x[0]}: ${x[1]}`).join(" · "))}</small>${c.feed ? `<button type="button" class="feed-btn no-print" data-id="${esc(c.id)}">Wiring: ${esc(feedText(c.feed))} ✎</button>` : ""}</td><td class="n">${c.qty}</td><td></td><td class="n"><b>${c.qty}${c.unit === "LF" ? " ft" : ""}</b></td></tr>` + (c.feed && feedOpen === c.id ? editor(c) : "")).join(""));
     if (foot.length) h += `<tr class="sec"><td colspan="4">Conduit and wire footage</td></tr>` + foot.map(f => `<tr><td><span class="sw" style="background:${f.color}"></span>${esc(f.label)}<small>${esc(f.sub)}</small></td><td class="n">${fmtLF(f.base)}</td><td class="n"><input type="number" class="ts-pct" min="0" max="100" step="1" data-key="${esc(f.key)}" value="${f.pct || ""}" placeholder="0" aria-label="Extra percent for ${esc(f.label)}"> %</td><td class="n"><b>${f.total.toLocaleString()} LF</b></td></tr>`).join("");
     t.innerHTML = h + redNotesRows(4, "Red notes") + `</tbody>`;
@@ -3451,6 +3453,30 @@ function renderTakeoff() {
     });
   }
 }
+/* Typical rooms on the count sheet: what's marked in one room first, then that times the number of rooms */
+function roomBreak() {
+  const devs = [...countsList().map(c => devInfo(c.id)), ...Object.values(DEVICES).filter(d => pages.some(pg => countOn(pg, d.id)))];
+  return allRooms().map(({ pg, i, m }) => {
+    const n = Math.max(1, Math.round(+m.n) || 1), inM = q => roomAt(pg, q) === m, rows = [];
+    devs.forEach(d => {
+      const per = d.group === "misc" ? Math.max(0, +d.miscQty || 1) : 1;
+      const one = Math.round(pg.devices.filter(v => v.t === d.id && inScope(v) && inM([v.x, v.y])).length * per * 100) / 100;
+      if (one) rows.push({ name: nameOf(d), color: d.color, one, unit: "" });
+    });
+    if (pg.ftPerPx) wiresList().forEach(w => {
+      const px = pg.runs.filter(r => r.typeId === w.id && inScope(r) && r.pts && r.pts.length > 1).reduce((t, r) => {
+        let raw = 0, inside = 0;
+        for (let k = 1; k < r.pts.length; k++) { const a = r.pts[k - 1], b = r.pts[k], l = Math.hypot(b[0] - a[0], b[1] - a[1]); raw += l; if (inM([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2])) inside += l; }
+        return t + (raw ? r.px * inside / raw : 0);
+      }, 0);
+      const one = Math.round(px * pg.ftPerPx);
+      if (one) rows.push({ name: wireLabel(w), color: w.color, one, unit: " ft" });
+    });
+    return { pg, i, m, n, rows };
+  });
+}
+const roomBreakRows = () => roomBreak().map(x => `<tr class="sec"><td colspan="4">${esc(x.m.name || "Typical room")} · ${esc(sheetName(x.pg, x.i))} · original room counts, then × ${x.n} rooms</td></tr>` +
+  (x.rows.length ? x.rows.map(r => `<tr><td><span class="sw" style="background:${r.color}"></span>${esc(r.name)}</td><td class="n">${r.one.toLocaleString()}${r.unit}</td><td class="n">× ${x.n}</td><td class="n"><b>${(Math.round(r.one * x.n * 100) / 100).toLocaleString()}${r.unit}</b></td></tr>`).join("") : `<tr><td colspan="4"><small>Nothing marked inside this room yet.</small></td></tr>`)).join("");
 const roomRows = cols => { const r = allRooms(); return r.length ? `<tr class="sec"><td colspan="${cols}">Typical rooms (counts above include every copy)</td></tr>` + r.map(x => `<tr><td colspan="${cols}"><b>${esc(x.m.name || "Typical room")}</b> × ${x.m.n} · Page ${x.i + 1}, ${esc(sheetName(x.pg, x.i))}</td></tr>`).join("") : ""; };
 // red highlights as table rows (count and supplier sheets), crops filled in after
 function redNotesRows(cols, title) {
