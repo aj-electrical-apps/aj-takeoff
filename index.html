@@ -290,6 +290,7 @@ button { cursor: pointer; }
 .ts-tabs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .ts-tabs .btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 .ts-tabs .ts-dbo { margin-left: auto; border-style: dashed; }
+#tsRomex[aria-pressed="true"] { background: #e8590c; border-color: #e8590c; color: #fff; }
 .ts-tabs .ts-dbo[aria-pressed="true"] { background: #2b8a3e; border-color: #2b8a3e; color: #fff; border-style: solid; }
 .ts-all { display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 14px; }
 .ts-pct { width: 64px; text-align: right; font-family: var(--font-mono); }
@@ -487,7 +488,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v80</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v81</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -913,6 +914,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <button class="btn" type="button" id="tsRateTab" aria-pressed="false">Labor rates</button>
       <button class="btn" type="button" id="tsPropTab" aria-pressed="false">Proposal</button>
       <button class="btn ts-dbo" type="button" id="tsDbo" aria-pressed="false" title="Adds a breaker for every dedicated item, plus one 20A breaker per 5 lights and per 6 receptacles">Design build options</button>
+      <button class="btn" type="button" id="tsRomex" aria-pressed="false" title="Switches every MC feed and every MC cable wire type to Romex (NM-B) of the same size. Conduit and low-voltage feeds stay as they are. Click again to put them back to MC.">All Romex</button>
       <label class="ts-all" id="tsAllBox"><span>Add to all footage</span><input type="number" id="tsAll" class="ts-pct" min="0" max="100" step="1" placeholder="%"><span>%</span><button class="btn sm" type="button" id="tsAllSet">Apply</button></label>
     </div>
     <p class="hint no-print" id="tsHint"></p>
@@ -3364,7 +3366,7 @@ function renderAsm() {
 function renderTakeoff() {
   const t = $("tsTable"), sup = tsView === "sup", notes = tsView === "notes";
   $("tsCountTab").setAttribute("aria-pressed", tsView === "count"); $("tsSupTab").setAttribute("aria-pressed", sup); $("tsNotesTab").setAttribute("aria-pressed", notes); $("tsAsmTab").setAttribute("aria-pressed", tsView === "asm");
-  $("tsBidTab").setAttribute("aria-pressed", tsView === "bid"); $("tsRateTab").setAttribute("aria-pressed", tsView === "rate"); $("tsPropTab").setAttribute("aria-pressed", tsView === "prop"); $("tsDbo").setAttribute("aria-pressed", dboOn());
+  $("tsBidTab").setAttribute("aria-pressed", tsView === "bid"); $("tsRateTab").setAttribute("aria-pressed", tsView === "rate"); $("tsPropTab").setAttribute("aria-pressed", tsView === "prop"); $("tsDbo").setAttribute("aria-pressed", dboOn()); $("tsRomex").setAttribute("aria-pressed", romexOn()); $("tsRomex").textContent = romexOn() ? "Back to MC" : "All Romex"; $("tsRomex").hidden = tsView !== "count";
   if (tsView === "prop") {
     $("tsTitle").textContent = "Proposal"; $("tsAllBox").hidden = true;
     $("tsJob").innerHTML = `<b>${esc(job ? job.name : "Example job")}</b> · ${new Date().toLocaleDateString()}<br>AJ Electrical`;
@@ -3488,6 +3490,27 @@ $("tsAsmTab").onclick = () => { tsView = "asm"; renderTakeoff(); };
 $("tsBidTab").onclick = () => { tsView = "bid"; renderTakeoff(); };
 $("tsRateTab").onclick = () => { tsView = "rate"; renderTakeoff(); };
 $("tsPropTab").onclick = () => { tsView = "prop"; renderTakeoff(); };
+/* All Romex: one click turns every MC feed (and MC cable wire type) into Romex of the same size; job.romexBack remembers what changed so a second click puts it back */
+let exampleRomexBack = null;
+const romexOn = () => !!(job ? job.romexBack : exampleRomexBack);
+$("tsRomex").onclick = () => {
+  const fd = feedOf(), back = job ? job.romexBack : exampleRomexBack;
+  if (back) {
+    Object.entries(back.feeds).forEach(([id, old]) => { if (old) fd[id] = old; else delete fd[id]; });
+    wiresList().forEach(w => { if (back.wires.includes(w.id) && w.conduit === "Romex (NM-B)") w.conduit = "MC cable"; });
+    if (job) delete job.romexBack; else exampleRomexBack = null;
+    if (job) saveJob(job); renderTakeoff();
+    return toast("Put back to MC cable.");
+  }
+  const nb = { feeds: {}, wires: [] };
+  takeoffRows().counts.forEach(c => { if (c.feed && c.feed.method === "mc" && !(c.id in nb.feeds)) { nb.feeds[c.id] = fd[c.id] ? { ...fd[c.id] } : null; fd[c.id] = { ...(fd[c.id] || {}), method: "romex" }; } });
+  wiresList().forEach(w => { if (w.conduit === "MC cable") { nb.wires.push(w.id); w.conduit = "Romex (NM-B)"; } });
+  const n = Object.keys(nb.feeds).length + nb.wires.length;
+  if (!n) return toast("Nothing on MC cable to change.");
+  if (job) { job.romexBack = nb; saveJob(job); } else exampleRomexBack = nb;
+  renderTakeoff();
+  toast(`Changed ${n} item${n === 1 ? "" : "s"} to Romex. Conduit and low-voltage left alone. Click All Romex again to go back.`);
+};
 $("tsDbo").onclick = () => { const on = !dboOn(); if (job) { job.dbo = on; saveJob(job); } else exampleDbo = on; renderTakeoff(); toast(on ? "Design build breakers added to the count, supplier and bid sheets." : "Design build breakers taken off."); };
 $("notesBtn").onclick = () => openTakeoff("notes");
 $("tsAllSet").onclick = () => {
