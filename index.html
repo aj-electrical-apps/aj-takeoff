@@ -176,7 +176,7 @@ button { cursor: pointer; }
 .wire-swatch { width: 22px; height: 0; border-top: 4px solid; border-radius: 2px; flex: none; }
 .ask-em { display: flex; gap: 8px; align-items: center; }
 #ampForm:not(.m-amps) .ask-amps, #ampForm:not(.m-fan) .ask-fan, #ampForm:not(.m-drop) .ask-drop, #ampForm:not(.m-cat) .ask-cat,
-#ampForm:not(.m-misc) .ask-misc, #ampForm:not(.m-em) .ask-em, #ampForm:not(.m-mount) .ask-mount { display: none; }
+#ampForm:not(.m-misc) .ask-misc, #ampForm:not(.m-em) .ask-em, #ampForm:not(.m-mount) .ask-mount, #ampForm:not(.m-light) .ask-light { display: none; }
 #wireForm.ug .wire-only, #wireForm:not(.ug) .ug-only, #wireForm.jh .wire-only, #wireForm.jh .pipe-row, #wireForm:not(.jh) .jh-only { display: none; }
 .amp-box { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 .amp-box .sched { grid-template-columns: 1fr 1.6fr; }
@@ -484,7 +484,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v77</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v78</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -966,6 +966,10 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <h2 id="ampTitle">Water heater</h2>
     <p class="hint" id="ampHint"></p>
     <div class="opt ask-cat"><label for="askType">Type</label><select id="askType"></select></div>
+    <div class="sched two ask-light">
+      <div class="opt"><label for="askWatts">Watts (expected)</label><input type="number" id="askWatts" min="0" step="1" inputmode="numeric"></div>
+      <div class="opt"><label for="askCct">Color temp (K)</label><input type="text" id="askCct" list="cctList"></div>
+    </div>
     <label class="ask-em"><input type="checkbox" id="askEm"> Emergency battery <span class="hint">(counts separately, shown with an E)</span></label>
     <div class="opt ask-mount"><label for="askMount">Mounting height</label><input type="text" id="askMount" list="mountList" placeholder="e.g. 16 ft"></div>
     <div class="opt ask-fan"><label for="askFan">Kind of fan</label><select id="askFan"><option>Wall exhaust fan</option><option>Standard ceiling fan</option><option>Big Ass Fan</option><option>Bathroom exhaust fan</option><option>Louvers</option></select></div>
@@ -1606,11 +1610,12 @@ function renderSchedBox() {
   const list = countsList().filter(c => c.sched), p = pages[current];
   det.innerHTML = `<summary><svg viewBox="-10 -10 20 20" aria-hidden="true"><rect x="-8" y="-7" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M-8 -2H8M-3 -7V7" stroke="currentColor" stroke-width="1.4"/></svg>Fixture schedule<span class="gcount">${list.length ? list.length + " types" : ""}</span></summary>`;
   const wrap = document.createElement("div"); wrap.className = "tbx-items";
-  if (!list.length) wrap.innerHTML = `<p class="hint sched-empty">This job's own fixture types go here. Click <b>Read schedule</b> under Tools and drag a box around the light fixture schedule. On a design build job, click <b>Design build schedule</b> for a ready-made one.</p>`;
+  if (!list.length) wrap.innerHTML = `<p class="hint sched-empty">This job's own fixture types go here. Click <b>Read schedule</b> under Tools and drag a box around the light fixture schedule.</p>`;
   const acts = document.createElement("div"); acts.className = "sched-acts";
-  acts.innerHTML = `<button class="btn sm" type="button" data-dbos title="Generic fixtures with typical wattages and a color temperature on each">Design build schedule</button>${list.length ? `<button class="btn sm" type="button" data-sedit title="Change wattage, color temperature or anything else">Edit</button>` : ""}`;
-  acts.querySelector("[data-dbos]").onclick = dboSchedule; const ed = acts.querySelector("[data-sedit]"); if (ed) ed.onclick = editSchedule;
-  wrap.appendChild(acts);
+  if (list.length) {
+    acts.innerHTML = `<button class="btn sm" type="button" data-sedit title="Change wattage, color temperature or anything else">Edit</button>`;
+    acts.querySelector("[data-sedit]").onclick = editSchedule; wrap.appendChild(acts);
+  }
   list.forEach(c => {
     const d = devInfo(c.id), b = document.createElement("button"); b.type = "button"; b.className = "dev"; b.dataset.sched = c.id;
     b.setAttribute("aria-pressed", tool === "place" && placeType === c.id);
@@ -1681,7 +1686,7 @@ const typeTitled = d => !!(d.custom && !d.tag && d.kindName && d.label && catOf(
 const kindSub = d => [d.kindName, d.em && "Emergency battery", d.amps && ampsLine(d), d.drop && `${d.drop.len}' ${d.drop.size} ${d.drop.conduit}`, d.sMount && `Mount ${d.sMount}`].filter(Boolean).join(" · ");
 const nameOf = d => !d.custom ? `${d.id} ${d.kind}` : d.tag ? `Type ${d.tag}`
   : typeTitled(d) ? `Type ${d.label}`
-  : d.kindName ? `${d.kindName}${d.em ? " E" : ""}${d.label ? " " + d.label : ""}${d.amps ? " " + ampsLine(d) : ""}${d.drop ? ` · ${d.drop.len}' ${d.drop.size} ${d.drop.conduit}` : ""}`
+  : d.kindName ? `${d.kindName}${d.em ? " E" : ""}${d.cct && /^\d+K$/i.test(d.cct) ? " " + d.cct : ""}${d.label ? " " + d.label : ""}${d.amps ? " " + ampsLine(d) : ""}${d.drop ? ` · ${d.drop.len}' ${d.drop.size} ${d.drop.conduit}` : ""}`
   : d.amps ? `${d.kind}${d.label ? " " + d.label : ""} ${ampsLine(d)}`
   : d.fanKind ? `${d.fanKind}${d.label ? " " + d.label : ""}`
   : d.drop ? `Conduit drop${d.label ? " " + d.label : ""} · ${d.drop.len}' ${d.drop.size} ${d.drop.conduit}`
@@ -1799,11 +1804,18 @@ const ASK_TEXT = { amps: "Pick the amps and voltage, then click the sheet to pla
   label: "Add a label if you want one, then click the sheet to place it." };
 let askEditing = null, askDelArmed = false;
 const askDropVal = () => ({ conduit: $("dropConduit").value, size: $("dropSize").value, len: Math.max(1, Math.min(500, parseInt($("dropLen").value, 10) || 10)) });
+/* Lights carry an expected wattage and a color temperature, no brand, so the supplier quotes to spec and can offer VE (Jonathan 2026-10-27) */
+const isLightCat = cat => cat && cat.fam === "lights" && cat.key !== "fans";
+const LIGHT_W = { "2x4 lay-in": 40, "2x2 lay-in": 30, "1x4 lay-in": 30, "Recessed downlight": 15, "Surface-mount light": 20, "Strip light": 32, "Wraparound light": 35, "Vapor-tight light": 40,
+  "High bay": 150, "Linear pendant": 40, "Decorative pendant": 25, "Track light": 12, "Chandelier": 60, "Wall pack": 40, "Floodlight": 75, "Canopy light": 40, "Soffit light": 15, "Pole light": 150, "Bollard": 15, "Gooseneck": 20,
+  "Exit sign": 3, "Wall-mount exit sign": 3, "Emergency battery light": 3, "Bug-eye emergency light": 3, "Exit/emergency combo": 5, "Remote emergency head": 2,
+  "Vanity light": 15, "Wall sconce": 15, "Bed / reading light": 8, "Wall wash": 20, "Linear wall bracket": 25, "Step / stair light": 3, "Night / path light": 3, "Picture light": 8, "Interior wall pack": 25 };
 const askAnswer = () => {
   const m = DEVICES[ampBase].ask, label = $("ampLabel").value.trim();
   if (m === "cat") {
     const cat = catOf(DEVICES[ampBase].cat), t = $("askType").value, a = { kindName: t, label, em: catEm(cat, t) && $("askEm").checked, mount: cat.mount ? $("askMount").value.trim() : "" };
     if (catAmps(cat, t)) Object.assign(a, { amps: $("ampAmps").value, volts: $("ampVolts").value });
+    if (isLightCat(cat)) Object.assign(a, { watts: $("askWatts").value.trim(), cct: $("askCct").value.trim() });
     if (catDrop(cat, t)) a.drop = askDropVal();
     if (cat.misc) Object.assign(a, { miscQty: Math.max(0, +$("miscQty").value || 1), miscUnit: $("miscUnit").value, sup: $("miscSup").checked });
     return a;
@@ -1813,7 +1825,7 @@ const askAnswer = () => {
   if (m === "drop") return { drop: askDropVal(), label };
   return { label };
 };
-const sameAnswer = (c, a) => ["amps", "volts", "fanKind", "kindName", "mount", "miscQty", "miscUnit"].every(k => String(c[k] || "") === String(a[k] || "")) && !!c.em === !!a.em && !!c.sup === !!a.sup && ["label"].every(k => String(c[k] || "") === String(a[k] || "")) && (c.label || "") === a.label && JSON.stringify(c.drop || null) === JSON.stringify(a.drop || null);
+const sameAnswer = (c, a) => ["amps", "volts", "fanKind", "kindName", "mount", "miscQty", "miscUnit", "watts", "cct"].every(k => String(c[k] || "") === String(a[k] || "")) && !!c.em === !!a.em && !!c.sup === !!a.sup && ["label"].every(k => String(c[k] || "") === String(a[k] || "")) && (c.label || "") === a.label && JSON.stringify(c.drop || null) === JSON.stringify(a.drop || null);
 function askRows() {
   const d = DEVICES[ampBase], m = d.ask;
   if (m !== "cat") { $("ampForm").className = "modal-card m-" + m; document.querySelector('label[for="ampLabel"]').textContent = "Label or description"; $("ampLabel").placeholder = "e.g. LP-1, or Shop welder by bay door"; return; }
@@ -1822,6 +1834,7 @@ function askRows() {
   if (catDrop(cat, t)) cls.push("m-drop");
   if (catEm(cat, t)) cls.push("m-em");
   if (cat.mount) cls.push("m-mount");
+  if (isLightCat(cat)) cls.push("m-light");
   if (cat.misc) cls.push("m-misc");
   $("ampForm").className = "modal-card " + cls.join(" ");
   const desc = PRICE_BY_DESC.includes(`${cat.key}|${t}`) || cat.misc;
@@ -1836,6 +1849,10 @@ function askDefaults() { // amps and drop length start from the last count of th
   const key = { Panel: "PNL", "Service entrance": "SVC", Disconnect: "DISC", Welder: "WLD", Range: "RNG", Dryer: "DRY", Washer: "WSH", "Water heater": "WH", "Plasma cutter": "PLS", "Forklift charger": "FLC", "Dedicated drop": "DD", "Lighting contactor": "LC" }[t] || d.id;
   const [a, v] = last.amps ? [last.amps, last.volts] : ASK_DEFAULT[key] || (t === "Meter base" ? [200, "120/240V"] : t === "Transformer" ? [150, "480V 3-phase"] : [20, "120V"]);
   $("ampAmps").value = String(a); $("ampVolts").value = v;
+  if (d.ask === "cat" && isLightCat(catOf(d.cat))) {
+    const src = askEditing && askEditing.kindName === t ? askEditing : last;
+    $("askWatts").value = src.watts || LIGHT_W[t] || 20; $("askCct").value = src.cct || CCT_SEL;
+  }
   if (d.ask === "cat" && catOf(d.cat).misc) {
     const src = askEditing || last;
     $("miscQty").value = src.miscQty != null && src.kindName === t ? src.miscQty : t === "Misc item" ? 1 : 50;
@@ -2212,8 +2229,8 @@ function takeoffRows() {
     if (per !== 1) by.forEach(x => { x[1] = Math.round(x[1] * per * 100) / 100; });
     const qty = by.reduce((t, x) => t + x[1], 0);
     if (!qty) return;
-    const what = d.custom ? [d.kind !== nameOf(d) && !d.fanKind && !d.kindName && !nameOf(d).startsWith(d.kind) ? d.kind : "", [d.sMaker, d.sModel].filter(Boolean).join(" "), d.sched && d.desc, d.sched && d.sWatts && d.sWatts + (/w$/i.test(d.sWatts) ? "" : "W"), d.sched && d.cct, d.sMount && `Mount ${d.sMount}`].filter(Boolean).join(" · ") : `${d.maker} ${d.model}`;
-    counts.push({ id: d.id, label: d.label || "", asm: d.kindName ? `${d.group}|${d.kindName}` : "", em: !!(d.kindName && d.em), feed: feedable(d) ? feedFor(d) : null, name: nameOf(d), what: typeTitled(d) ? [kindSub(d), [d.sMaker, d.sModel].filter(Boolean).join(" "), d.sched && d.desc, d.sched && d.sWatts && d.sWatts + (/w$/i.test(d.sWatts) ? "" : "W"), d.sched && d.cct].filter(Boolean).join(" · ") : d.kindName && d.em ? ["With emergency battery", what].filter(Boolean).join(" · ") : what, qty, by, color: d.color, group: d.group, ...(d.group === "misc" ? { misc: true, unit: d.miscUnit || "ea", sup: !!d.sup } : {}) });
+    const what = d.custom ? [d.kind !== nameOf(d) && !d.fanKind && !d.kindName && !nameOf(d).startsWith(d.kind) ? d.kind : "", [d.sMaker, d.sModel].filter(Boolean).join(" "), d.sched && d.desc, (d.sched || d.cct) && d.sWatts && d.sWatts + (/w$/i.test(d.sWatts) ? "" : "W"), d.cct, d.cct && !d.sMaker && "LED, any brand", d.sMount && `Mount ${d.sMount}`].filter(Boolean).join(" · ") : `${d.maker} ${d.model}`;
+    counts.push({ id: d.id, label: d.label || "", asm: d.kindName ? `${d.group}|${d.kindName}` : "", em: !!(d.kindName && d.em), feed: feedable(d) ? feedFor(d) : null, name: nameOf(d), what: typeTitled(d) ? [kindSub(d), [d.sMaker, d.sModel].filter(Boolean).join(" "), d.sched && d.desc, d.sWatts && d.sWatts + (/w$/i.test(d.sWatts) ? "" : "W"), d.cct, d.cct && !d.sMaker && "LED, any brand"].filter(Boolean).join(" · ") : d.kindName && d.em ? ["With emergency battery", what].filter(Boolean).join(" · ") : what, qty, by, color: d.color, group: d.group, ...(d.group === "misc" ? { misc: true, unit: d.miscUnit || "ea", sup: !!d.sup } : {}) });
   });
   const lfOf = id => pages.reduce((t, pg) => t + (pg.ftPerPx ? pg.runs.filter(r => (r.typeId || null) === id && inScope(r)).reduce((a, r) => a + runPx(pg, r) * pg.ftPerPx, 0) : 0), 0);
   const ex = extraOf();
