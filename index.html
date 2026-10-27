@@ -141,6 +141,10 @@ button { cursor: pointer; }
 .cmp-help { flex-basis: 100%; }
 .cmpbar .btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
 .file-acts { display: grid; gap: 8px; }
+.job-find { width: 100%; height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 15px; color: var(--fg); }
+.file-find { display: grid; gap: 8px; }
+.file-recent-h { display: flex; align-items: center; justify-content: space-between; }
+.file-find .job-list { max-height: 30vh; }
 .file-acts .btn { height: auto; min-height: 0; line-height: 1.3; display: grid; justify-items: start; text-align: left; gap: 2px; padding: 10px 14px; font-size: 15px; font-weight: 600; }
 .file-acts a.btn { text-decoration: none; color: var(--ink); cursor: pointer; }
 .file-acts a.btn.primary { color: var(--accent-fg); }
@@ -461,7 +465,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v73</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v74</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -718,7 +722,12 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 <div class="modal" id="fileModal" hidden role="dialog" aria-modal="true" aria-labelledby="fileTitle">
   <div class="modal-card">
     <h2 id="fileTitle">Save, open or send a job</h2>
-    <p class="hint" id="fileIntro">A job file holds every sheet, count, run and scale in one file that ends in .ajtakeoff. Keep it anywhere, like your Google Drive, and open it in this app on any computer, tablet or phone.</p>
+    <p class="hint" id="fileIntro"></p>
+    <div class="file-find" id="fileFindBox">
+      <input type="search" class="job-find" id="fileFind" placeholder="Search jobs by name, GC or address" aria-label="Search jobs">
+      <div class="file-recent-h"><b id="fileRecentHead">Recent jobs</b><button class="btn sm" type="button" id="fileAllJobs">All jobs</button></div>
+      <ul class="job-list" id="fileJobs"></ul>
+    </div>
     <div class="file-acts">
       <button class="btn primary" type="button" id="fileSave">Save job to Google Drive…<small>Pick Google Drive in the Save window</small></button>
       <button class="btn" type="button" id="fileOpen">Open a job file…<small>From Google Drive, Downloads or an email</small></button>
@@ -741,6 +750,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
   <div class="modal-card">
     <h2 id="jobsTitle">Jobs</h2>
     <p class="hint" id="jobsWhere">Jobs save to the AJ Takeoff Jobs folder in your Google Drive, so you can open them on any device.</p>
+    <input type="search" class="job-find" id="jobsFind" placeholder="Search jobs by name, GC or address" aria-label="Search jobs">
     <ul class="job-list" id="jobList"></ul>
     <p class="empty" id="jobsEmpty">No jobs yet. Start one below, then upload its plans.</p>
     <p class="sub-h" id="driveJobsHead" hidden>Only in your Google Drive</p>
@@ -4973,11 +4983,11 @@ function showFiles(sent) {
   $("fileTitle").textContent = sent ? "Someone sent you a job" : "Save, open or send a job";
   $("fileIntro").textContent = sent
     ? "Download the .ajtakeoff file attached to the email, then tap Open a job file and pick it. Its drawings, counts and runs open right here."
-    : "A job file holds every sheet, count, run and scale in one file that ends in .ajtakeoff. Keep it anywhere, like your Google Drive, and open it in this app on any computer, tablet or phone.";
+    : "Click a job to open it, or save, open or send the one you're in.";
   const none = !job || !pages.some(p => !p.example);
   $("fileSave").disabled = $("fileEmail").disabled = none;
-  $("fileModal").hidden = false; showFolder();
-  (sent || none ? $("fileOpen") : $("fileSave")).focus();
+  $("fileModal").hidden = false; showFolder(); showRecent();
+  (sent ? $("fileOpen") : $("fileFind")).focus();
 }
 $("fileBtn").onclick = () => showFiles(false);
 $("fileClose").onclick = () => { $("fileModal").hidden = true; };
@@ -5091,26 +5101,49 @@ async function sheetCounts() {
   return c;
 }
 let editingJob = null; // the job the form edits, or null for a new job
-async function showJobs(mode) {
-  try { jobs = await getAll("jobs"); } catch (e) { jobs = []; }
-  jobs.sort((a, b) => (b.updated || "").localeCompare(a.updated || ""));
-  const counts = await sheetCounts();
-  const list = $("jobList"); list.replaceChildren();
-  jobs.forEach(j => {
+/* Job lists: the Jobs window and the Recent jobs part of Save / Open. Newest first; search looks at name, GC, address and bid date. */
+let jobCounts = {};
+const jobMatch = (j, q) => !q || q.toLowerCase().split(/\s+/).filter(Boolean).every(w => [j.name, j.customer, j.address, j.bidDate].join(" ").toLowerCase().includes(w));
+function jobRowsInto(list, arr, modalId) {
+  list.replaceChildren();
+  arr.forEach(j => {
     const li = document.createElement("li");
     const b = document.createElement("button"); b.type = "button"; b.className = "job-row";
     b.setAttribute("aria-current", job && job.id === j.id ? "true" : "false");
     b.innerHTML = `<span><span class="jt"></span><br><span class="jm"></span></span><span class="js"></span>`;
     b.querySelector(".jt").textContent = j.name;
-    b.querySelector(".jm").textContent = [j.customer, j.created && "Started " + stampDate(j.created), j.bidDate && "Bid " + j.bidDate].filter(Boolean).join(" · ") || "No details yet";
-    b.querySelector(".js").textContent = `${counts[j.id] || 0} sheets`;
+    b.querySelector(".jm").textContent = [j.customer, j.created && "Started " + stampDate(j.created), j.bidDate && "Bid " + j.bidDate, j.updated && "Last worked " + stampDate(j.updated)].filter(Boolean).join(" · ") || "No details yet";
+    b.querySelector(".js").textContent = `${jobCounts[j.id] || 0} sheets`;
     b.onclick = async () => {
-      $("jobsModal").hidden = true;
+      $(modalId).hidden = true;
+      if (job && job.id === j.id) return;
       const f = driveIndex[j.id];
       if (f && j.driveJsonId && f.fileId !== j.driveJsonId) await pullJob(f); else await openJob(j);
     };
     li.appendChild(b); list.appendChild(li);
   });
+}
+$("jobsFind").oninput = () => { const q = $("jobsFind").value.trim(), hit = jobs.filter(j => jobMatch(j, q)); jobRowsInto($("jobList"), hit, "jobsModal"); $("jobsEmpty").hidden = !!hit.length; $("jobsEmpty").textContent = q ? "No jobs match that." : "No jobs yet. Start one below, then upload its plans."; };
+async function showRecent() {
+  try { jobs = (await getAll("jobs")).sort((a, b) => (b.updated || "").localeCompare(a.updated || "")); } catch (e) {}
+  jobCounts = await sheetCounts();
+  $("fileFind").value = ""; drawRecent();
+}
+function drawRecent() {
+  const q = $("fileFind").value.trim(), hit = jobs.filter(j => jobMatch(j, q)).slice(0, q ? 30 : 5);
+  $("fileFindBox").hidden = !jobs.length;
+  $("fileRecentHead").textContent = q ? `${hit.length ? hit.length : "No"} job${hit.length === 1 ? "" : "s"} found` : "Recent jobs";
+  jobRowsInto($("fileJobs"), hit, "fileModal");
+}
+$("fileFind").oninput = drawRecent;
+$("fileAllJobs").onclick = () => { $("fileModal").hidden = true; showJobs(); };
+async function showJobs(mode) {
+  try { jobs = await getAll("jobs"); } catch (e) { jobs = []; }
+  jobs.sort((a, b) => (b.updated || "").localeCompare(a.updated || ""));
+  const counts = await sheetCounts();
+  const list = $("jobList");
+  jobCounts = counts; $("jobsFind").value = ""; $("jobsFind").hidden = jobs.length < 6;
+  jobRowsInto(list, jobs, "jobsModal");
   $("jobsEmpty").hidden = jobs.length > 0;
   editingJob = mode === "new" || !job ? null : job;
   fillJobForm();
