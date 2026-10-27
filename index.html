@@ -391,6 +391,20 @@ td .bid-ln[data-q], td .bid-ln[data-s] { width: calc(100% - 80px); }
 .or::before, .or::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
 .check { display: flex; gap: 8px; align-items: center; font-size: 14px; }
 .actions { display: flex; justify-content: flex-end; gap: 8px; }
+.modal-card.trk-card { width: min(1180px, 100%); }
+.trk-card .actions { flex-wrap: wrap; }
+.trk-stats { display: flex; flex-wrap: wrap; gap: 8px; }
+.trk-stats span { padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 14px; }
+.trk-stats b { font-family: var(--font-mono); }
+.trk-wrap { overflow-x: auto; max-height: 55vh; overflow-y: auto; }
+.trk-tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
+.trk-tbl th { position: sticky; top: 0; background: var(--panel); text-align: left; font-weight: 600; padding: 6px 4px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.trk-tbl td { padding: 3px 4px; border-bottom: 1px solid var(--line); }
+.trk-tbl input, .trk-tbl select { width: 100%; height: 32px; padding: 0 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); color: var(--fg); font-size: 14px; }
+.trk-tbl input[type="number"] { width: 110px; text-align: right; font-family: var(--font-mono); }
+.trk-tbl .trk-date { width: 140px; } .trk-tbl .trk-place { width: 80px; } .trk-tbl .trk-res { width: 100px; }
+.trk-tbl tr.won td:first-child { box-shadow: inset 4px 0 #2f9e44; } .trk-tbl tr.lost td:first-child { box-shadow: inset 4px 0 #c92a2a; }
+.trk-off { font-family: var(--font-mono); white-space: nowrap; color: var(--muted, #888); }
 .zoom-tag { position: absolute; top: 12px; right: 12px; font-family: var(--font-mono); font-size: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 3px 8px; }
 .example-tag { position: absolute; top: 12px; left: 12px; font-size: 12px; background: var(--warn-soft); color: var(--warn); border-radius: 4px; padding: 3px 8px; font-weight: 600; }
 
@@ -446,7 +460,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v68</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v69</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -464,6 +478,11 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <button class="btn" id="takeoffBtn" type="button" title="Count sheet with extra % on footage, and the material list for your supplier">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3.5 1.5h9v13h-9z"/><path d="M6 5h4.5M6 8h4.5M6 11h3"/></svg>
       Count sheet
+    </button>
+
+    <button class="btn" id="trkBtn" type="button" title="Every job we bid, where we placed, and won or lost">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 14h12M4 14V9M7.5 14V5M11 14V2"/></svg>
+      Bid tracker
     </button>
 
     <div class="group">
@@ -741,6 +760,25 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
         <button class="btn primary" type="submit" id="jobSave">Start job</button>
       </div>
     </form>
+  </div>
+</div>
+
+<div class="modal" id="trkModal" hidden role="dialog" aria-modal="true" aria-labelledby="trkTitle">
+  <div class="modal-card trk-card">
+    <h2 id="trkTitle">Bid tracker</h2>
+    <p class="hint" id="trkWhere"></p>
+    <div class="trk-stats" id="trkStats"></div>
+    <div class="trk-wrap"><table class="trk-tbl" id="trkTbl"></table></div>
+    <p class="empty" id="trkEmpty">No bids yet. Click Add this job, or make a proposal and the job adds itself.</p>
+    <div class="actions">
+      <button class="btn" type="button" id="trkBackup" title="Save the whole list as a spreadsheet, to keep in Google Drive">Download backup</button>
+      <button class="btn" type="button" id="trkRestore" title="Bring bids back from a backup spreadsheet">Load backup…</button>
+      <input type="file" id="trkFile" accept=".xlsx,.xls,.csv" hidden>
+      <span style="flex:1"></span>
+      <button class="btn" type="button" id="trkBlank">Add a blank row</button>
+      <button class="btn primary" type="button" id="trkAddJob">Add this job</button>
+      <button class="btn" type="button" id="trkClose">Close</button>
+    </div>
   </div>
 </div>
 
@@ -2602,6 +2640,7 @@ async function saveProposal() {
   busy("Making the proposal…", 0.2);
   try { file = await makeProposal(); } catch (e) { busy(null, null); return toast("Couldn't make the proposal. Check your internet and try again."); }
   busy(null, null);
+  trkAddJob(true);
   if (await mcpReady) {
     try {
       busy("Saving the proposal to Google Drive…", .5, file.name);
@@ -2620,6 +2659,148 @@ async function saveProposal() {
   }
   downloadFile(file); savedTo(`Saved ${file.name} to your Downloads folder.`);
 }
+/* Bid tracker: every job we bid, where we placed, won or lost. The list lives online (api/bids, in Vercel Blob)
+   so every computer and phone sees the same one. This browser keeps a copy, and holds changes it couldn't send yet. */
+const TRK_LS = "aj-bids", TRK_PEND = "aj-bids-pend";
+let trkRows = [], trkOnline = false;
+const trkGet = k => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } };
+const trkSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+async function trkApi(body) {
+  const r = await fetch("/api/bids", body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : { cache: "no-store" });
+  if (!r.ok) throw new Error("bids " + r.status);
+  const d = await r.json(); if (!d || !Array.isArray(d.rows)) throw new Error("bids");
+  return d.rows;
+}
+// apply changes here, then send them; anything that doesn't reach the server waits in TRK_PEND for next time
+async function trkSend(upsert = [], remove = []) {
+  const by = new Map(trkRows.map(r => [r.id, r]));
+  upsert.forEach(r => by.set(r.id, { ...by.get(r.id), ...r })); remove.forEach(id => by.delete(id));
+  trkRows = [...by.values()]; trkSet(TRK_LS, trkRows);
+  const pend = trkGet(TRK_PEND) || { upsert: {}, remove: [] };
+  upsert.forEach(r => { pend.upsert[r.id] = { ...pend.upsert[r.id], ...r }; pend.remove = pend.remove.filter(x => x !== r.id); });
+  remove.forEach(id => { delete pend.upsert[id]; if (!pend.remove.includes(id)) pend.remove.push(id); });
+  trkSet(TRK_PEND, pend);
+  await trkFlush();
+}
+let trkBusy = null;
+function trkFlush() {
+  if (trkBusy) return trkBusy.then(() => trkFlush());
+  return trkBusy = (async () => {
+    const pend = trkGet(TRK_PEND);
+    try {
+      if (pend && (Object.keys(pend.upsert).length || pend.remove.length)) { trkRows = await trkApi({ upsert: Object.values(pend.upsert), remove: pend.remove }); trkSet(TRK_PEND, null); }
+      else trkRows = await trkApi();
+      trkOnline = true; trkSet(TRK_LS, trkRows);
+    } catch (e) { trkOnline = false; if (!trkRows.length) trkRows = trkGet(TRK_LS) || []; }
+  })().finally(() => { trkBusy = null; });
+}
+const trkToday = () => { const d = new Date(); return new Date(d - d.getTimezoneOffset() * 6e4).toISOString().slice(0, 10); };
+const trkResult = r => r.result || (+r.place === 1 ? "won" : +r.place > 1 ? "lost" : "");
+// our price against the winning price, as a percent: + means we were high
+const trkOff = r => +r.ours && +r.win ? (r.ours - r.win) / r.win * 100 : null;
+// adds the open job, or updates its price, name, GC and bid date; results stay as they were
+async function trkAddJob(quiet) {
+  if (!job) return quiet || toast("Open a job first.");
+  let ours = 0; try { ours = Math.round(propTotals().total) || 0; } catch (e) {}
+  const had = trkRows.find(r => r.jobId === job.id);
+  const row = { ...(had || { id: uid(), jobId: job.id, place: "", result: "", win: "", notes: "", date: job.bidDate || trkToday() }), job: job.name, gc: job.customer || (had && had.gc) || "", at: new Date().toISOString() };
+  if (job.bidDate) row.date = job.bidDate;
+  if (ours) row.ours = ours;
+  await trkSend([row]);
+  if (!$("trkModal").hidden) renderTrk();
+  if (!quiet) toast(had ? `Updated ${job.name} in the Bid tracker.` : `Added ${job.name} to the Bid tracker.`);
+}
+function trkStatsDraw() {
+  $("trkWhere").textContent = trkOnline ? "Saved online, so every computer and phone with the app sees this same list. Download a backup once a week and keep it in Google Drive."
+    : "Can't reach the online list right now, so this shows the copy on this computer. Changes you make here go online the next time the app can reach it.";
+  const rows = trkRows;
+  const won = rows.filter(r => trkResult(r) === "won"), lost = rows.filter(r => trkResult(r) === "lost"), dec = won.length + lost.length;
+  const offs = lost.map(trkOff).filter(v => v != null), avg = offs.length ? offs.reduce((a, b) => a + b, 0) / offs.length : null;
+  const placed = rows.filter(r => +r.place), avgPl = placed.length ? placed.reduce((a, r) => a + +r.place, 0) / placed.length : null;
+  $("trkStats").innerHTML = `<span>Bids <b>${rows.length}</b></span><span>Won <b>${won.length}</b> of <b>${dec}</b> with results${dec ? ` · <b>${Math.round(won.length / dec * 100)}%</b>` : ""}</span>`
+    + (avg != null ? `<span>When we lost, we were <b>${Math.abs(avg).toFixed(1)}% ${avg >= 0 ? "high" : "low"}</b> on average</span>` : "")
+    + (avgPl != null ? `<span>Average place <b>${avgPl.toFixed(1)}</b></span>` : "")
+    + `<span>Won total <b>${fmt$(won.reduce((a, r) => a + (+r.ours || 0), 0))}</b></span>`;
+}
+const trkOffTxt = off => off == null ? "" : (off > 0 ? "+" : "") + off.toFixed(1) + "%";
+function renderTrk() {
+  trkStatsDraw();
+  const rows = trkRows.slice().sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  $("trkEmpty").hidden = !!rows.length;
+  const opt = (v, list) => list.map(([k, t]) => `<option value="${k}"${String(v) === k ? " selected" : ""}>${t}</option>`).join("");
+  const places = [["", "–"]].concat([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => [String(n), n + (n === 1 ? "st" : n === 2 ? "nd" : n === 3 ? "rd" : "th")]));
+  $("trkTbl").innerHTML = rows.length ? `<thead><tr><th>Bid date</th><th>Job</th><th>GC / customer</th><th>Our price</th><th>Winning price</th><th>Off by</th><th>Place</th><th>Result</th><th>Notes</th><th></th></tr></thead><tbody>`
+    + rows.map(r => `<tr data-id="${esc(r.id)}" class="${trkResult(r)}">
+      <td><input type="date" class="trk-date" data-f="date" value="${esc(r.date || "")}" aria-label="Bid date"></td>
+      <td><input data-f="job" value="${esc(r.job || "")}" placeholder="Job name" aria-label="Job"></td>
+      <td><input data-f="gc" value="${esc(r.gc || "")}" placeholder="GC" aria-label="GC or customer"></td>
+      <td><input type="number" min="0" step="1" data-f="ours" value="${+r.ours || ""}" placeholder="0" aria-label="Our price"></td>
+      <td><input type="number" min="0" step="1" data-f="win" value="${+r.win || ""}" placeholder="0" aria-label="Winning price"></td>
+      <td class="trk-off">${trkOffTxt(trkOff(r))}</td>
+      <td><select class="trk-place" data-f="place" aria-label="Where we placed">${opt(r.place || "", places)}</select></td>
+      <td><select class="trk-res" data-f="result" aria-label="Result">${opt(r.result || "", [["", "Waiting"], ["won", "Won"], ["lost", "Lost"], ["nobid", "Not awarded"]])}</select></td>
+      <td><input data-f="notes" value="${esc(r.notes || "")}" placeholder="Notes" aria-label="Notes"></td>
+      <td><button class="btn icon sm" type="button" data-del title="Remove this bid" aria-label="Remove this bid">✕</button></td></tr>`).join("") + "</tbody>" : "";
+}
+// a typed change updates just its row and the totals, so the box being tabbed into keeps focus
+$("trkTbl").addEventListener("change", e => {
+  const tr = e.target.closest("tr[data-id]"), f = e.target.dataset.f; if (!tr || !f) return;
+  const r = trkRows.find(x => x.id === tr.dataset.id); if (!r) return;
+  const v = e.target.type === "number" ? (e.target.value === "" ? "" : Math.round(+e.target.value)) : e.target.value;
+  const up = { ...r, [f]: v, at: new Date().toISOString() };
+  // picking a place fills in won or lost when nothing was picked yet
+  if (f === "place" && !r.result && v) { up.result = +v === 1 ? "won" : "lost"; tr.querySelector('[data-f="result"]').value = up.result; }
+  tr.className = trkResult(up); tr.querySelector(".trk-off").textContent = trkOffTxt(trkOff(up));
+  trkSend([up]).then(trkStatsDraw); trkStatsDraw();
+});
+$("trkTbl").addEventListener("click", e => {
+  const b = e.target.closest("[data-del]"); if (!b) return;
+  const r = trkRows.find(x => x.id === b.closest("tr").dataset.id); if (!r) return;
+  if (!confirm(`Remove ${r.job || "this bid"} from the Bid tracker? Everyone will stop seeing it.`)) return;
+  trkSend([], [r.id]).then(renderTrk);
+});
+async function openTrk() {
+  $("trkModal").hidden = false; $("trkWhere").textContent = "Loading the list…";
+  trkRows = trkRows.length ? trkRows : (trkGet(TRK_LS) || []); renderTrk();
+  await trkFlush(); renderTrk();
+}
+$("trkBtn").onclick = openTrk;
+$("trkClose").onclick = () => { $("trkModal").hidden = true; };
+$("trkModal").addEventListener("keydown", e => { if (e.key === "Escape") $("trkModal").hidden = true; });
+$("trkAddJob").onclick = () => trkAddJob(false);
+$("trkBlank").onclick = () => trkSend([{ id: uid(), date: trkToday(), job: "", gc: "", ours: "", win: "", place: "", result: "", notes: "", at: new Date().toISOString() }]).then(renderTrk);
+const TRK_COLS = [["date", "Bid date"], ["job", "Job"], ["gc", "GC / customer"], ["ours", "Our price"], ["win", "Winning price"], ["place", "Place"], ["result", "Result"], ["notes", "Notes"], ["id", "ID (leave as is)"], ["jobId", "Job ID (leave as is)"]];
+const TRK_RES = { won: "Won", lost: "Lost", nobid: "Not awarded", "": "Waiting" };
+$("trkBackup").onclick = async () => {
+  let EJ; try { EJ = await loadExcelJs(); } catch (e) { return toast("Couldn't load the spreadsheet tool. Check your internet and try again."); }
+  const wb = new EJ.Workbook(), ws = wb.addWorksheet("Bids", { views: [{ state: "frozen", ySplit: 1 }] });
+  ws.columns = TRK_COLS.map(([k, h]) => ({ header: h, key: k, width: { job: 34, notes: 34, gc: 24, date: 12, place: 8, result: 13, ours: 15, win: 15 }[k] || 38 }));
+  ws.getRow(1).eachCell(c => { c.font = { bold: true, color: { argb: "FFFFFFFF" } }; c.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1F4E78" } }; });
+  trkRows.slice().sort((a, b) => String(b.date || "").localeCompare(String(a.date || ""))).forEach(r => ws.addRow({ ...r, ours: +r.ours || null, win: +r.win || null, place: +r.place || null, result: TRK_RES[trkResult(r)] || "Waiting" }));
+  ["ours", "win"].forEach(k => { ws.getColumn(k).numFmt = '"$"#,##0'; });
+  const buf = await wb.xlsx.writeBuffer();
+  downloadFile(new File([buf], `AJ bid tracker ${trkToday()}.xlsx`, { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+  toast("Backup saved to your Downloads folder. Drag it into your Google Drive to keep it safe.");
+};
+$("trkRestore").onclick = () => $("trkFile").click();
+$("trkFile").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  let X; try { X = await loadXlsx(); } catch (er) { return toast("Couldn't load the spreadsheet tool. Check your internet and try again."); }
+  let list;
+  try { const wb = X.read(await f.arrayBuffer(), { cellDates: true }); list = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" }); }
+  catch (er) { return toast("Couldn't read that file. Pick a Bid tracker backup spreadsheet."); }
+  const back = Object.fromEntries(Object.entries(TRK_RES).map(([k, v]) => [v.toLowerCase(), k]));
+  const num = v => { const n = +String(v).replace(/[$,\s]/g, ""); return n ? Math.round(n) : ""; };
+  const day = v => v instanceof Date ? v.toISOString().slice(0, 10) : String(v || "").slice(0, 10);
+  const rows = list.map(o => { const g = h => o[TRK_COLS.find(c => c[0] === h)[1]]; return {
+    id: String(g("id") || "").trim() || uid(), jobId: String(g("jobId") || "").trim(), date: day(g("date")), job: String(g("job") || ""), gc: String(g("gc") || ""),
+    ours: num(g("ours")), win: num(g("win")), place: num(g("place")) ? String(num(g("place"))) : "", result: back[String(g("result") || "").trim().toLowerCase()] || "", notes: String(g("notes") || ""), at: new Date().toISOString() }; })
+    .filter(r => r.job || r.gc || r.ours);
+  if (!rows.length) return toast("That file has no bids in it. Pick a Bid tracker backup spreadsheet.");
+  if (!confirm(`Bring back ${rows.length} bid${rows.length > 1 ? "s" : ""} from ${f.name}? Bids already in the list are updated to match the backup. Nothing else is removed.`)) return;
+  await trkSend(rows); renderTrk();
+  toast(trkOnline ? `Brought back ${rows.length} bids. Everyone sees them now.` : `Brought back ${rows.length} bids on this computer. They go online the next time the app can reach it.`);
+};
 let asmKey = null;
 /* Parts lists as a spreadsheet: one row per part (Section, Item, Part, Qty each). Jonathan edits it in Excel and loads it back. */
 let xlsLoad = null;
@@ -4100,7 +4281,7 @@ $("labelForm").addEventListener("submit", e => {
 document.addEventListener("keydown", e => {
   if (!$("ctxMenu").hidden) return;
   const typing = !!e.target.closest("input, select, textarea");
-  if (!$("scaleModal").hidden || !$("roomModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden || !$("wireModal").hidden || !$("sendModal").hidden || !$("ampModal").hidden || !$("takeoffModal").hidden || !$("hlModal").hidden || !$("schedModal").hidden) return;
+  if (!$("scaleModal").hidden || !$("roomModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden || !$("wireModal").hidden || !$("sendModal").hidden || !$("ampModal").hidden || !$("takeoffModal").hidden || !$("hlModal").hidden || !$("schedModal").hidden || !$("trkModal").hidden) return;
   if (!typing && (e.ctrlKey || e.metaKey) && !e.altKey) {
     const key = e.key.toLowerCase();
     if (key === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
