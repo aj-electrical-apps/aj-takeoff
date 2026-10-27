@@ -489,7 +489,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v83</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v84</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -2503,10 +2503,13 @@ function renderBid() {
   h += `<tr class="bid-tot"><td>Total man hours</td><td></td><td></td><td class="n"><b>${fmtH(tot.hrs)}</b></td><td></td></tr>
     <tr class="bid-tot"><td>Labor at <span class="no-print"><input type="number" id="bidRate" min="0" step="1" value="${tot.rate}" aria-label="Dollars per man hour"></span><span class="print-only">$${tot.rate}</span> per man hour</td><td></td><td></td><td></td><td class="n"><b>${fmt$(tot.labor)}</b></td></tr>
     ${tot.other ? `<tr class="bid-tot"><td>Other $ (from other lines)</td><td></td><td></td><td></td><td class="n"><b>${fmt$(tot.other)}</b></td></tr>` : ""}
-    <tr class="bid-tot grand"><td>Labor bid total</td><td></td><td></td><td></td><td class="n"><b>${fmt$(tot.total)}</b></td></tr></tbody>`;
+    <tr class="bid-tot grand"><td>Labor bid total</td><td></td><td></td><td></td><td class="n"><b>${fmt$(tot.total)}</b></td></tr>
+    <tr class="bid-tot"><td>Labor markup <span class="no-print"><input type="number" id="bidMk" class="ts-pct" min="0" max="200" step="0.5" value="${+propOf().mk.labor || ""}" placeholder="0" aria-label="Labor markup percent"></span><span class="print-only">${+propOf().mk.labor || 0}</span> % <small class="no-print">Same box as Labor markup on the Proposal tab</small></td><td></td><td></td><td></td><td class="n">${fmt$(tot.total * (+propOf().mk.labor || 0) / 100)}</td></tr>
+    <tr class="bid-tot grand"><td>Labor with markup</td><td></td><td></td><td></td><td class="n"><b>${fmt$(tot.total * (1 + (+propOf().mk.labor || 0) / 100))}</b></td></tr></tbody>`;
   t.innerHTML = h;
   const save = () => { if (job) saveJob(job); renderTakeoff(); };
   $("bidRate").onchange = e => { b.rate = Math.max(0, +e.target.value || 0); save(); };
+  $("bidMk").onchange = e => { propOf().mk.labor = Math.max(0, +e.target.value || 0); save(); };
   t.querySelectorAll("input.bid-h[data-k]").forEach(inp => inp.onchange = () => { const v = inp.value.trim(); if (v === "") delete b.over[inp.dataset.k]; else b.over[inp.dataset.k] = Math.max(0, +v || 0); save(); });
   t.querySelectorAll(".bid-line [data-f], .bid-line input[data-f]").forEach(inp => inp.onchange = () => { const l = b.lines[inp.dataset.i]; l[inp.dataset.f] = inp.dataset.f === "desc" ? inp.value : Math.max(0, +inp.value || 0); save(); });
   t.querySelectorAll("[data-del]").forEach(bt => bt.onclick = () => { b.lines.splice(+bt.dataset.del, 1); save(); });
