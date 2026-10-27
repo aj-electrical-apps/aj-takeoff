@@ -460,7 +460,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v69</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v70</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -726,7 +726,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     </div>
     <div class="job-folder" id="jobFolderBox">
       <div><b>Job folder</b> <span class="hint" id="jobFolderName">None yet</span></div>
-      <p class="hint">Link a folder in your Google Drive to this job. Every Save then goes straight into that folder, and opening the job loads the newest copy from it.</p>
+      <p class="hint">Link a folder in your Google Drive to this job. Every Save then goes straight into that folder with the date in the file name, and opening the job loads the newest copy from it.</p>
       <div class="jf-acts"><button class="btn sm" type="button" id="jobFolderPick">Link a folder…</button><button class="btn sm" type="button" id="jobFolderCheck" hidden>Open the newest copy</button><button class="btn sm" type="button" id="jobFolderDrop" hidden>Unlink</button></div>
     </div>
     <p class="hint" id="driveTip">Don't see Google Drive in the Save window? Install <a href="https://www.google.com/drive/download/" target="_blank" rel="noopener">Google Drive for desktop</a> once, and it shows up there as Google Drive.</p>
@@ -763,6 +763,15 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
   </div>
 </div>
 
+<div class="modal" id="jfModal" hidden role="dialog" aria-modal="true" aria-labelledby="jfTitle">
+  <div class="modal-card">
+    <h2 id="jfTitle">Link a job folder?</h2>
+    <p><b id="jfName"></b> started <b id="jfDate"></b>.</p>
+    <p class="hint">Pick this job's folder in your Google Drive. Every Save then goes into that folder with the date in the file name, and opening the job later loads the newest copy.</p>
+    <div class="actions"><button class="btn" type="button" id="jfSkip">Not now</button><button class="btn primary" type="button" id="jfLink">Pick a folder…</button></div>
+  </div>
+</div>
+
 <div class="modal" id="trkModal" hidden role="dialog" aria-modal="true" aria-labelledby="trkTitle">
   <div class="modal-card trk-card">
     <h2 id="trkTitle">Bid tracker</h2>
@@ -775,6 +784,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <button class="btn" type="button" id="trkRestore" title="Bring bids back from a backup spreadsheet">Load backup…</button>
       <input type="file" id="trkFile" accept=".xlsx,.xls,.csv" hidden>
       <span style="flex:1"></span>
+      <button class="btn" type="button" id="trkAll" title="Add every job saved on this computer that isn't in the list yet">Add all my jobs</button>
       <button class="btn" type="button" id="trkBlank">Add a blank row</button>
       <button class="btn primary" type="button" id="trkAddJob">Add this job</button>
       <button class="btn" type="button" id="trkClose">Close</button>
@@ -2768,6 +2778,16 @@ $("trkBtn").onclick = openTrk;
 $("trkClose").onclick = () => { $("trkModal").hidden = true; };
 $("trkModal").addEventListener("keydown", e => { if (e.key === "Escape") $("trkModal").hidden = true; });
 $("trkAddJob").onclick = () => trkAddJob(false);
+// jobs on this computer that aren't in the list yet; the open job also brings its proposal price
+$("trkAll").onclick = async () => {
+  const have = new Set(trkRows.map(r => r.jobId).filter(Boolean)), now = new Date().toISOString();
+  const add = jobs.filter(j => !have.has(j.id) && !(job && j.id === job.id)).map(j => ({ id: uid(), jobId: j.id, date: j.bidDate || (j.created || now).slice(0, 10), job: j.name, gc: j.customer || "", ours: "", win: "", place: "", result: "", notes: "", at: now }));
+  const withOpen = job && !have.has(job.id);
+  if (!add.length && !withOpen) return toast("Every job on this computer is already in the Bid tracker.");
+  if (add.length) await trkSend(add);
+  if (withOpen) await trkAddJob(true);
+  renderTrk(); toast(`Added ${add.length + (withOpen ? 1 : 0)} jobs. Type in our price for any that show 0.`);
+};
 $("trkBlank").onclick = () => trkSend([{ id: uid(), date: trkToday(), job: "", gc: "", ours: "", win: "", place: "", result: "", notes: "", at: new Date().toISOString() }]).then(renderTrk);
 const TRK_COLS = [["date", "Bid date"], ["job", "Job"], ["gc", "GC / customer"], ["ours", "Our price"], ["win", "Winning price"], ["place", "Place"], ["result", "Result"], ["notes", "Notes"], ["id", "ID (leave as is)"], ["jobId", "Job ID (leave as is)"]];
 const TRK_RES = { won: "Won", lost: "Lost", nobid: "Not awarded", "": "Waiting" };
@@ -4281,7 +4301,7 @@ $("labelForm").addEventListener("submit", e => {
 document.addEventListener("keydown", e => {
   if (!$("ctxMenu").hidden) return;
   const typing = !!e.target.closest("input, select, textarea");
-  if (!$("scaleModal").hidden || !$("roomModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden || !$("wireModal").hidden || !$("sendModal").hidden || !$("ampModal").hidden || !$("takeoffModal").hidden || !$("hlModal").hidden || !$("schedModal").hidden || !$("trkModal").hidden) return;
+  if (!$("scaleModal").hidden || !$("roomModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden || !$("wireModal").hidden || !$("sendModal").hidden || !$("ampModal").hidden || !$("takeoffModal").hidden || !$("hlModal").hidden || !$("schedModal").hidden || !$("trkModal").hidden || !$("jfModal").hidden) return;
   if (!typing && (e.ctrlKey || e.metaKey) && !e.altKey) {
     const key = e.key.toLowerCase();
     if (key === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
@@ -4650,7 +4670,7 @@ async function folderCheck(ask, force) {
 async function showFolder() {
   const r = job && await folderRec(job.id);
   $("jobFolderBox").hidden = !job || !folderOk();
-  $("jobFolderName").textContent = r ? r.handle.name + (r.file ? ` · saves as ${r.file}` : "") : "None yet";
+  $("jobFolderName").textContent = r ? r.handle.name + (r.file ? ` · last saved as ${r.file}` : "") : "None yet";
   $("jobFolderPick").textContent = r ? "Change folder…" : "Link a folder…";
   $("jobFolderCheck").hidden = $("jobFolderDrop").hidden = !r;
 }
@@ -4665,11 +4685,13 @@ async function saveProject(again) {
   if (jf) {
     try {
       if (!(await folderAllowed(jf, true))) throw new Error("perm");
-      const fh = await jf.handle.getFileHandle(jf.file || file.name, { create: true });
+      // one copy per day, named with the date, so the folder keeps a dated history; opening loads the newest
+      const stamped = `${safeName(job.name)} ${trkToday()}.ajtakeoff`;
+      const fh = await jf.handle.getFileHandle(stamped, { create: true });
       const w = await fh.createWritable(); await w.write(file); await w.close();
       job.folderAt = (await fh.getFile()).lastModified; await putJobLocal(job);
-      if (!jf.file) { jf.file = file.name; await folderSet(job.id, jf); }
-      savedTo(`Saved to the job folder ${jf.handle.name} at ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`);
+      if (jf.file !== stamped) { jf.file = stamped; await folderSet(job.id, jf); }
+      savedTo(`Saved ${stamped} to the job folder ${jf.handle.name} at ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}.`);
       showFolder();
       return true;
     } catch (e) { toast("Couldn't save into the job folder. Pick where to save it instead."); }
@@ -4918,7 +4940,8 @@ $("fileBtn").onclick = () => showFiles(false);
 $("fileClose").onclick = () => { $("fileModal").hidden = true; };
 $("fileModal").addEventListener("keydown", e => { if (e.key === "Escape") $("fileModal").hidden = true; });
 $("fileSave").onclick = () => saveProject(false);
-$("jobFolderPick").onclick = async () => {
+$("jobFolderPick").onclick = () => linkFolder();
+async function linkFolder() {
   if (!job) return;
   try {
     const h = await window.showDirectoryPicker({ id: "ajjobfolder", mode: "readwrite" });
@@ -4928,9 +4951,14 @@ $("jobFolderPick").onclick = async () => {
     showFolder();
     const r = await folderRec(job.id), f = await folderNewest(r);
     if (f) { toast("That folder already has a copy of this job."); folderCheck(true, true); }
+    else if (!pages.length) toast(`Linked to ${h.name}. Upload the plans, and every Save goes into that folder.`);
     else saveProject(true);
   } catch (e) { if (!e || e.name !== "AbortError") toast("Couldn't use that folder. Try another one."); }
-};
+}
+$("jfLink").onclick = () => { $("jfModal").hidden = true; linkFolder(); };
+$("jfSkip").onclick = () => { $("jfModal").hidden = true; toast("Job started. You can link a folder later under Save / Open. Upload its plans to begin."); };
+$("jfModal").addEventListener("keydown", e => { if (e.key === "Escape") $("jfSkip").click(); });
+const stampDate = iso => iso ? new Date(iso).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }) : "";
 $("jobFolderCheck").onclick = () => folderCheck(true, true);
 $("jobFolderDrop").onclick = async () => { await folderSet(job.id, null); showFolder(); toast("Job folder unlinked. The files in it stay where they are."); };
 $("fileEmail").onclick = emailProject;
@@ -5031,7 +5059,7 @@ async function showJobs(mode) {
     b.setAttribute("aria-current", job && job.id === j.id ? "true" : "false");
     b.innerHTML = `<span><span class="jt"></span><br><span class="jm"></span></span><span class="js"></span>`;
     b.querySelector(".jt").textContent = j.name;
-    b.querySelector(".jm").textContent = [j.customer, j.bidDate && "Bid " + j.bidDate].filter(Boolean).join(" · ") || "No details yet";
+    b.querySelector(".jm").textContent = [j.customer, j.created && "Started " + stampDate(j.created), j.bidDate && "Bid " + j.bidDate].filter(Boolean).join(" · ") || "No details yet";
     b.querySelector(".js").textContent = `${counts[j.id] || 0} sheets`;
     b.onclick = async () => {
       $("jobsModal").hidden = true;
@@ -5069,7 +5097,10 @@ $("jobForm").addEventListener("submit", async e => {
   } else {
     const j = newJobRecord(fields);
     await saveJob(j); await openJob(j);
-    toast("Job started. Upload its plans to begin.");
+    if (folderOk()) {
+      $("jfName").textContent = j.name; $("jfDate").textContent = stampDate(j.created);
+      $("jfModal").hidden = false; $("jfLink").focus();
+    } else toast(`Job started ${stampDate(j.created)}. Upload its plans to begin.`);
   }
 });
 // Called before the first upload while the example sheets are showing.
