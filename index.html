@@ -361,6 +361,17 @@ td .bid-ln[data-q], td .bid-ln[data-s] { width: calc(100% - 80px); }
 .sched-src { width: 100%; border: 1px solid var(--line); border-radius: 6px; background: #fff; max-height: 180px; object-fit: contain; }
 .mk-hl.room { fill: rgb(28 126 214 / .07); stroke: #1c7ed6; stroke-width: 2; stroke-dasharray: 8 4; }
 .mk-room-lbl { fill: #1864ab; font-weight: 700; paint-order: stroke; stroke: #fff; }
+.mk-co { fill: #d9480f; font-weight: 700; font-family: var(--font-mono); paint-order: stroke; stroke: #fff; }
+.co-chip { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 6px 0 10px; border-radius: 6px; background: #fff4e6; border: 1px solid #f76707; color: #a63c00; font-weight: 600; font-size: 14px; }
+.co-chip button { height: 26px; }
+.co-tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
+.co-tbl th { text-align: left; font-weight: 600; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+.co-tbl td { padding: 4px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.co-tbl input { width: 100%; height: 32px; padding: 0 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); color: var(--fg); font-size: 14px; }
+.co-tbl tr.on td { background: #fff4e6; }
+.co-tbl .n { font-family: var(--font-mono); white-space: nowrap; }
+.modal-card.co-card { width: min(980px, 100%); }
+.repl-old { outline: 3px dashed #f76707; outline-offset: -3px; }
 .btn.tool.hl-room[aria-pressed="true"] { background: #d0ebff; border-color: #1c7ed6; color: #0b3d6e; }
 .note-item { display: grid; grid-template-columns: 220px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: start; }
 .note-item img { width: 100%; border: 1px solid var(--line); border-radius: 4px; background: #fff; }
@@ -465,7 +476,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v75</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v76</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -485,6 +496,11 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       Count sheet
     </button>
 
+    <button class="btn" id="coBtn" type="button" title="Change orders: count and price extra work apart from the base bid">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3.5 1.5h6l3 3v10h-9z"/><path d="M8 7v5M5.5 9.5h5"/></svg>
+      Change orders
+    </button>
+    <span class="co-chip" id="coChip" hidden><span id="coChipT"></span><button class="btn sm" type="button" id="coChipBase" title="Go back to counting the base bid">Base bid</button></span>
     <button class="btn" id="trkBtn" type="button" title="Every job we bid, where we placed, and won or lost">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 14h12M4 14V9M7.5 14V5M11 14V2"/></svg>
       Bid tracker
@@ -591,6 +607,9 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
           <button class="btn tool hl-y" id="hlYBtn" type="button" aria-pressed="false" title="Yellow highlighter: drag over a note to save it to your Notes page">Yellow note</button>
           <button class="btn tool hl-r" id="hlRBtn" type="button" aria-pressed="false" title="Red highlighter: drag over a note to save it to your Notes page, count sheet and supplier sheet">Red note</button>
           <button class="btn tool hl-room" id="roomBtn" type="button" aria-pressed="false" title="Typical room: drag a box around one room you marked up, then say how many of that room the job has">Typical room</button>
+          <button class="btn tool" id="replBtn" type="button" title="Addendum: swap this sheet for a revised drawing and keep your markups">Replace sheet</button>
+          <button class="btn tool" id="replOld" type="button" aria-pressed="false" title="Flip between the old and new drawing" hidden>Show old</button>
+          <button class="btn tool" id="replAlign" type="button" aria-pressed="false" title="Click 2 spots on the old drawing and the same 2 on the new one, and your markups move to match" hidden>Line up</button>
           <button class="btn tool hl-sched" id="schedBtn" type="button" aria-pressed="false" title="Schedule reader: drag a box around the light fixture schedule and it reads the types into your toolbox. No AI, nothing leaves this computer.">Read schedule</button>
         </div>
         <div class="zoomrow">
@@ -773,6 +792,28 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     </form>
   </div>
 </div>
+
+<div class="modal" id="coModal" hidden role="dialog" aria-modal="true" aria-labelledby="coTitle">
+  <div class="modal-card co-card">
+    <h2 id="coTitle">Change orders</h2>
+    <p class="hint">Click <b>Work on it</b>, then count and draw the change order's work. It shows on the sheets in orange with its CO number, and gets its own count sheet, material list, bid and proposal (Count sheet button). The base bid doesn't change. <b>Base bid</b> at the top goes back.</p>
+    <div class="trk-wrap"><table class="co-tbl" id="coTbl"></table></div>
+    <p class="empty" id="coEmpty">No change orders on this job yet.</p>
+    <div class="actions"><button class="btn" type="button" id="coClose">Close</button><button class="btn primary" type="button" id="coNew">+ New change order</button></div>
+  </div>
+</div>
+
+<div class="modal" id="replModal" hidden role="dialog" aria-modal="true" aria-labelledby="replTitle">
+  <form class="modal-card" id="replForm" autocomplete="off">
+    <h2 id="replTitle">Replace sheet</h2>
+    <p class="hint" id="replWhy"></p>
+    <label id="replPageBox">Page of the new PDF<input type="number" id="replPage" min="1" value="1"></label>
+    <label>Mark it as<input type="text" id="replAdd" placeholder="e.g. Addendum 1"></label>
+    <p class="hint">Your counts, runs, notes and scale stay on the sheet. If the new drawing sits a little off, use <b>Line up</b> under Tools after.</p>
+    <div class="actions"><button class="btn" type="button" id="replCancel">Cancel</button><button class="btn primary" type="submit">Replace</button></div>
+  </form>
+</div>
+<input type="file" id="replInput" accept="application/pdf,image/*" hidden>
 
 <div class="modal" id="jfModal" hidden role="dialog" aria-modal="true" aria-labelledby="jfTitle">
   <div class="modal-card">
@@ -1007,6 +1048,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 <script>
 const MAX_PAGES = 200;
 const THUMB_SIDE = 320; // px; the sheet rail shows these small copies, never the full sheets
+let coScope = null, showOld = false; // the change order being counted (null = base bid); showing a replaced sheet's old drawing
 const MAX_SIDE = 3200; // px on the long side; enough for a 2x corner zoom to stay sharp
 const ZOOM_LABEL = { FULL: "Full sheet", TL: "Top left · 2×", TR: "Top right · 2×", BL: "Bottom left · 2×", BR: "Bottom right · 2×" };
 
@@ -1039,8 +1081,8 @@ function db() {
 async function store(fn, name = "pages") {
   try { const d = await db(); const tx = d.transaction(name, "readwrite"); fn(tx.objectStore(name)); await new Promise(r => { tx.oncomplete = tx.onerror = tx.onabort = r; }); } catch (e) {}
 }
-const meta = p => ({ fileId: p.fileId || null, name: p.name, zoom: p.zoom, pxPerInch: p.pxPerInch || null, ftPerPx: p.ftPerPx || null, scaleLabel: p.scaleLabel || "", runs: p.runs, devices: p.devices, hl: p.hl || [], rooms: p.rooms || [] });
-const savePage = (p, i) => p.example ? null : (scheduleSync(), store(s => s.put({ id: p.id, jobId: job.id, order: i, blob: p.blob, thumb: p.thumb || null, words: p.words || null, ...meta(p) })));
+const meta = p => ({ fileId: p.fileId || null, name: p.name, zoom: p.zoom, pxPerInch: p.pxPerInch || null, ftPerPx: p.ftPerPx || null, scaleLabel: p.scaleLabel || "", runs: p.runs, devices: p.devices, hl: p.hl || [], rooms: p.rooms || [], add: p.add || "", prevAdd: p.prevAdd || "" });
+const savePage = (p, i) => p.example ? null : (scheduleSync(), store(s => s.put({ id: p.id, jobId: job.id, order: i, blob: p.blob, thumb: p.thumb || null, words: p.words || null, prevBlob: p.prevBlob || null, ...meta(p) })));
 const saveMeta = (p, quiet) => p.example ? null : (quiet || scheduleSync(), store(s => { const g = s.get(p.id); g.onsuccess = () => g.result && s.put({ ...g.result, ...meta(p) }); }));
 async function getAll(name) {
   const d = await db();
@@ -1050,7 +1092,7 @@ async function loadSaved(jobId) {
   try {
     const all = (await getAll("pages")).filter(r => r.jobId === jobId);
     return all.sort((a, b) => a.order - b.order).map(r => ({ id: r.id, name: r.name || "", zoom: r.zoom || "FULL", blob: r.blob, url: URL.createObjectURL(r.blob), thumb: r.thumb || null, thumbUrl: r.thumb ? URL.createObjectURL(r.thumb) : null,
-      pxPerInch: r.pxPerInch || null, ftPerPx: r.ftPerPx || null, scaleLabel: r.scaleLabel || "", runs: r.runs || [], devices: r.devices || [], hl: r.hl || [], rooms: r.rooms || [], fileId: r.fileId || null, words: r.words || null }))
+      pxPerInch: r.pxPerInch || null, ftPerPx: r.ftPerPx || null, scaleLabel: r.scaleLabel || "", runs: r.runs || [], devices: r.devices || [], hl: r.hl || [], rooms: r.rooms || [], fileId: r.fileId || null, words: r.words || null, add: r.add || "", prevAdd: r.prevAdd || "", prevBlob: r.prevBlob || null }))
       .map((p, i, all) => ({ ...p, zoom: all[0].zoom === "FREE" ? "FULL" : all[0].zoom })); // every sheet shares one zoom
   } catch (e) { return []; }
 }
@@ -1243,7 +1285,12 @@ function renderSheet() {
   $("scaleBtn").textContent = p && p.ftPerPx ? `Scale ${p.scaleLabel}` : "Set scale";
   $("scaleBtn").classList.toggle("warn", !!p && !p.ftPerPx);
   if (!p) { img.removeAttribute("src"); $("pos").textContent = "–"; $("sheetNo").textContent = "Sheet –"; $("progress").textContent = ""; return; }
-  if (img.getAttribute("src") !== p.url) img.src = p.url;
+  const want = showOld && p.prevBlob ? prevUrl(p) : p.url;
+  if (img.getAttribute("src") !== want) img.src = want;
+  img.classList.toggle("repl-old", want !== p.url);
+  $("replBtn").disabled = !has || !!cmp || !!p.example;
+  $("replOld").hidden = $("replAlign").hidden = !p.prevBlob;
+  $("replOld").setAttribute("aria-pressed", want !== p.url); $("replOld").textContent = want !== p.url ? `Showing old (${p.prevAdd || "original"})` : "Show old";
   paintCmp();
   applyZoom();
   $("pos").textContent = `${current + 1} / ${pages.length}`;
@@ -1504,7 +1551,13 @@ const countOn = (pg, id) => pg.devices.reduce((n, v) => n + (v.t === id), 0);
 // typical rooms: everything marked inside a room box counts once for every copy of that room
 const roomAt = (pg, q) => (pg.rooms || []).slice().reverse().find(m => q[0] >= m.x && q[0] <= m.x + m.w && q[1] >= m.y && q[1] <= m.y + m.h);
 const wAt = (pg, x, y) => { if (!pg.rooms || !pg.rooms.length) return 1; const m = roomAt(pg, [x, y]); return m ? Math.max(1, Math.round(+m.n) || 1) : 1; };
-const qtyOn = (pg, id) => pg.devices.reduce((n, v) => n + (v.t === id ? wAt(pg, v.x, v.y) : 0), 0);
+/* Change orders: job.cos = [{ id, n, name, date, desc, bid, prop, extra, supOver }]. While one is picked (coScope), new symbols
+   and runs are tagged with it, and every count, material list, bid and proposal shows only that change order. */
+const coList = () => job ? (job.cos || (job.cos = [])) : [];
+const coCur = () => coScope && job ? coList().find(c => c.id === coScope) || null : null;
+const inScope = x => (x.co || null) === (coScope || null);
+const coLabel = c => `Change order #${c.n}${c.name ? ": " + c.name : ""}`;
+const qtyOn = (pg, id) => pg.devices.reduce((n, v) => n + (v.t === id && inScope(v) ? wAt(pg, v.x, v.y) : 0), 0);
 const runPx = (pg, r) => {
   if (!pg.rooms || !pg.rooms.length || !r.pts || r.pts.length < 2) return r.px;
   let raw = 0, wt = 0;
@@ -2113,9 +2166,9 @@ const FEED_METHODS = { mc: "MC cable", mclv: "MC with low-voltage", romex: "Rome
 const mcName = f => f.method === "romex" ? `${f.gauge}/${f.wires} Romex (NM-B)` : `${f.gauge}/${f.wires} MC cable${f.method === "mclv" ? " with low-voltage pair" : ""}`;
 const feedText = f => !f.ft ? "not set yet, click to add" : f.method === "conduit" ? `${f.ft}' of ${f.size} ${f.conduit} with ${f.wires}x ${gaugeTxt(f.gauge)} each` : `${f.ft}' of ${mcName(f)} each`;
 let feedOpen = null; // count sheet row whose wiring editor is open
-const extraOf = () => job ? (job.extra || (job.extra = {})) : exampleExtra;
+const extraOf = () => coCur() ? (coCur().extra || (coCur().extra = { ...(job.extra || {}) })) : job ? (job.extra || (job.extra = {})) : exampleExtra;
 let exampleOver = {};
-const overOf = () => job ? (job.supOver || (job.supOver = {})) : exampleOver;
+const overOf = () => coCur() ? (coCur().supOver || (coCur().supOver = {})) : job ? (job.supOver || (job.supOver = {})) : exampleOver;
 let tsView = "count";
 const esc = t => String(t).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
 const sheetName = (pg, i) => pg.name || `Sheet ${String(i + 1).padStart(3, "0")}`;
@@ -2132,7 +2185,7 @@ function takeoffRows() {
     const what = d.custom ? [d.kind !== nameOf(d) && !d.fanKind && !d.kindName && !nameOf(d).startsWith(d.kind) ? d.kind : "", [d.sMaker, d.sModel].filter(Boolean).join(" "), d.sched && d.desc, d.sched && d.sWatts && d.sWatts + (/w$/i.test(d.sWatts) ? "" : "W"), d.sched && d.cct, d.sMount && `Mount ${d.sMount}`].filter(Boolean).join(" · ") : `${d.maker} ${d.model}`;
     counts.push({ id: d.id, label: d.label || "", asm: d.kindName ? `${d.group}|${d.kindName}` : "", em: !!(d.kindName && d.em), feed: feedable(d) ? feedFor(d) : null, name: nameOf(d), what: typeTitled(d) ? [kindSub(d), [d.sMaker, d.sModel].filter(Boolean).join(" "), d.sched && d.desc, d.sched && d.sWatts && d.sWatts + (/w$/i.test(d.sWatts) ? "" : "W"), d.sched && d.cct].filter(Boolean).join(" · ") : d.kindName && d.em ? ["With emergency battery", what].filter(Boolean).join(" · ") : what, qty, by, color: d.color, group: d.group, ...(d.group === "misc" ? { misc: true, unit: d.miscUnit || "ea", sup: !!d.sup } : {}) });
   });
-  const lfOf = id => pages.reduce((t, pg) => t + (pg.ftPerPx ? pg.runs.filter(r => (r.typeId || null) === id).reduce((a, r) => a + runPx(pg, r) * pg.ftPerPx, 0) : 0), 0);
+  const lfOf = id => pages.reduce((t, pg) => t + (pg.ftPerPx ? pg.runs.filter(r => (r.typeId || null) === id && inScope(r)).reduce((a, r) => a + runPx(pg, r) * pg.ftPerPx, 0) : 0), 0);
   const ex = extraOf();
   wiresList().forEach(w => {
     const lf = lfOf(w.id);
@@ -2140,7 +2193,7 @@ function takeoffRows() {
     const sets = w.sets || 1, mat = w.mat === "AL" || /AL/.test(w.ins) ? "AL" : "CU";
     const add = (key, label, sub, base, sup) => foot.push({ key, label, sub, base, pct: +ex[key] || 0, sup, color: w.color });
     if (isJH(w)) {
-      const by = pages.map((pg, i) => [sheetName(pg, i), pg.runs.filter(r => r.typeId === w.id).reduce((a, r) => a + hooksOn(r.px, pg, w) * runW(pg, r), 0)]).filter(x => x[1]);
+      const by = pages.map((pg, i) => [sheetName(pg, i), pg.runs.filter(r => r.typeId === w.id && inScope(r)).reduce((a, r) => a + hooksOn(r.px, pg, w) * runW(pg, r), 0)]).filter(x => x[1]);
       counts.push({ id: w.id, asm: "jhook|J-hook run", feed: null, name: `J-hooks${w.label ? " · " + w.label : ""}`, what: `One every ${w.interval || 5}' along ${fmtLF(lf)} of runs`, qty: by.reduce((t, x) => t + x[1], 0), by, color: w.color, group: "lvp" });
       add(`${w.id}:j`, `J-hook run length${w.label ? " · " + w.label : ""}`, `Hooks every ${w.interval || 5}'`, lf, null);
       return;
@@ -2271,7 +2324,7 @@ function laborEdits() {
 }
 function saveLaborEdits() { try { localStorage.setItem("aj-labor-edits", JSON.stringify(laborEdits())); } catch (e) {} }
 const laborRow = k => { const r = LABOR.find(x => x.k === k); if (!r) return null; const e = laborEdits()[k] || {}, m = { ...r, ...e }; if (e.a != null && e.h === undefined) m.h = e.a; m.a = null; return m; }; // older edits to the Adjusted column count as the hours
-const bidOf = () => { const o = job || (window.exampleBid = window.exampleBid || {}); return o.bid || (o.bid = { rate: 100, over: {}, lines: [] }); };
+const bidOf = () => { const o = coCur() || job || (window.exampleBid = window.exampleBid || {}); return o.bid || (o.bid = { rate: (coCur() && job.bid && job.bid.rate) || 100, over: coCur() && job.bid ? { ...job.bid.over } : {}, lines: [] }); };
 // hours per unit for a labor row (the Adjusted hours from Jonathan's sheet became the standard hours in v53)
 const rowHours = r => r ? r.h : null;
 const DEV_LABOR = {
@@ -2461,8 +2514,9 @@ async function laborSheetIn(f) {
 }
 /* ---------- Proposal: supplier quotes (with VE), labor from the bid sheet, markups, 10% tax, subs, inclusions/exclusions, appendices ---------- */
 const propOf = () => {
-  const o = job || (window.exampleProp = window.exampleProp || {});
-  const p = o.prop || (o.prop = {});
+  const o = coCur() || job || (window.exampleProp = window.exampleProp || {});
+  // a change order starts with the base bid's markups, tax and company info
+  const p = o.prop || (o.prop = coCur() && job.prop ? JSON.parse(JSON.stringify({ mk: job.prop.mk, tax: job.prop.tax, prod: job.prop.prod, info: { ...(job.prop.info || {}), scope: coCur().desc || "" } })) : {});
   if (!p.quotes) p.quotes = [["gear", "Gear"], ["light", "Lighting"], ["switch", "Switching"]].map(([k, name]) => ({ k, name, base: 0, ve: 0, useVe: false }));
   if (!p.subs) p.subs = ["Fire alarm", "Low voltage", "Lightning protection", "Underground"].map(name => ({ name, amt: 0, ve: 0, useVe: false }));
   if (!p.mk) p.mk = { mat: 0, labor: 0, sub: 0 };
@@ -2636,7 +2690,7 @@ async function makeProposal() {
   doc.setFont("helvetica", "normal"); doc.setFontSize(9.5); doc.setTextColor(90);
   [c.address, [c.phone, c.email].filter(Boolean).join(" · "), c.license && `License # ${c.license}`].filter(Boolean).forEach(l => { doc.text(l, M, y); y += 12; });
   doc.setTextColor(0); y += 8;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text("Electrical Proposal", M, y);
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text(coCur() ? coLabel(coCur()) : "Electrical Proposal", M, y);
   doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.text(`${p.info.number ? "Proposal " + p.info.number + " · " : ""}${new Date().toLocaleDateString()}`, W - M, y, { align: "right" }); y += 20;
   rule();
   [["Project", j.name], ["Customer", j.customer], ["Attention", p.info.attn], ["Job address", j.address], ["Bid date", j.bidDate && new Date(j.bidDate + "T12:00").toLocaleDateString()]].filter(r => r[1]).forEach(([k, v]) => { doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.text(k, M, y); doc.setFont("helvetica", "normal"); doc.text(String(v), M + 90, y); y += 15; });
@@ -2648,7 +2702,7 @@ async function makeProposal() {
     line("Labor", tt.labor + tt.laborUp); line("Material", tt.mat + tt.matUp); line(`Tax (${p.tax}%)`, tt.tax);
     p.subs.filter(s => +s.amt).forEach(s => line(s.name, (+(s.useVe && +s.ve ? s.ve : s.amt)) * (1 + (+p.mk.sub || 0) / 100)));
   }
-  need(24); doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.text("Total base bid", M + 10, y + 4); doc.text(money(tt.total), W - M, y + 4, { align: "right" }); y += 24;
+  need(24); doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.text(coCur() ? "Total change order" : "Total base bid", M + 10, y + 4); doc.text(money(tt.total), W - M, y + 4, { align: "right" }); y += 24;
   if (tt.ve.length) { text("Value engineering alternates (optional deducts)", 11, "bold"); tt.ve.forEach(v => { need(15); doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.text(`${v.name}: VE alternate`, M + 10, y); doc.text(`deduct ${money(v.deduct)}`, W - M, y, { align: "right" }); y += 15; }); y += 4; }
   const bullets = (title, list) => { if (!list.length) return; y += 4; text(title, 12, "bold"); list.forEach(x => { need(14); doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.text("•", M + 6, y); const ls = doc.splitTextToSize(x, W - 2 * M - 22); ls.forEach((ln, i) => { if (i) need(14); doc.text(ln, M + 18, y); y += 14; }); }); };
   bullets("Included", p.incl); bullets("Excluded", p.excl);
@@ -2690,14 +2744,14 @@ async function makeProposal() {
   }
   const n = doc.getNumberOfPages();
   for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(120); const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight(); doc.text(`${c.name || "AJ Electrical"} · ${j.name} · page ${i} of ${n}`, pw / 2, ph - 14, { align: "center" }); doc.setTextColor(0); }
-  return new File([doc.output("blob")], `${safeName(j.name)} proposal.pdf`, { type: "application/pdf" });
+  return new File([doc.output("blob")], coCur() ? `${safeName(j.name)} CO${coCur().n}.pdf` : `${safeName(j.name)} proposal.pdf`, { type: "application/pdf" });
 }
 async function saveProposal() {
   let file;
   busy("Making the proposal…", 0.2);
   try { file = await makeProposal(); } catch (e) { busy(null, null); return toast("Couldn't make the proposal. Check your internet and try again."); }
   busy(null, null);
-  trkAddJob(true);
+  if (!coScope) trkAddJob(true);
   if (await mcpReady) {
     try {
       busy("Saving the proposal to Google Drive…", .5, file.name);
@@ -2874,6 +2928,157 @@ $("trkFile").onchange = async e => {
   await trkSend(rows); renderTrk();
   toast(trkOnline ? `Brought back ${rows.length} bids. Everyone sees them now.` : `Brought back ${rows.length} bids on this computer. They go online the next time the app can reach it.`);
 };
+/* ---------- Change orders (UI) ---------- */
+function coChip() {
+  const c = coCur();
+  $("coChip").hidden = !c; if (c) { $("coChipT").textContent = `On CO #${c.n}${c.name ? ": " + c.name : ""}`; $("coChip").title = `Working on ${coLabel(c)}. Anything you place or draw goes on it.`; }
+  $("coBtn").hidden = !job;
+}
+function coSet(id) {
+  coScope = id || null; coChip();
+  renderAll(true);
+  if (!$("takeoffModal").hidden) renderTakeoff();
+}
+// a change order's price, worked out the same way as the proposal
+function coTotal(id) { const was = coScope; coScope = id; let t = 0; try { t = propTotals().total; } catch (e) {} coScope = was; return t; }
+const coMarks = id => pages.reduce((t, pg) => t + pg.devices.filter(v => v.co === id).length + pg.runs.filter(r => r.co === id).length, 0);
+function renderCo() {
+  const list = coList();
+  $("coEmpty").hidden = !!list.length;
+  $("coTbl").innerHTML = list.length ? `<thead><tr><th>#</th><th>Name</th><th>Date</th><th>What changed</th><th>Marks</th><th>Price</th><th></th><th></th></tr></thead><tbody>` + list.map(c => `<tr data-id="${esc(c.id)}" class="${c.id === coScope ? "on" : ""}">
+    <td class="n">CO ${c.n}</td><td><input data-f="name" value="${esc(c.name || "")}" placeholder="e.g. Added break room" aria-label="Name"></td>
+    <td><input type="date" data-f="date" value="${esc(c.date || "")}" aria-label="Date" style="width:140px"></td>
+    <td><input data-f="desc" value="${esc(c.desc || "")}" placeholder="What the change is" aria-label="What changed"></td>
+    <td class="n">${coMarks(c.id)}</td><td class="n">${fmt$(coTotal(c.id))}</td>
+    <td><button class="btn sm${c.id === coScope ? "" : " primary"}" type="button" data-work>${c.id === coScope ? "Working on it" : "Work on it"}</button></td>
+    <td><button class="btn icon sm" type="button" data-del title="Delete this change order" aria-label="Delete this change order">✕</button></td></tr>`).join("") + "</tbody>" : "";
+}
+$("coTbl").addEventListener("change", e => {
+  const tr = e.target.closest("tr[data-id]"), f = e.target.dataset.f; if (!tr || !f) return;
+  const c = coList().find(x => x.id === tr.dataset.id); if (!c) return;
+  c[f] = e.target.value.trim(); if (f === "desc" && c.prop && c.prop.info) c.prop.info.scope = c.desc;
+  touchJob(); coChip();
+});
+$("coTbl").addEventListener("click", e => {
+  const tr = e.target.closest("tr[data-id]"); if (!tr) return;
+  const c = coList().find(x => x.id === tr.dataset.id); if (!c) return;
+  if (e.target.closest("[data-work]")) { $("coModal").hidden = true; coSet(c.id); return toast(`Now counting ${coLabel(c)}. Anything you place or draw goes on it.`); }
+  if (e.target.closest("[data-del]")) {
+    const n = coMarks(c.id);
+    if (!confirm(`Delete ${coLabel(c)}${n ? ` and its ${n} mark${n === 1 ? "" : "s"} on the sheets` : ""}? This can't be undone.`)) return;
+    pages.forEach(pg => { const d = pg.devices.length + pg.runs.length; pg.devices = pg.devices.filter(v => v.co !== c.id); pg.runs = pg.runs.filter(r => r.co !== c.id); if (d !== pg.devices.length + pg.runs.length) saveMeta(pg); });
+    job.cos = coList().filter(x => x !== c); touchJob();
+    if (coScope === c.id) coSet(null); else drawOverlay();
+    renderCo();
+  }
+});
+$("coBtn").onclick = () => { if (!job) return toast("Open a job first."); renderCo(); $("coModal").hidden = false; };
+$("coClose").onclick = () => { $("coModal").hidden = true; };
+$("coModal").addEventListener("keydown", e => { if (e.key === "Escape") $("coModal").hidden = true; });
+$("coNew").onclick = () => {
+  const list = coList(), n = list.reduce((m, c) => Math.max(m, c.n), 0) + 1;
+  list.push({ id: uid(), n, name: "", date: trkToday(), desc: "" }); touchJob(); renderCo();
+  const ins = $("coTbl").querySelectorAll('[data-f="name"]'); ins[ins.length - 1].focus();
+};
+$("coChipBase").onclick = () => { coSet(null); toast("Back to the base bid."); };
+// the count sheet, material list, bid and proposal say which change order they are
+{ const inner = renderTakeoff; renderTakeoff = function () { const r = inner.apply(this, arguments); const c = coCur(); if (c && !/^Change order/.test($("tsTitle").textContent)) $("tsTitle").textContent = `${coLabel(c)} · ${$("tsTitle").textContent}`; return r; }; }
+
+/* ---------- Addendum: replace a sheet, keep the markups ---------- */
+let replFile = null, replPdf = null;
+const prevUrl = p => p.prevUrl || (p.prevUrl = URL.createObjectURL(p.prevBlob));
+$("replBtn").onclick = () => { const p = pages[current]; if (!p || p.example) return; $("replInput").click(); };
+$("replInput").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  replFile = f; replPdf = null;
+  const isPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+  if (isPdf) {
+    if (!window.pdfjsLib) return toast("The PDF reader didn't load. Check your connection and reload.");
+    try { replPdf = await pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise; } catch (er) { return toast("That PDF couldn't be read."); }
+  }
+  const p = pages[current], adds = pages.map(x => +(String(x.add || "").match(/addendum\s*(\d+)/i) || [])[1] || 0);
+  $("replWhy").textContent = `${sheetName(p, current)} gets the new drawing from ${f.name}.`;
+  $("replPageBox").hidden = !replPdf || replPdf.numPages < 2; $("replPage").max = replPdf ? replPdf.numPages : 1;
+  // guess the matching page: same position in the addendum set if it has as many pages, else 1
+  $("replPage").value = replPdf && replPdf.numPages === pages.length ? current + 1 : 1;
+  $("replAdd").value = `Addendum ${Math.max(0, ...adds) + 1}`;
+  $("replModal").hidden = false; $("replAdd").focus();
+};
+$("replCancel").onclick = () => { $("replModal").hidden = true; replPdf && replPdf.destroy(); replPdf = null; };
+$("replForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const p = pages[current], label = $("replAdd").value.trim();
+  $("replModal").hidden = true;
+  busy("Putting in the new drawing…", .3, sheetName(p, current));
+  try {
+    let canvas, pxPerInch = null, words = null;
+    if (replPdf) {
+      const n = Math.min(replPdf.numPages, Math.max(1, +$("replPage").value || 1)), page = await replPdf.getPage(n);
+      const v1 = page.getViewport({ scale: 1 }), scale = Math.min(4, MAX_SIDE / Math.max(v1.width, v1.height)), vp = page.getViewport({ scale });
+      canvas = document.createElement("canvas"); canvas.width = Math.round(vp.width); canvas.height = Math.round(vp.height);
+      const ctx = canvas.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+      try { words = textWords((await page.getTextContent()).items, vp); } catch (er) {}
+      pxPerInch = 72 * scale; replPdf.destroy(); replPdf = null;
+    } else {
+      const bmp = await createImageBitmap(replFile); canvas = document.createElement("canvas"); canvas.width = bmp.width; canvas.height = bmp.height;
+      const ctx = canvas.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.drawImage(bmp, 0, 0); bmp.close && bmp.close();
+    }
+    const old = await createImageBitmap(p.blob), sx = canvas.width / old.width, sy = canvas.height / old.height;
+    // keep the old drawing at the new size, so old and new share one set of points
+    const oc = document.createElement("canvas"); oc.width = canvas.width; oc.height = canvas.height;
+    const ox = oc.getContext("2d"); ox.fillStyle = "#fff"; ox.fillRect(0, 0, oc.width, oc.height); ox.drawImage(old, 0, 0, oc.width, oc.height); old.close && old.close();
+    const prevBlob = await canvasBlob(oc);
+    remember();
+    if (Math.abs(sx - 1) > 1e-3 || Math.abs(sy - 1) > 1e-3) replMap(p, q => [q[0] * sx, q[1] * sy], sx);
+    const [big, small] = await encodeSheet(canvas);
+    URL.revokeObjectURL(p.url); p.thumbUrl && URL.revokeObjectURL(p.thumbUrl); p.prevUrl && URL.revokeObjectURL(p.prevUrl);
+    p.prevAdd = p.add || "original"; p.prevBlob = prevBlob; p.prevUrl = null;
+    p.blob = big; p.url = URL.createObjectURL(big); p.thumb = small; p.thumbUrl = small ? URL.createObjectURL(small) : null;
+    if (words && words.length) p.words = words; else p.words = null;
+    if (pxPerInch && !p.ftPerPx) p.pxPerInch = pxPerInch;
+    p.add = label; if (label && !new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(p.name)) p.name = `${p.name || sheetName(p, current)} (${label})`;
+    showOld = false;
+    savePage(p, current); touchJob();
+    busy(null, null); renderAll(true);
+    toast(`New drawing is in, with your markups. If they sit off, click Line up under Tools. Show old flips back to the old drawing.`);
+  } catch (er) { busy(null, null); toast("Couldn't use that drawing. Try the PDF again, or a picture of the sheet."); }
+});
+// move every markup on a sheet; s is how much bigger the drawing got, so the scale stays right in feet
+function replMap(p, fn, s) {
+  p.devices.forEach(v => { [v.x, v.y] = fn([v.x, v.y]); });
+  p.runs.forEach(r => { r.pts = r.pts.map(fn); r.px = polyLen(r.pts); });
+  [...(p.hl || []), ...(p.rooms || [])].forEach(m => { const a = fn([m.x, m.y]), b = fn([m.x + m.w, m.y + m.h]); m.x = Math.round(Math.min(a[0], b[0])); m.y = Math.round(Math.min(a[1], b[1])); m.w = Math.round(Math.abs(b[0] - a[0])); m.h = Math.round(Math.abs(b[1] - a[1])); });
+  if (p.ftPerPx) p.ftPerPx /= s;
+  if (p.pxPerInch) p.pxPerInch *= s;
+}
+$("replOld").onclick = () => { showOld = !showOld; renderSheet(); };
+// Line up: 2 spots on the old drawing, then the same 2 on the new; the markups follow
+let alignPts = null;
+$("replAlign").onclick = () => {
+  if (alignPts) { alignPts = null; showOld = false; renderSheet(); $("replAlign").setAttribute("aria-pressed", "false"); return toast("Line up stopped."); }
+  if (tool) setTool(null);
+  alignPts = []; showOld = true; renderSheet(); $("replAlign").setAttribute("aria-pressed", "true");
+  toast("Line up 1 of 4: click a sharp spot on the OLD drawing, like a column grid line crossing or a room corner.");
+};
+$("sheet").addEventListener("click", e => {
+  if (!alignPts) return;
+  e.stopPropagation(); e.preventDefault();
+  const p = pages[current]; alignPts.push(imgPoint(e));
+  const n = alignPts.length;
+  if (n === 1) { showOld = false; renderSheet(); return toast("Line up 2 of 4: click that same spot on the NEW drawing."); }
+  if (n === 2) { showOld = true; renderSheet(); return toast("Line up 3 of 4: click a second spot on the OLD drawing, far from the first."); }
+  if (n === 3) { showOld = false; renderSheet(); return toast("Line up 4 of 4: click that second spot on the NEW drawing."); }
+  const [o1, n1, o2, n2] = alignPts; alignPts = null; $("replAlign").setAttribute("aria-pressed", "false");
+  const dox = o2[0] - o1[0], doy = o2[1] - o1[1], dnx = n2[0] - n1[0], dny = n2[1] - n1[1], dd = dox * dox + doy * doy;
+  if (dd < 100) { renderSheet(); return toast("Those two spots were too close together. Click Line up and pick spots farther apart."); }
+  // the move that takes the old spots onto the new ones (slide, turn and size), as complex numbers: z' = a z + b
+  const ar = (dnx * dox + dny * doy) / dd, ai = (dny * dox - dnx * doy) / dd, br = n1[0] - (ar * o1[0] - ai * o1[1]), bi = n1[1] - (ar * o1[1] + ai * o1[0]);
+  remember();
+  replMap(p, q => [ar * q[0] - ai * q[1] + br, ar * q[1] + ai * q[0] + bi], Math.hypot(ar, ai));
+  saveMeta(p); renderSheet(); drawOverlay(); renderRuns(); renderCounts();
+  toast("Markups moved to match the new drawing. Undo puts them back.");
+}, true);
 let asmKey = null;
 /* Parts lists as a spreadsheet: one row per part (Section, Item, Part, Qty each). Jonathan edits it in Excel and loads it back. */
 let xlsLoad = null;
@@ -3289,9 +3494,10 @@ function drawOverlay() {
     const [a, b] = [hlDrag.start, hlDrag.end];
     g.appendChild(svgEl("rect", { x: Math.min(a[0], b[0]), y: Math.min(a[1], b[1]), width: Math.abs(a[0] - b[0]), height: Math.abs(a[1] - b[1]), class: "mk-hl draft " + hlMode, ...ns }));
   }
+  const coN = id => { const c = coList().find(x => x.id === id); return c ? "CO" + c.n : "CO"; };
   for (const r of p.runs) {
     if (r === contRun) continue; // drawn below as the draft that's growing
-    const w = wireOf(r.typeId), col = w ? { style: `stroke:${w.color}` } : {};
+    const w = wireOf(r.typeId), col = w ? { style: `stroke:${w.color}${inScope(r) ? "" : ";opacity:.3"}` } : inScope(r) ? {} : { style: "opacity:.3" };
     if (sel.has(r)) g.appendChild(svgEl("polyline", { points: ptsAttr(r.pts), class: "mk-glow-run", ...ns }));
     const line = svgEl("polyline", { points: ptsAttr(r.pts), class: "mk-run", ...col, ...ns });
     if (p.ftPerPx) line.appendChild(svgEl("title", {}, `${r.name} · ${w ? wireLabel(w) + " · " : ""}${fmtLF(r.px * p.ftPerPx)}`));
@@ -3306,6 +3512,8 @@ function drawOverlay() {
     if (lit || v === hoverDev) g.appendChild(svgEl("circle", { cx: v.x, cy: v.y, r: 14 / k, class: "mk-glow" + (lit ? "" : " hover"), ...ns }));
     const e = shapeEl(d, v.x, v.y, 8 / k, "mk-dev");
     e.setAttribute("vector-effect", "non-scaling-stroke");
+    if (!inScope(v)) e.setAttribute("opacity", ".3");
+    if (v.co) g.appendChild(svgEl("text", { x: v.x + 10 / k, y: v.y + 14 / k, class: "mk-co", "font-size": 10 / k, "stroke-width": 3 / k, opacity: inScope(v) ? 1 : .4 }, coN(v.co)));
     e.appendChild(svgEl("title", {}, d.custom ? `${nameOf(d)} · ${specOf(d) || d.kind}` : `${d.id} · ${d.maker} ${d.model}`));
     g.appendChild(e);
     if (d.tag || d.label) g.appendChild(svgEl("text", { x: v.x + 10 / k, y: v.y - 6 / k, class: "mk-tag", "font-size": 11 / k, "stroke-width": 3 / k }, d.tag || d.label));
@@ -3348,7 +3556,7 @@ $("overlay").addEventListener("click", e => {
   const q = imgPoint(e), p = pages[current];
   if (tool === "place") {
     if (e.detail > 1) return; // second click of a double-click deletes instead (dblclick below)
-    const v = { t: placeType, x: q[0], y: q[1] };
+    const v = { t: placeType, x: q[0], y: q[1], ...(coScope ? { co: coScope } : {}) };
     remember(); p.devices.push(v); placed.push(v);
     saveMeta(p); drawOverlay(); updateHint(); renderCounts(); return;
   }
@@ -3879,7 +4087,7 @@ function finishRun() {
     return toast(`${r.name} is now ${fmtLF(r.px * p.ftPerPx)}.`);
   }
   const n = p.runs.length + 1;
-  const run = { id: uid(), name: `Run ${n}`, pts: draft, px: polyLen(draft), typeId: runType || null };
+  const run = { id: uid(), name: `Run ${n}`, pts: draft, px: polyLen(draft), typeId: runType || null, ...(coScope ? { co: coScope } : {}) };
   p.runs.push(run); draft = []; hover = null;
   saveMeta(p); renderRuns(); renderWires(); drawOverlay(); updateHint();
   const inp = $("run-" + run.id); if (inp) { inp.focus(); inp.select(); }
@@ -3960,7 +4168,7 @@ function renderWires() {
   const ul = $("wireList"), list = wiresList();
   ul.replaceChildren();
   $("wiresEmpty").hidden = list.length > 0;
-  const lfOf = id => pages.reduce((t, pg) => t + (pg.ftPerPx ? pg.runs.filter(r => r.typeId === id).reduce((a, r) => a + runPx(pg, r) * pg.ftPerPx, 0) : 0), 0);
+  const lfOf = id => pages.reduce((t, pg) => t + (pg.ftPerPx ? pg.runs.filter(r => r.typeId === id && inScope(r)).reduce((a, r) => a + runPx(pg, r) * pg.ftPerPx, 0) : 0), 0);
   list.forEach(w => {
     const lf = lfOf(w.id);
     const li = document.createElement("li"); li.className = "cnt";
@@ -4014,7 +4222,7 @@ const isUG = w => w && w.kind === "ug";
 const isJH = w => w && w.kind === "jhook";
 // J-hooks on one run: one every interval along it, rounded up, plus the one at the start
 const hooksOn = (pxLen, pg, w) => pg.ftPerPx ? Math.ceil(pxLen * pg.ftPerPx / (w.interval || 5)) + 1 : 0;
-const hooksOf = w => pages.reduce((t, pg) => t + pg.runs.filter(r => r.typeId === w.id).reduce((a, r) => a + hooksOn(r.px, pg, w) * runW(pg, r), 0), 0);
+const hooksOf = w => pages.reduce((t, pg) => t + pg.runs.filter(r => r.typeId === w.id && inScope(r)).reduce((a, r) => a + hooksOn(r.px, pg, w) * runW(pg, r), 0), 0);
 function wireFields() {
   const label = $("wLabel").value.trim();
   if ($("wKind").value === "jhook") return { label, kind: "jhook", interval: Math.max(1, Math.min(20, +$("wHook").value || 5)), conduit: "No conduit", size: "", count: 0, gauge: "", ins: "", ground: "", color: $("wColor").value, sets: 1, mat: "CU", amps: null };
@@ -4123,7 +4331,7 @@ function renderRuns() {
     }
     list.appendChild(li);
   }
-  const lf = pg => pg.ftPerPx ? pg.runs.reduce((t, r) => t + runPx(pg, r) * pg.ftPerPx, 0) : 0;
+  const lf = pg => pg.ftPerPx ? pg.runs.filter(inScope).reduce((t, r) => t + runPx(pg, r) * pg.ftPerPx, 0) : 0;
   $("sheetTotal").textContent = fmtLF(lf(p));
   $("projTotal").textContent = fmtLF(pages.reduce((t, pg) => t + lf(pg), 0));
 }
@@ -4354,7 +4562,7 @@ $("labelForm").addEventListener("submit", e => {
 document.addEventListener("keydown", e => {
   if (!$("ctxMenu").hidden) return;
   const typing = !!e.target.closest("input, select, textarea");
-  if (!$("scaleModal").hidden || !$("roomModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden || !$("wireModal").hidden || !$("sendModal").hidden || !$("ampModal").hidden || !$("takeoffModal").hidden || !$("hlModal").hidden || !$("schedModal").hidden || !$("trkModal").hidden || !$("jfModal").hidden) return;
+  if (!$("scaleModal").hidden || !$("roomModal").hidden || !$("jobsModal").hidden || !$("countModal").hidden || !$("cmpModal").hidden || !$("fileModal").hidden || !$("startModal").hidden || !$("newModal").hidden || !$("wireModal").hidden || !$("sendModal").hidden || !$("ampModal").hidden || !$("takeoffModal").hidden || !$("hlModal").hidden || !$("schedModal").hidden || !$("trkModal").hidden || !$("jfModal").hidden || !$("coModal").hidden || !$("replModal").hidden) return;
   if (!typing && (e.ctrlKey || e.metaKey) && !e.altKey) {
     const key = e.key.toLowerCase();
     if (key === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
@@ -4501,7 +4709,7 @@ async function runSync() {
     if (todo.length) { setDrive("busy", `Saving sheets to Drive… 0 of ${todo.length}`); await Promise.all([worker(), worker(), worker()]); }
     if (job !== j) return;
     setDrive("busy", "Saving to Drive…");
-    const data = { app: "aj-takeoff", v: 1, savedAt: new Date().toISOString(), job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, driveSheetsId: j.driveSheetsId, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [], extra: j.extra || {}, feed: j.feed || {}, supOver: j.supOver || {}, bid: j.bid || null, prop: j.prop || null },
+    const data = { app: "aj-takeoff", v: 1, savedAt: new Date().toISOString(), job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, driveSheetsId: j.driveSheetsId, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [], extra: j.extra || {}, feed: j.feed || {}, supOver: j.supOver || {}, bid: j.bid || null, prop: j.prop || null, cos: j.cos || [] },
       pages: list.map(p => ({ id: p.id, fileId: p.fileId, ...meta(p) })) };
     const made = await drv("create_file", { title: `${safeName(j.name)} · ajjob ${j.id}.json`, parentId: root, textContent: JSON.stringify(data), contentMimeType: "application/json", disableConversionToGoogleType: true });
     const old = j.driveJsonId;
@@ -4615,7 +4823,7 @@ const APP_HOME = "https://aj-commercial-takeoff.vercel.app/";
 async function projectBlob() {
   const j = job, list = pages.filter(p => !p.example);
   const head = { app: "aj-takeoff", kind: "job-file", v: 1, savedAt: new Date().toISOString(),
-    job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [], extra: j.extra || {}, feed: j.feed || {}, supOver: j.supOver || {}, bid: j.bid || null, prop: j.prop || null }, pages: [] };
+    job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [], extra: j.extra || {}, feed: j.feed || {}, supOver: j.supOver || {}, bid: j.bid || null, prop: j.prop || null, cos: j.cos || [] }, pages: [] };
   let at = 0;
   for (const p of list) {
     const { fileId, ...m } = meta(p);
@@ -5088,7 +5296,7 @@ async function openJob(j) {
   if (tool) setTool(null);
   pages.forEach(p => { URL.revokeObjectURL(p.url); p.thumbUrl && URL.revokeObjectURL(p.thumbUrl); });
   clearTimeout(syncTimer); syncWanted = false;
-  job = j; lsSet("aj-current-job", j ? j.id : null); showJobName();
+  job = j; lsSet("aj-current-job", j ? j.id : null); showJobName(); coScope = null; showOld = false; coChip();
   dropCmp(); sel.clear(); undoStack = []; redoStack = []; updHist(); tabs = [];
   setDrive(j && j.driveJsonId ? "ok" : "idle", j && j.driveJsonId ? "Saved to Google Drive" : null);
   if (!j) return loadExamples();
