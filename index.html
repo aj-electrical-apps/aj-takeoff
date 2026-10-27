@@ -489,7 +489,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v82</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v83</small></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -2698,6 +2698,7 @@ function renderProp() {
     <label>Bid date<input type="date" data-j="bidDate" value="${esc(job ? job.bidDate || "" : "")}"></label>
     <label>Price good for (days)<input type="number" min="1" data-i="valid" value="${p.info.valid || 30}"></label>
     <label class="wide">Scope of work<textarea data-i="scope" rows="3" placeholder="A few lines about the job, like: Furnish and install the electrical shown on sheets E-001 to E-401.">${esc(p.info.scope || "")}</textarea></label>
+    ${coCur() ? `<div class="wide co-inst"><b>Installing on this change order</b> <small>(goes on the PDF from what's placed and drawn on this change order)</small>${(() => { const li = coInstall(); return li.length ? `<table class="ts-table">${li.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n">${esc(v)}</td></tr>`).join("")}</table>` : `<p class="hint">Nothing placed or drawn on this change order yet.</p>`; })()}</div>` : ""}
     <label>Your company<input data-c="name" value="${esc(c.name)}"></label>
     <label>Phone<input data-c="phone" value="${esc(c.phone)}"></label>
     <label>Email<input data-c="email" value="${esc(c.email)}"></label>
@@ -2753,6 +2754,8 @@ function bindList(t, k, list, save) {
   t.querySelector(`[data-ladd="${k}"]`).onclick = add;
   inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); add(); } });
 }
+// change order proposals list what's being installed: every count and footage line on that change order
+const coInstall = () => { const { counts, foot } = takeoffRows(); return [...counts.map(c => [c.name, `${c.qty.toLocaleString()} ${c.unit === "LF" ? "ft" : c.unit || "ea"}`]), ...foot.map(f => [f.label, `${f.total.toLocaleString()} ft`])]; };
 async function makeProposal() {
   const JsPDF = await loadJsPdf(), p = propOf(), c = company(), tt = propTotals(), j = job || { name: "Example job" };
   const doc = new JsPDF({ unit: "pt", format: "letter" }), W = 612, M = 54;
@@ -2772,6 +2775,7 @@ async function makeProposal() {
   [["Project", j.name], ["Customer", j.customer], ["Attention", p.info.attn], ["Job address", j.address], ["Bid date", j.bidDate && new Date(j.bidDate + "T12:00").toLocaleDateString()]].filter(r => r[1]).forEach(([k, v]) => { doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.text(k, M, y); doc.setFont("helvetica", "normal"); doc.text(String(v), M + 90, y); y += 15; });
   y += 6;
   if (p.info.scope) { text("Scope of work", 12, "bold"); text(p.info.scope); y += 6; }
+  if (coCur()) { const li = coInstall(); if (li.length) { text("Installing on this change order", 12, "bold"); li.forEach(([k, v]) => { need(15); doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.splitTextToSize(k, W - 2 * M - 110).forEach((ln, i) => { if (i) need(14); doc.text(ln, M + 10, y); if (!i) doc.text(v, W - M, y, { align: "right" }); y += 14; }); y += 1; }); y += 6; } }
   text("Price", 12, "bold");
   if (p.showBreak) {
     const line = (k, v) => { need(15); doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.text(k, M + 10, y); doc.text(money(v), W - M, y, { align: "right" }); y += 15; };
