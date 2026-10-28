@@ -508,7 +508,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v87</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v88</small></div>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
@@ -1048,6 +1048,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <div class="opt"><label for="wWidth">Ditch width (bucket)</label><select id="wWidth"><option value="6">6 in</option><option value="12">12 in</option><option value="16">16 in</option><option value="24">24 in</option><option value="30">30 in</option></select></div>
       <div class="opt"><label for="wRuns">Conduit runs in the ditch</label><input type="number" id="wRuns" min="1" max="20" step="1" inputmode="numeric"></div>
       <div class="opt"><label for="wFillDepth">How deep the backfill goes</label><select id="wFillDepth"><option value="full">Whole ditch</option><option value="6">Bottom 6 in</option><option value="12">Bottom 12 in</option><option value="18">Bottom 18 in</option></select></div>
+      <div class="opt"><label for="wSpacer">Duct bank spacers</label><select id="wSpacer"><option value="0">None</option><option value="4">Every 4 ft</option><option value="5">Every 5 ft</option><option value="6">Every 6 ft</option><option value="8">Every 8 ft</option><option value="10">Every 10 ft</option></select></div>
     </div>
     <p class="hint ug-only" id="wGravel" style="margin:0"></p>
     <div class="amp-box wire-only">
@@ -2388,6 +2389,9 @@ function takeoffRows() {
       if (fl) counts.push({ id: `${w.id}:fill`, gravel: true, misc: true, sup: false, unit: "CY", group: "misc", color: w.color, feed: null, by: [], label: `${w.backfill} backfill${w.label ? " · " + w.label : ""}`,
         name: `${w.backfill} backfill${w.label ? " · " + w.label : ""}`, qty: fl.cy,
         what: `About ${fl.cy} cubic yards${fl.tons ? ` (about ${fl.tons} tons)` : ""}: ${fmtLF(lf)} of ditch × ${w.width || 30}" wide × ${fl.deep}" deep` });
+      const sp = ugSpacers(w, lf);
+      if (sp) counts.push({ id: `${w.id}:sp`, gravel: true, misc: true, sup: true, unit: "ea", group: "misc", color: w.color, feed: null, by: [], label: spacerName(w),
+        name: spacerName(w), qty: sp, what: `One every ${w.spacer}' along ${fmtLF(lf)} of ditch` });
     } else if (w.conduit === "Romex (NM-B)") add(`${w.id}:c`, `Romex ${w.count}x ${gaugeTxt(w.gauge)}${w.ground ? " + GND" : ""}`, wireLabel(w), lf * sets, `Romex (NM-B), ${w.count}/${gaugeTxt(w.gauge)}${w.ground ? ` with ${gaugeTxt(w.ground)} ground` : ""}`);
     else if (w.conduit === "MC cable") add(`${w.id}:c`, `MC cable ${w.count}x ${gaugeTxt(w.gauge)}${w.ground ? " + GND" : ""}`, wireLabel(w), lf * sets, `MC cable, ${w.count}/${gaugeTxt(w.gauge)}${w.ground ? ` with ${gaugeTxt(w.ground)} ground` : ""}`);
     else {
@@ -3622,6 +3626,8 @@ function ugRows() {
     const runs = w.runs || 1, fl = ugFill(w, t.total), lines = [
       ["Ditch to dig", `${t.total.toLocaleString()} ft`, `${w.width || 30}" wide bucket × ${w.depth || 24}" deep`],
       ["Conduit going in the ditch", `${runs} run${runs > 1 ? "s" : ""}`, `${w.size} ${w.conduit}, ${(t.total * runs).toLocaleString()} ft total`]];
+    const sp = ugSpacers(w, t.total);
+    if (sp) lines.push(["Duct bank spacers", `${sp} ea`, `${spacerName(w)}, one every ${w.spacer}'`]);
     lines.push(fl ? [`${w.backfill} backfill`, `${fl.cy} CY${fl.tons ? ` · ${fl.tons} tons` : ""}`, fl.deep === (w.depth || 24) ? "Whole ditch" : `Bottom ${fl.deep}" of the ditch, native dirt above`] : ["Backfill", "Native dirt", "Dirt back in the ditch"]);
     return { title: w.label ? `${w.label} · ${w.size} ${w.conduit}` : `${w.size} ${w.conduit} underground`, lf: t.total, fill: fl && [w.backfill, fl.cy, fl.tons], lines };
   }).filter(Boolean);
@@ -4599,6 +4605,9 @@ const isUG = w => w && w.kind === "ug";
 /* Backfill for an underground ditch, roughly: length x bucket width x backfill depth, in cubic yards (rounded up to the half yard).
    Tons use about 1.4 tons a yard for gravel and 1.35 for sand. Concrete stays in yards. */
 const FILL_TONS = { Gravel: 1.4, Sand: 1.35 };
+// duct bank spacers: one every so many feet along the ditch, plus one at the start; each holds every conduit in the ditch
+const ugSpacers = (w, lf) => isUG(w) && w.spacer && lf ? Math.ceil(lf / w.spacer) + 1 : 0;
+const spacerName = w => `${w.size} duct bank spacer for ${w.runs || 1} conduit${(w.runs || 1) > 1 ? "s" : ""}`;
 function ugFill(w, lf) {
   if (!isUG(w) || !w.backfill || w.backfill === "None" || !lf) return null;
   const deep = w.fillDepth && w.fillDepth !== "full" ? Math.min(+w.fillDepth, w.depth || 24) : (w.depth || 24);
@@ -4614,7 +4623,7 @@ function wireFields() {
   if ($("wKind").value === "jhook") return { label, kind: "jhook", interval: Math.max(1, Math.min(20, +$("wHook").value || 5)), conduit: "No conduit", size: "", count: 0, gauge: "", ins: "", ground: "", color: $("wColor").value, sets: 1, mat: "CU", amps: null };
   if ($("wKind").value === "ug") return { label, kind: "ug", conduit: $("wConduit").value, size: $("wSize").value, count: 0, gauge: "", ins: "", ground: "", color: $("wColor").value,
     sets: 1, mat: "CU", amps: null, depth: +$("wDepth").value, backfill: $("wFill").value,
-    width: +$("wWidth").value || 30, runs: Math.max(1, Math.min(20, parseInt($("wRuns").value, 10) || 1)), fillDepth: $("wFillDepth").value };
+    width: +$("wWidth").value || 30, runs: Math.max(1, Math.min(20, parseInt($("wRuns").value, 10) || 1)), fillDepth: $("wFillDepth").value, spacer: +$("wSpacer").value || 0 };
   return { label, kind: "wire", conduit: $("wConduit").value, size: $("wSize").value, count: Math.max(1, Math.min(40, parseInt($("wCount").value, 10) || 1)),
     gauge: $("wGauge").value, ins: $("wIns").value, ground: $("wGround").value, color: $("wColor").value,
     sets: Math.max(1, Math.min(12, parseInt($("wSets").value, 10) || 1)), mat: $("wMat").value, amps: parseInt($("wAmps").value, 10) || null };
@@ -4631,7 +4640,7 @@ function wirePreview() {
   el.textContent = !f ? "" : `Conduit fill about ${Math.round(f.used * 100)}% (EMT sizes; ${Math.round(f.max * 100)}% allowed)` +
     (f.used > f.max ? `. Too full: try ${conduitFor(w)}.` : ".");
 }
-["wLabel", "wConduit", "wSize", "wCount", "wGauge", "wIns", "wGround", "wSets", "wDepth", "wFill", "wWidth", "wRuns", "wFillDepth"].forEach(id => $(id).addEventListener("input", wirePreview));
+["wLabel", "wConduit", "wSize", "wCount", "wGauge", "wIns", "wGround", "wSets", "wDepth", "wFill", "wWidth", "wRuns", "wFillDepth", "wSpacer"].forEach(id => $(id).addEventListener("input", wirePreview));
 $("wKind").addEventListener("input", () => {
   // underground runs are usually PVC; going back to wire picks EMT again
   if ($("wKind").value === "ug" && ["EMT", "MC cable", "Romex (NM-B)", "No conduit", "Flex (FMC)", "Sealtite (LFMC)"].includes($("wConduit").value)) $("wConduit").value = "PVC Sch 40";
@@ -4663,7 +4672,7 @@ function openWire(id) {
   $("wMat").value = w.mat || "CU"; fillAmps(); $("wAmps").value = w.amps || ""; $("wSets").value = w.sets || 1;
   $("wConduit").value = w.conduit; $("wSize").value = w.size; $("wCount").value = w.count; $("wGauge").value = w.gauge; $("wIns").value = w.ins; $("wGround").value = w.ground || "";
   $("wColor").value = w.color || PALETTE[(list.length + 3) % PALETTE.length];
-  $("wLabel").value = w.label || ""; $("wKind").value = isUG(w) ? "ug" : isJH(w) ? "jhook" : "wire"; $("wHook").value = w.interval || 5; $("wDepth").value = String(w.depth || 24); $("wFill").value = w.backfill || "None"; $("wWidth").value = String(w.width || 30); $("wRuns").value = w.runs || 1; $("wFillDepth").value = w.fillDepth || "full";
+  $("wLabel").value = w.label || ""; $("wKind").value = isUG(w) ? "ug" : isJH(w) ? "jhook" : "wire"; $("wHook").value = w.interval || 5; $("wDepth").value = String(w.depth || 24); $("wFill").value = w.backfill || "None"; $("wWidth").value = String(w.width || 30); $("wRuns").value = w.runs || 1; $("wFillDepth").value = w.fillDepth || "full"; $("wSpacer").value = String(w.spacer || 0);
   if (isUG(w)) { $("wCount").value = 3; $("wGauge").value = "12"; $("wIns").value = "STR"; }
   $("wireDelete").hidden = !editingWire;
   $("wireSave").textContent = editingWire ? "Save" : "Save and draw";
