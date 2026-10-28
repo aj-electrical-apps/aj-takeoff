@@ -274,7 +274,17 @@ button { cursor: pointer; }
 .cnt-sec button .chev { display: inline-block; width: 10px; transition: transform .15s; color: var(--muted); }
 .cnt-sec button[aria-expanded="false"] .chev { transform: rotate(-90deg); }
 .cnt-sec button .sn { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-weight: 400; }
-.cnt { display: grid; grid-template-columns: 1fr auto; gap: 4px; align-items: stretch; }
+.cnt { display: grid; grid-template-columns: 1fr auto auto; gap: 4px; align-items: stretch; }
+.cnt-find { width: 30px; border: 1px solid transparent; border-radius: 6px; background: none; color: var(--muted); padding: 0; cursor: pointer; }
+.cnt-find:hover { border-color: var(--line); color: var(--fg); }
+.cnt-find[aria-pressed="true"] { background: #ffd43b; border-color: #f59f00; color: #000; }
+.cnt-sec { display: flex; align-items: center; gap: 2px; }
+.cnt-sec > button.cnt-sh { flex: 1; width: auto; }
+.cnt-sec .sec-eye, .cnt-sec .sec-only { flex: none; width: auto; padding: 2px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); font-size: 11px; font-weight: 500; color: var(--muted); }
+.cnt-sec .sec-eye[aria-pressed="true"] { background: #495057; color: #fff; border-color: #495057; }
+.cnt-sec .sec-only[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+.mk-find { fill: rgb(255 212 59 / .45); stroke: #f59f00; stroke-width: 3; filter: drop-shadow(0 0 6px #f59f00); animation: mkfind 1.2s ease-in-out infinite alternate; }
+@keyframes mkfind { from { stroke-opacity: 1; } to { stroke-opacity: .35; } }
 .cnt-main { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: start; text-align: left; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); min-width: 0; }
 .cnt-main:hover { border-color: var(--accent); }
 .cnt-main[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
@@ -508,7 +518,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v88</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v89</small></div>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
@@ -1820,6 +1830,19 @@ const specOf = d => d.custom
   ? [[d.sMaker, d.sModel].filter(Boolean).join(" "), d.desc, d.sWatts && `${d.sWatts}${/w$/i.test(d.sWatts) ? "" : " W"}`, d.cct, d.amps ? (d.tag && ampsLine(d)) : d.sVolts && `${d.sVolts}${/v$/i.test(d.sVolts) ? "" : " V"}`, d.sMount].filter(Boolean).join(" · ")
   : `${d.maker} ${d.model}`;
 
+/* Find and hide on the drawing: the target button on a count lights up every one of that count; the eye on a
+   section header hides that section's marks (Only hides everything else). Just for viewing, nothing is changed. */
+let findId = null;
+const hideSecs = new Set();
+const cntSecKey = d => catOf(d.group) ? d.group : (GROUPS.find(g => g.key === d.group) ? d.group : "other");
+function findCount(id) {
+  findId = findId === id ? null : id; drawOverlay(); renderCounts();
+  if (!findId) return;
+  const d = devInfo(id), here = pages[current] ? qtyOn(pages[current], id) : 0;
+  const other = pages.map((pg, i) => [i, qtyOn(pg, id)]).filter(x => x[1] && x[0] !== current).map(x => `${sheetName(pages[x[0]], x[0])} (${x[1]})`);
+  if (d && hideSecs.has(cntSecKey(d))) { hideSecs.delete(cntSecKey(d)); drawOverlay(); renderCounts(); }
+  toast(`${here} ${nameOf(d)} on this sheet lit up.${other.length ? ` Also on: ${other.slice(0, 4).join(", ")}${other.length > 4 ? "…" : ""}.` : ""} Click the target again to stop.`);
+}
 function renderCounts() {
   renderSchedBox();
   const p = pages[current];
@@ -1836,7 +1859,7 @@ function renderCounts() {
   $("cntTotals").hidden = !all.length;
   let sheetTot = 0, allTot = 0;
   // sections in toolbox order; a closed section hides its counts until it's clicked open again
-  const secKey = d => catOf(d.group) ? d.group : (GROUPS.find(g => g.key === d.group) ? d.group : "other");
+  const secKey = cntSecKey;
   const secName = k => catOf(k) ? catOf(k).name : k === "other" ? "Other" : SECTION[k] || (GROUPS.find(g => g.key === k) || {}).name || k;
   all.sort((a, b) => secRank(secKey(a)) - secRank(secKey(b)));
   const closed = cntClosed(), keys = [...new Set(all.map(secKey))];
@@ -1854,7 +1877,15 @@ function renderCounts() {
       hb.innerHTML = `<span class="chev">▾</span>${esc(secName(sk))}<span class="sn">${tot}</span>`;
       hb.title = isClosed ? "Show these counts" : "Hide these counts";
       hb.onclick = () => { const c = cntClosed(); cntSetClosed(c.includes(sk) ? c.filter(x => x !== sk) : c.concat(sk)); renderCounts(); };
-      h.appendChild(hb); ul.appendChild(h);
+      hb.className = "cnt-sh";
+      const others = keys.filter(x => x !== sk), only = others.length > 0 && others.every(x => hideSecs.has(x)) && !hideSecs.has(sk);
+      const eye = document.createElement("button"); eye.type = "button"; eye.className = "sec-eye"; eye.setAttribute("aria-pressed", hideSecs.has(sk));
+      eye.textContent = hideSecs.has(sk) ? "Hidden" : "Hide"; eye.title = hideSecs.has(sk) ? `Show the ${secName(sk)} marks on the drawing again` : `Hide the ${secName(sk)} marks on the drawing so you can see the plans under them`;
+      eye.onclick = () => { if (hideSecs.has(sk)) hideSecs.delete(sk); else hideSecs.add(sk); drawOverlay(); renderCounts(); };
+      const on = document.createElement("button"); on.type = "button"; on.className = "sec-only"; on.setAttribute("aria-pressed", only);
+      on.textContent = "Only"; on.title = only ? "Show every section's marks again" : `Show only the ${secName(sk)} marks on the drawing`; on.hidden = keys.length < 2;
+      on.onclick = () => { if (only) hideSecs.clear(); else { hideSecs.clear(); others.forEach(x => hideSecs.add(x)); } drawOverlay(); renderCounts(); };
+      h.append(hb, eye, on); ul.appendChild(h);
     }
     if (isClosed) { const nS = p ? qtyOn(p, d.id) : 0, nA = pages.reduce((t, pg) => t + qtyOn(pg, d.id), 0); sheetTot += nS; allTot += nA; return; }
     const nS = p ? qtyOn(p, d.id) : 0, nA = pages.reduce((t, pg) => t + qtyOn(pg, d.id), 0);
@@ -1873,6 +1904,11 @@ function renderCounts() {
     b.append(tx, n);
     b.onclick = () => setTool("place", d.id);
     li.appendChild(b);
+    const fd = document.createElement("button"); fd.type = "button"; fd.className = "cnt-find"; fd.setAttribute("aria-pressed", findId === d.id);
+    fd.title = findId === d.id ? "Stop lighting these up" : "Light up every one of these on the drawing"; fd.setAttribute("aria-label", "Find every " + nameOf(d));
+    fd.innerHTML = `<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2"/><path d="M8 .5v3M8 12.5v3M.5 8h3M12.5 8h3"/></svg>`;
+    fd.onclick = () => findCount(d.id);
+    li.appendChild(fd);
     if (d.custom) {
       const e = document.createElement("button"); e.type = "button"; e.className = "cnt-edit"; e.title = "Edit this count"; e.setAttribute("aria-label", "Edit " + nameOf(d));
       e.innerHTML = `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M11 2.5 13.5 5 6 12.5H3.5V10z"/></svg>`;
@@ -3891,11 +3927,14 @@ function drawOverlay() {
   }
   for (const v of p.devices) {
     const d = devInfo(v.t); if (!d) continue;
+    if (hideSecs.has(cntSecKey(d)) && v.t !== findId) continue;
+    if (findId && v.t === findId) g.appendChild(svgEl("circle", { cx: v.x, cy: v.y, r: 20 / k, class: "mk-find", ...ns }));
     const lit = sel.has(v) || v === ctxTarget;
     if (lit || v === hoverDev) g.appendChild(svgEl("circle", { cx: v.x, cy: v.y, r: 14 / k, class: "mk-glow" + (lit ? "" : " hover"), ...ns }));
     const e = shapeEl(d, v.x, v.y, 8 / k, "mk-dev");
     e.setAttribute("vector-effect", "non-scaling-stroke");
     if (!inScope(v)) e.setAttribute("opacity", ".3");
+    else if (findId && v.t !== findId) e.setAttribute("opacity", ".25");
     if (v.co) g.appendChild(svgEl("text", { x: v.x + 10 / k, y: v.y + 14 / k, class: "mk-co", "font-size": 10 / k, "stroke-width": 3 / k, opacity: inScope(v) ? 1 : .4 }, coN(v.co)));
     e.appendChild(svgEl("title", {}, d.custom ? `${nameOf(d)} · ${specOf(d) || d.kind}` : `${d.id} · ${d.maker} ${d.model}`));
     g.appendChild(e);
