@@ -96,6 +96,25 @@ button { cursor: pointer; }
 .tab-x { width: 26px; height: 26px; margin-right: 4px; border: 0; border-radius: 4px; background: none; color: var(--muted); font-size: 17px; line-height: 1; padding: 0; flex: none; }
 .tab-x:hover { background: var(--warn-soft); color: var(--warn); }
 .rail { overflow-y: auto; border-right: 1px solid var(--line); background: var(--panel); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.thumb { position: relative; }
+.thumb .pop { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 5px; background: var(--panel); border: 1px solid var(--line); font-size: 13px; line-height: 1; opacity: .6; cursor: pointer; }
+.thumb:hover .pop, .thumb:focus-within .pop { opacity: 1; }
+.ref-dock { display: flex; gap: 4px; flex-wrap: wrap; }
+.ref-dock:empty { display: none; }
+.ref-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #1c7ed6; background: #e7f5ff; color: #1864ab; font-size: 12px; cursor: pointer; }
+.ref-chip b { font-weight: 600; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ref-chip .x { border: 0; background: none; color: inherit; cursor: pointer; font-size: 14px; padding: 0 2px; }
+.ref-win { position: fixed; z-index: 60; display: flex; flex-direction: column; min-width: 150px; min-height: 90px; background: #fff; border: 2px solid #1c7ed6; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.3); overflow: hidden; }
+.ref-win .ref-grip { position: absolute; right: 0; bottom: 0; width: 22px; height: 22px; cursor: nwse-resize; touch-action: none; background: linear-gradient(135deg, transparent 45%, #1c7ed6 45%, #1c7ed6 55%, transparent 55%, transparent 70%, #1c7ed6 70%, #1c7ed6 80%, transparent 80%); z-index: 2; }
+.ref-win .ref-edge-r { position: absolute; right: 0; top: 30px; bottom: 22px; width: 7px; cursor: ew-resize; z-index: 2; touch-action: none; }
+.ref-win .ref-edge-b { position: absolute; bottom: 0; left: 0; right: 22px; height: 7px; cursor: ns-resize; z-index: 2; touch-action: none; }
+.ref-win .ref-edge-l { position: absolute; left: 0; top: 30px; bottom: 0; width: 7px; cursor: ew-resize; z-index: 2; touch-action: none; }
+.ref-win .ref-bar { display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; background: #1c7ed6; color: #fff; cursor: move; user-select: none; font-size: 13px; }
+.ref-win .ref-bar b { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ref-win .ref-bar button { border: 0; background: rgba(255,255,255,.18); color: #fff; border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 12px; }
+.ref-win .ref-bar button:hover { background: rgba(255,255,255,.35); }
+.ref-win .ref-view { flex: 1; overflow: hidden; position: relative; background: #f1f3f5; cursor: grab; touch-action: none; }
+.ref-win .ref-view img { position: absolute; left: 0; top: 0; transform-origin: 0 0; user-select: none; pointer-events: none; max-width: none; }
 .thumb { display: grid; grid-template-columns: 28px 1fr; gap: 8px; align-items: start; text-align: left; padding: 6px; border: 1px solid transparent; border-radius: 6px; background: none; }
 .thumb:hover { border-color: var(--line); }
 .thumb[aria-current="true"] { border-color: var(--accent); background: var(--accent-soft); }
@@ -489,7 +508,8 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v84</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v85</small></div>
+    <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
     <button class="btn" id="newJobBtn" type="button" title="Start a new job (offers to save this one first)">
@@ -1298,6 +1318,86 @@ function needThumb(p) {
 /* ---------- render ---------- */
 const QPOS = { TL: "left:0;top:0", TR: "right:0;top:0", BL: "left:0;bottom:0", BR: "right:0;bottom:0" };
 // The rail keeps its buttons between renders and only updates what changed, so 200 sheets stay quick.
+/* Reference sheets: a floating, read-only copy of any sheet that stays on top of the sheet you're working on.
+   Drag the blue bar to move it, drag the corner to size it, scroll to zoom, drag inside to move around.
+   − tucks it into the top bar, ↗ opens it in its own window for a second screen, × closes it. */
+const refs = [];
+function refOpen(p) {
+  let r = refs.find(x => x.p === p);
+  if (r) { r.min = false; return refDraw(); }
+  const n = refs.length, w = Math.min(640, innerWidth - 80), h = Math.min(460, innerHeight - 140);
+  r = { p, min: false, x: Math.max(10, innerWidth - w - 40 - n * 30), y: 90 + n * 30, w, h, z: 0, tx: 0, ty: 0 };
+  refs.push(r); refDraw();
+}
+const refName = r => sheetName(r.p, pages.indexOf(r.p));
+function refFit(r) {
+  const im = r.el.querySelector("img"), v = r.el.querySelector(".ref-view"), vw = v.clientWidth, vh = v.clientHeight;
+  if (!im.naturalWidth) return;
+  r.z = Math.min(vw / im.naturalWidth, vh / im.naturalHeight); r.tx = (vw - im.naturalWidth * r.z) / 2; r.ty = (vh - im.naturalHeight * r.z) / 2; refXf(r);
+}
+const refXf = r => { r.el.querySelector("img").style.transform = `translate(${r.tx}px,${r.ty}px) scale(${r.z})`; };
+function refDraw() {
+  refs.slice().forEach(r => { if (!pages.includes(r.p)) refClose(r, true); });
+  const dock = $("refDock"); dock.replaceChildren();
+  refs.forEach(r => {
+    if (!r.el) {
+      const el = r.el = document.createElement("div"); el.className = "ref-win no-print";
+      el.innerHTML = `<div class="ref-bar"><b></b><button type="button" data-a="fit" title="Fit the whole sheet">Fit</button><button type="button" data-a="pop" title="Open in its own window so you can drag it to another screen">↗ New window</button><button type="button" data-a="min" title="Tuck it into the top bar">−</button><button type="button" data-a="x" title="Close">×</button></div><div class="ref-view"><img alt="" draggable="false"></div><span class="ref-edge-l" data-rz="l"></span><span class="ref-edge-r" data-rz="r"></span><span class="ref-edge-b" data-rz="b"></span><span class="ref-grip" data-rz="rb" title="Drag to make it any size"></span>`;
+      document.body.appendChild(el);
+      const im = el.querySelector("img"), v = el.querySelector(".ref-view");
+      im.onload = () => refFit(r); im.src = r.p.url;
+      el.querySelector(".ref-bar").onpointerdown = e => {
+        if (e.target.closest("button")) return;
+        const sx = e.clientX - r.x, sy = e.clientY - r.y;
+        const mv = ev => { r.x = Math.max(-r.w + 80, Math.min(innerWidth - 80, ev.clientX - sx)); r.y = Math.max(0, Math.min(innerHeight - 30, ev.clientY - sy)); el.style.left = r.x + "px"; el.style.top = r.y + "px"; };
+        const up = () => { removeEventListener("pointermove", mv); removeEventListener("pointerup", up); };
+        addEventListener("pointermove", mv); addEventListener("pointerup", up);
+      };
+      el.querySelector(".ref-bar").onclick = e => { const a = e.target.closest("button")?.dataset.a; if (a === "fit") refFit(r); if (a === "min") { r.min = true; refDraw(); } if (a === "x") refClose(r); if (a === "pop") refPop(r); };
+      v.onwheel = e => { e.preventDefault(); const b = v.getBoundingClientRect(), mx = e.clientX - b.left, my = e.clientY - b.top, f = Math.exp(-e.deltaY * 0.0015), z = Math.max(0.02, Math.min(8, r.z * f)); r.tx = mx - (mx - r.tx) * z / r.z; r.ty = my - (my - r.ty) * z / r.z; r.z = z; refXf(r); };
+      v.onpointerdown = e => { v.setPointerCapture(e.pointerId); v.style.cursor = "grabbing"; const sx = e.clientX - r.tx, sy = e.clientY - r.ty; v.onpointermove = ev => { r.tx = ev.clientX - sx; r.ty = ev.clientY - sy; refXf(r); }; v.onpointerup = () => { v.onpointermove = null; v.style.cursor = ""; }; };
+      // size: drag the corner grip or the left, right or bottom edge, as big or small as you like
+      el.querySelectorAll("[data-rz]").forEach(g => g.onpointerdown = e => {
+        e.preventDefault(); e.stopPropagation(); g.setPointerCapture(e.pointerId);
+        const d = g.dataset.rz, x0 = e.clientX, y0 = e.clientY, w0 = r.w, h0 = r.h, l0 = r.x;
+        g.onpointermove = ev => {
+          if (d.includes("r")) r.w = Math.max(150, w0 + ev.clientX - x0);
+          if (d.includes("b")) r.h = Math.max(90, h0 + ev.clientY - y0);
+          if (d === "l") { r.w = Math.max(150, w0 - (ev.clientX - x0)); r.x = l0 + w0 - r.w; el.style.left = r.x + "px"; }
+          el.style.width = r.w + "px"; el.style.height = r.h + "px";
+        };
+        g.onpointerup = () => { g.onpointermove = null; };
+      });
+      el.style.width = r.w + "px"; el.style.height = r.h + "px";
+    }
+    r.el.style.left = r.x + "px"; r.el.style.top = r.y + "px";
+    r.el.querySelector(".ref-bar b").textContent = `Reference: ${refName(r)}`;
+    r.el.hidden = r.min;
+    if (r.min) {
+      const c = document.createElement("span"); c.className = "ref-chip"; c.title = "Click to bring this reference sheet back";
+      c.innerHTML = `⧉ <b></b><button type="button" class="x" title="Close" aria-label="Close">×</button>`;
+      c.querySelector("b").textContent = refName(r);
+      c.onclick = e => { if (e.target.closest(".x")) return refClose(r); r.min = false; refDraw(); };
+      dock.appendChild(c);
+    }
+  });
+}
+function refClose(r, quiet) { const i = refs.indexOf(r); if (i < 0) return; refs.splice(i, 1); r.el && r.el.remove(); if (!quiet) refDraw(); }
+function refPop(r) {
+  const w = window.open("", "_blank", `width=${Math.min(1400, screen.availWidth)},height=${Math.min(950, screen.availHeight)}`);
+  if (!w) return toast("Your browser blocked the new window. Allow pop-ups for this site and try again.");
+  const t = esc(`${refName(r)} · ${job ? job.name : "Example job"}`);
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${t}</title><style>html,body{margin:0;height:100%;overflow:hidden;background:#f1f3f5;font:13px system-ui,sans-serif}#v{position:absolute;inset:0;cursor:grab;touch-action:none}img{position:absolute;left:0;top:0;transform-origin:0 0;max-width:none;pointer-events:none}#h{position:fixed;left:8px;top:8px;background:rgba(0,0,0,.65);color:#fff;padding:4px 8px;border-radius:5px;z-index:2}</style></head><body><div id="h">${t} · scroll to zoom, drag to move, double-click to fit</div><div id="v"><img id="i" alt=""></div><script>
+var v=document.getElementById("v"),im=document.getElementById("i"),z=1,tx=0,ty=0;function xf(){im.style.transform="translate("+tx+"px,"+ty+"px) scale("+z+")"}
+function fit(){var W=innerWidth,H=innerHeight;z=Math.min(W/im.naturalWidth,H/im.naturalHeight);tx=(W-im.naturalWidth*z)/2;ty=(H-im.naturalHeight*z)/2;xf()}
+im.onload=fit;v.ondblclick=fit;v.onwheel=function(e){e.preventDefault();var f=Math.exp(-e.deltaY*.0015),n=Math.max(.02,Math.min(8,z*f));tx=e.clientX-(e.clientX-tx)*n/z;ty=e.clientY-(e.clientY-ty)*n/z;z=n;xf()};
+v.onpointerdown=function(e){v.setPointerCapture(e.pointerId);var sx=e.clientX-tx,sy=e.clientY-ty;v.onpointermove=function(ev){tx=ev.clientX-sx;ty=ev.clientY-sy;xf()};v.onpointerup=function(){v.onpointermove=null}};
+<\/script></body></html>`);
+  w.document.close();
+  // the image goes over as a data copy so the window keeps working on its own
+  const fr = new FileReader(); fr.onload = () => { try { w.document.getElementById("i").src = fr.result; } catch (e) {} }; fr.readAsDataURL(r.p.blob);
+  refClose(r);
+}
 function renderRail() {
   const rail = $("rail");
   const same = rail.children.length === pages.length && pages.every((p, i) => rail.children[i].dataset.id === p.id);
@@ -1306,8 +1406,8 @@ function renderRail() {
     pages.forEach((p, i) => {
       const b = document.createElement("button");
       b.className = "thumb"; b.type = "button"; b.dataset.id = p.id;
-      b.innerHTML = `<span class="num">${String(i + 1).padStart(3, "0")}</span><span class="pic"><img alt="" loading="lazy" decoding="async"><span class="q" hidden></span></span><span class="name"></span>`;
-      b.onclick = () => go(i);
+      b.innerHTML = `<span class="num">${String(i + 1).padStart(3, "0")}</span><span class="pic"><img alt="" loading="lazy" decoding="async"><span class="q" hidden></span></span><span class="name"></span><span class="pop no-print" role="button" tabindex="0" title="Open this sheet as a floating reference you can keep on top, or pop out to another screen">⧉</span>`;
+      b.onclick = e => { if (e.target.closest(".pop")) { e.stopPropagation(); return refOpen(p); } go(i); };
       rail.appendChild(b);
     });
   }
@@ -1320,6 +1420,7 @@ function renderRail() {
     nm.classList.toggle("unnamed", !p.name);
   });
   rail.children[current]?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  if (refs.length) refDraw();
 }
 function renderSheet() {
   const p = pages[current];
