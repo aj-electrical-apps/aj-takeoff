@@ -542,7 +542,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v96</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v97</small></div>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
@@ -2692,7 +2692,9 @@ function takeoffRows() {
     const by = pages.map((pg, i) => [sheetName(pg, i), qtyOn(pg, d.id)]).filter(x => x[1]);
     const per = d.group === "misc" ? Math.max(0, +d.miscQty || 1) : 1;
     if (per !== 1) by.forEach(x => { x[1] = Math.round(x[1] * per * 100) / 100; });
-    const qty = by.reduce((t, x) => t + x[1], 0);
+    let qty = by.reduce((t, x) => t + x[1], 0);
+    // a panel read from its schedule shows on the sheets even before it's placed on the plan
+    if (!qty) { const c0 = countsList().find(c => c.id === d.id); if (c0 && c0.brk && c0.brk.length) { by.push(["Not placed on the plan yet", 1]); qty = 1; } }
     if (!qty) return;
     const what = d.custom ? [d.kind !== nameOf(d) && !d.fanKind && !d.kindName && !nameOf(d).startsWith(d.kind) ? d.kind : "", [d.sMaker, d.sModel].filter(Boolean).join(" "), d.sched && d.desc, (d.sched || d.cct) && d.sWatts && d.sWatts + (/w$/i.test(d.sWatts) ? "" : "W"), d.cct, d.cct && !d.sMaker && "LED, any brand", d.sMount && `Mount ${d.sMount}`].filter(Boolean).join(" · ") : `${d.maker} ${d.model}`;
     counts.push({ id: d.id, label: d.label || "", asm: d.kindName ? `${d.group}|${d.kindName}` : "", em: !!(d.kindName && d.em), feed: feedable(d) ? feedFor(d) : null, name: nameOf(d), what: typeTitled(d) ? [kindSub(d), [d.sMaker, d.sModel].filter(Boolean).join(" "), d.sched && d.desc, d.sWatts && d.sWatts + (/w$/i.test(d.sWatts) ? "" : "W"), d.cct, d.cct && !d.sMaker && "LED, any brand"].filter(Boolean).join(" · ") : d.kindName && d.em ? ["With emergency battery", what].filter(Boolean).join(" · ") : what, qty, by, color: d.color, group: d.group, ...(d.group === "misc" ? { misc: true, unit: d.miscUnit || "ea", sup: !!d.sup } : {}) });
@@ -2829,7 +2831,7 @@ function supplierRows() {
     if (PRICE_BY_DESC.includes(c.asm) && list.length) list = [[list[0][0], `${list[0][1]} · ${c.label ? c.label + " (price this)" : "no description yet, add one"}`], ...list.slice(1)];
     list.forEach(([q, n]) => {
       if (q) parts.set(n, (parts.get(n) || 0) + q * c.qty);
-      else { const k = c.asm.split("|")[1]; need.set(n, (need.get(n) || new Set()).add(k)); }
+      else if (n !== "Breakers") { const k = c.asm.split("|")[1]; need.set(n, (need.get(n) || new Set()).add(k)); } // breakers are for pricing only
     });
   });
   // conduit fittings: coupling every 10', connector every 100', strap every 3' (underground: no straps); drops carry their own fittings
@@ -2843,7 +2845,7 @@ function supplierRows() {
     if (v.lf - v.ug > 0) fittings.push({ name: `${nm} strap`, qty: Math.ceil((v.lf - v.ug) / 3) });
   });
   const ov = overOf(), set = (m, k) => { m.key = k; m.calc = m.qty; if (ov[k] != null && ov[k] !== "") m.qty = +ov[k]; return m; };
-  return { counts, mat: [...mat].map(([name, lf]) => ({ name, lf })), parts: [...parts].map(([name, qty]) => set({ name, qty }, "p:" + name)).sort((a, b) => a.name.localeCompare(b.name)),
+  return { counts: counts.filter(c => !c.brk), mat: [...mat].map(([name, lf]) => ({ name, lf })), parts: [...parts].map(([name, qty]) => set({ name, qty }, "p:" + name)).sort((a, b) => a.name.localeCompare(b.name)),
     fittings: fittings.map(f => set(f, "f:" + f.name)).filter(f => f.qty || f.calc), need: [...need].map(([name, s2]) => set({ name, for: [...s2].join(", "), qty: 0 }, "n:" + name)) };
 }
 function renderNotes() {
@@ -3924,7 +3926,7 @@ function renderTakeoff() {
   } else {
     const { mat, parts, fittings, need } = supplierRows();
     let h = `<thead><tr><th>Material</th><th class="n">Quantity</th></tr></thead><tbody>`;
-    bySection(counts.filter(c => !c.misc)).forEach(sec => h += `<tr class="sec"><td colspan="2">${esc(sec.title)}</td></tr>` + sec.rows.map(c => `<tr><td>${esc(c.name)}${c.what ? `<small>${esc(c.what)}</small>` : ""}</td><td class="n">${c.qty} ea</td></tr>`).join(""));
+    bySection(counts.filter(c => !c.misc && !c.brk)).forEach(sec => h += `<tr class="sec"><td colspan="2">${esc(sec.title)}</td></tr>` + sec.rows.map(c => `<tr><td>${esc(c.name)}${c.what ? `<small>${esc(c.what)}</small>` : ""}</td><td class="n">${c.qty} ea</td></tr>`).join(""));
     const miscSup = counts.filter(c => c.misc && c.sup);
     if (miscSup.length) h += `<tr class="sec"><td colspan="2">Misc items for pricing</td></tr>` + miscSup.map(c => `<tr><td>${esc(c.label || c.name)} (price this)${c.gravel ? `<small>${esc(c.what)}</small>` : ""}</td><td class="n">${c.qty.toLocaleString()} ${c.unit === "LF" ? "ft" : c.unit === "CY" ? "CY" : "ea"}</td></tr>`).join("");
     if (mat.length) h += `<tr class="sec"><td colspan="2">Conduit and wire</td></tr>` + mat.map(m => `<tr><td>${esc(m.name)}</td><td class="n">${m.lf.toLocaleString()} ft</td></tr>`).join("");
