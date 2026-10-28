@@ -508,7 +508,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v86</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v87</small></div>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
@@ -929,6 +929,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <div class="ts-tabs no-print">
       <button class="btn" type="button" id="tsCountTab" aria-pressed="true">Count sheet</button>
       <button class="btn" type="button" id="tsSupTab" aria-pressed="false">Supplier sheet</button>
+      <button class="btn" type="button" id="tsUgTab" aria-pressed="false">Underground sub</button>
       <button class="btn" type="button" id="tsNotesTab" aria-pressed="false">Notes</button>
       <button class="btn" type="button" id="tsAsmTab" aria-pressed="false">Parts lists</button>
       <button class="btn" type="button" id="tsBidTab" aria-pressed="false">Bid sheet</button>
@@ -2384,7 +2385,7 @@ function takeoffRows() {
       add(`${w.id}:c`, `${w.size} ${w.conduit}`, `${wireLabel(w)}${runs > 1 ? ` · ${runs} runs × ${fmtLF(lf)} of ditch` : ""}`, lf * runs, `${w.size} ${w.conduit} conduit`); foot[foot.length - 1].ug = true;
       add(`${w.id}:t`, `Trench ${trenchLabel(w)}`, `Dig length for ${runs > 1 ? `${runs} runs of ` : ""}${w.size} ${w.conduit}`, lf, null);
       const fl = ugFill(w, lf);
-      if (fl) counts.push({ id: `${w.id}:fill`, gravel: true, misc: true, sup: true, unit: "CY", group: "misc", color: w.color, feed: null, by: [], label: `${w.backfill} backfill${w.label ? " · " + w.label : ""}`,
+      if (fl) counts.push({ id: `${w.id}:fill`, gravel: true, misc: true, sup: false, unit: "CY", group: "misc", color: w.color, feed: null, by: [], label: `${w.backfill} backfill${w.label ? " · " + w.label : ""}`,
         name: `${w.backfill} backfill${w.label ? " · " + w.label : ""}`, qty: fl.cy,
         what: `About ${fl.cy} cubic yards${fl.tons ? ` (about ${fl.tons} tons)` : ""}: ${fmtLF(lf)} of ditch × ${w.width || 30}" wide × ${fl.deep}" deep` });
     } else if (w.conduit === "Romex (NM-B)") add(`${w.id}:c`, `Romex ${w.count}x ${gaugeTxt(w.gauge)}${w.ground ? " + GND" : ""}`, wireLabel(w), lf * sets, `Romex (NM-B), ${w.count}/${gaugeTxt(w.gauge)}${w.ground ? ` with ${gaugeTxt(w.ground)} ground` : ""}`);
@@ -3498,6 +3499,16 @@ function renderTakeoff() {
     $("tsHint").textContent = bid ? "Man hours come from your labor rates times the counts and the footage with your extra %. Type over any man hours to change them for this job (clear it to go back)." : "Your man hours per item (per foot for conduit and wire). Changes save on this device and apply to every job.";
     return bid ? renderBid() : renderRates();
   }
+  $("tsUgTab").setAttribute("aria-pressed", tsView === "ug");
+  if (tsView === "ug") {
+    $("tsTitle").textContent = "Underground for sub pricing"; $("tsAllBox").hidden = true;
+    $("tsJob").innerHTML = `<b>${esc(job ? job.name : "Example job")}</b> · ${new Date().toLocaleDateString()}<br>AJ Electrical`;
+    $("tsHint").textContent = "Every underground run: the ditch to dig, the conduit going in it, and the backfill. Send it to your underground sub with Email, Copy, or Print. The trench footage includes any extra % you set on the count sheet.";
+    const u = ugRows(); $("tsEmpty").hidden = !!u.length;
+    $("tsTable").innerHTML = `<thead><tr><th>Item</th><th class="n">Quantity</th></tr></thead><tbody>` + u.map(x => `<tr class="sec"><td colspan="2">${esc(x.title)}</td></tr>` + x.lines.map(l => `<tr><td>${esc(l[0])}${l[2] ? `<small>${esc(l[2])}</small>` : ""}</td><td class="n"><b>${esc(l[1])}</b></td></tr>`).join("")).join("") +
+      (u.length ? `<tr class="sec"><td colspan="2">Totals</td></tr><tr><td>Total ditch to dig</td><td class="n"><b>${ugTot(u).lf.toLocaleString()} ft</b></td></tr>${ugTot(u).fill.map(f => `<tr><td>${esc(f[0])} backfill</td><td class="n"><b>${f[1]} CY${f[2] ? ` · ${f[2]} tons` : ""}</b></td></tr>`).join("")}` : "") + `</tbody>`;
+    return;
+  }
   if (tsView === "asm") {
     $("tsTitle").textContent = "Parts lists"; $("tsAllBox").hidden = true; $("tsEmpty").hidden = true;
     $("tsJob").innerHTML = `<b>${esc(job ? job.name : "Example job")}</b><br>AJ Electrical`;
@@ -3603,6 +3614,29 @@ function redNotesRows(cols, title) {
 function fillRedCrops(t) {
   allNotes().filter(n => n.h.c === "r").forEach(n => cropOf(n.pg, n.h).then(u => { const im = t.querySelector(`img.sup-crop[data-k="${n.no}"]`); if (im) im.src = u; }));
 }
+/* Underground sub sheet: one section per underground run type, from the trench footage (with its extra %) */
+function ugRows() {
+  const { foot } = takeoffRows();
+  return wiresList().filter(isUG).map(w => {
+    const t = foot.find(f => f.key === `${w.id}:t`); if (!t) return null;
+    const runs = w.runs || 1, fl = ugFill(w, t.total), lines = [
+      ["Ditch to dig", `${t.total.toLocaleString()} ft`, `${w.width || 30}" wide bucket × ${w.depth || 24}" deep`],
+      ["Conduit going in the ditch", `${runs} run${runs > 1 ? "s" : ""}`, `${w.size} ${w.conduit}, ${(t.total * runs).toLocaleString()} ft total`]];
+    lines.push(fl ? [`${w.backfill} backfill`, `${fl.cy} CY${fl.tons ? ` · ${fl.tons} tons` : ""}`, fl.deep === (w.depth || 24) ? "Whole ditch" : `Bottom ${fl.deep}" of the ditch, native dirt above`] : ["Backfill", "Native dirt", "Dirt back in the ditch"]);
+    return { title: w.label ? `${w.label} · ${w.size} ${w.conduit}` : `${w.size} ${w.conduit} underground`, lf: t.total, fill: fl && [w.backfill, fl.cy, fl.tons], lines };
+  }).filter(Boolean);
+}
+function ugTot(u) {
+  const fill = {};
+  u.forEach(x => { if (x.fill) { const f = fill[x.fill[0]] || (fill[x.fill[0]] = [x.fill[0], 0, 0]); f[1] += x.fill[1]; f[2] += x.fill[2] || 0; } });
+  return { lf: Math.round(u.reduce((t, x) => t + x.lf, 0)), fill: Object.values(fill).map(f => [f[0], f[1], f[2] ? Math.round(f[2] * 10) / 10 : 0]) };
+}
+function ugText() {
+  const u = ugRows(), name = job ? job.name : "Example job", lines = [`Underground for pricing: ${name}`, `AJ Electrical · ${new Date().toLocaleDateString()}`, ""];
+  u.forEach(x => { lines.push(x.title.toUpperCase()); x.lines.forEach(l => lines.push(`${l[0]}: ${l[1]}${l[2] ? ` (${l[2]})` : ""}`)); lines.push(""); });
+  if (u.length) { const t = ugTot(u); lines.push("TOTALS", `Ditch to dig: ${t.lf.toLocaleString()} ft`); t.fill.forEach(f => lines.push(`${f[0]} backfill: ${f[1]} CY${f[2] ? ` (${f[2]} tons)` : ""}`)); }
+  return lines.join("\n");
+}
 function takeoffText() {
   const { counts, mat, parts, fittings, need } = supplierRows(), name = job ? job.name : "Example job";
   const lines = [`Material list: ${name}`, `AJ Electrical · ${new Date().toLocaleDateString()}`, ""];
@@ -3628,6 +3662,7 @@ function openTakeoff(view) {
 $("takeoffBtn").onclick = () => openTakeoff("count");
 $("tsCountTab").onclick = () => { tsView = "count"; renderTakeoff(); };
 $("tsSupTab").onclick = () => { tsView = "sup"; renderTakeoff(); };
+$("tsUgTab").onclick = () => { tsView = "ug"; renderTakeoff(); };
 $("tsNotesTab").onclick = () => { tsView = "notes"; renderTakeoff(); };
 $("tsAsmTab").onclick = () => { tsView = "asm"; renderTakeoff(); };
 $("tsBidTab").onclick = () => { tsView = "bid"; renderTakeoff(); };
@@ -3666,12 +3701,13 @@ $("tsAll").addEventListener("keydown", e => { if (e.key === "Enter") { e.prevent
 $("tsClose").onclick = () => { $("takeoffModal").hidden = true; };
 $("takeoffModal").addEventListener("keydown", e => { if (e.key === "Escape") $("takeoffModal").hidden = true; });
 $("tsCopy").onclick = async () => {
-  try { await navigator.clipboard.writeText(tsView === "bid" ? bidText() : takeoffText()); toast(tsView === "bid" ? "Bid sheet copied." : "Material list copied. Paste it into an email or text."); }
+  try { await navigator.clipboard.writeText(tsView === "bid" ? bidText() : tsView === "ug" ? ugText() : takeoffText()); toast(tsView === "bid" ? "Bid sheet copied." : tsView === "ug" ? "Underground sheet copied. Paste it into an email or text." : "Material list copied. Paste it into an email or text."); }
   catch (e) { toast("Couldn't copy here. Use Email or Print instead."); }
 };
 $("tsEmail").onclick = () => {
   const bid = tsView === "bid";
-  $("tsEmail").href = `mailto:?subject=${encodeURIComponent(`${bid ? "Bid sheet" : "Material list"}: ${job ? job.name : "Example job"}`)}&body=${encodeURIComponent(bid ? bidText() : takeoffText())}`;
+  const ug = tsView === "ug";
+  $("tsEmail").href = `mailto:?subject=${encodeURIComponent(`${bid ? "Bid sheet" : ug ? "Underground for pricing" : "Material list"}: ${job ? job.name : "Example job"}`)}&body=${encodeURIComponent(bid ? bidText() : ug ? ugText() : takeoffText())}`;
 };
 $("tsPrint").onclick = () => {
   document.body.classList.add("print-ts");
