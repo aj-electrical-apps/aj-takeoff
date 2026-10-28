@@ -197,7 +197,12 @@ button { cursor: pointer; }
 #ampForm:not(.m-amps) .ask-amps, #ampForm:not(.m-fan) .ask-fan, #ampForm:not(.m-drop) .ask-drop, #ampForm:not(.m-cat) .ask-cat,
 #ampForm:not(.m-misc) .ask-misc, #ampForm:not(.m-em) .ask-em, #ampForm:not(.m-mount) .ask-mount, #ampForm:not(.m-light) .ask-light, #ampForm:not(.m-light) .ask-db, #ampForm:not(.m-db) .ask-light { display: none; }
 .ask-db { display: flex; gap: 8px; align-items: center; }
-#wireForm.ug .wire-only, #wireForm:not(.ug) .ug-only, #wireForm.jh .wire-only, #wireForm.jh .pipe-row, #wireForm:not(.jh) .jh-only { display: none; }
+.ts-table tr.ug-off td { color: var(--muted); text-decoration: line-through; }
+.ts-table tr.ug-off td input { text-decoration: none; }
+@media print { .ts-table tr.ug-off { display: none; } }
+.ug-check { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.ug-check small { font-weight: 400; color: var(--muted); }
+#wireForm.ug .wire-only, #wireForm:not(.ug):not(.tr) .ug-only, #wireForm.tr .ugk-only, #wireForm.jh .wire-only, #wireForm.jh .pipe-row, #wireForm:not(.jh) .jh-only { display: none; }
 .amp-box { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 .amp-box .sched { grid-template-columns: 1fr 1.6fr; }
 .wire-fill { font-size: 13px; color: var(--muted); }
@@ -430,6 +435,7 @@ td .bid-ln[data-q], td .bid-ln[data-s] { width: calc(100% - 80px); }
 .feed-grid label { display: grid; gap: 3px; font-size: 12px; color: var(--muted); }
 .feed-grid select, .feed-grid input { min-width: 0; }
 .feed-grid input[type=number] { width: 90px; }
+.ts-done-top { align-self: flex-start; }
 .ts-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 14px; }
 @media print {
   body.print-ts { background: #fff !important; }
@@ -518,7 +524,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v89</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v90</small></div>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
@@ -935,6 +941,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <div class="ts-head">
       <h2 id="tsTitle">Count sheet</h2>
       <div id="tsJob"></div>
+      <button class="btn primary no-print ts-done-top" type="button" id="tsCloseTop">Done</button>
     </div>
     <div class="ts-tabs no-print">
       <button class="btn" type="button" id="tsCountTab" aria-pressed="true">Count sheet</button>
@@ -1052,11 +1059,12 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <div class="opt"><label for="wLabel">Label</label><input type="text" id="wLabel" placeholder="e.g. Feeder to LP-1, or Parking lot lights"></div>
     <div class="opt"><label for="wKind">What is this run</label><select id="wKind"><option value="wire">Conduit with wire</option><option value="ug">Conduit only, underground</option><option value="jhook">J-hook run (low voltage)</option></select></div>
     <div class="opt jh-only"><label for="wHook">J-hook every (feet)</label><input type="number" id="wHook" min="1" max="20" step="0.5" inputmode="decimal"></div>
+    <label class="opt wire-only ug-check"><input type="checkbox" id="wTrench"> Underground, in a ditch <small>(adds the dig, backfill and spacers for your underground sub)</small></label>
     <div class="sched two ug-only">
       <div class="opt"><label for="wDepth">Dig depth</label><select id="wDepth"></select></div>
       <div class="opt"><label for="wFill">Backfill</label><select id="wFill"><option value="None">None, dirt back in</option><option value="Gravel">Gravel</option><option value="Concrete">Concrete</option><option value="Sand">Sand</option></select></div>
       <div class="opt"><label for="wWidth">Ditch width (bucket)</label><select id="wWidth"><option value="6">6 in</option><option value="12">12 in</option><option value="16">16 in</option><option value="24">24 in</option><option value="30">30 in</option></select></div>
-      <div class="opt"><label for="wRuns">Conduit runs in the ditch</label><input type="number" id="wRuns" min="1" max="20" step="1" inputmode="numeric"></div>
+      <div class="opt ugk-only"><label for="wRuns">Conduit runs in the ditch</label><input type="number" id="wRuns" min="1" max="20" step="1" inputmode="numeric"></div>
       <div class="opt"><label for="wFillDepth">How deep the backfill goes</label><select id="wFillDepth"><option value="full">Whole ditch</option><option value="6">Bottom 6 in</option><option value="12">Bottom 12 in</option><option value="18">Bottom 18 in</option></select></div>
       <div class="opt"><label for="wSpacer">Duct bank spacers</label><select id="wSpacer"><option value="0">None</option><option value="4">Every 4 ft</option><option value="5">Every 5 ft</option><option value="6">Every 6 ft</option><option value="8">Every 8 ft</option><option value="10">Every 10 ft</option></select></div>
     </div>
@@ -2420,6 +2428,10 @@ function takeoffRows() {
     if (isUG(w)) {
       const runs = w.runs || 1;
       add(`${w.id}:c`, `${w.size} ${w.conduit}`, `${wireLabel(w)}${runs > 1 ? ` · ${runs} runs × ${fmtLF(lf)} of ditch` : ""}`, lf * runs, `${w.size} ${w.conduit} conduit`); foot[foot.length - 1].ug = true;
+    }
+    if (hasTrench(w)) {
+      const runs = ditchRuns(w);
+      if (!isUG(w)) { const cf = foot.find(f => f.key === `${w.id}:c`); if (cf) cf.ug = true; }
       add(`${w.id}:t`, `Trench ${trenchLabel(w)}`, `Dig length for ${runs > 1 ? `${runs} runs of ` : ""}${w.size} ${w.conduit}`, lf, null);
       const fl = ugFill(w, lf);
       if (fl) counts.push({ id: `${w.id}:fill`, gravel: true, misc: true, sup: false, unit: "CY", group: "misc", color: w.color, feed: null, by: [], label: `${w.backfill} backfill${w.label ? " · " + w.label : ""}`,
@@ -2428,13 +2440,15 @@ function takeoffRows() {
       const sp = ugSpacers(w, lf);
       if (sp) counts.push({ id: `${w.id}:sp`, gravel: true, misc: true, sup: true, unit: "ea", group: "misc", color: w.color, feed: null, by: [], label: spacerName(w),
         name: spacerName(w), qty: sp, what: `One every ${w.spacer}' along ${fmtLF(lf)} of ditch` });
-    } else if (w.conduit === "Romex (NM-B)") add(`${w.id}:c`, `Romex ${w.count}x ${gaugeTxt(w.gauge)}${w.ground ? " + GND" : ""}`, wireLabel(w), lf * sets, `Romex (NM-B), ${w.count}/${gaugeTxt(w.gauge)}${w.ground ? ` with ${gaugeTxt(w.ground)} ground` : ""}`);
+    }
+    if (isUG(w)) { /* conduit added above */ } else if (w.conduit === "Romex (NM-B)") add(`${w.id}:c`, `Romex ${w.count}x ${gaugeTxt(w.gauge)}${w.ground ? " + GND" : ""}`, wireLabel(w), lf * sets, `Romex (NM-B), ${w.count}/${gaugeTxt(w.gauge)}${w.ground ? ` with ${gaugeTxt(w.ground)} ground` : ""}`);
     else if (w.conduit === "MC cable") add(`${w.id}:c`, `MC cable ${w.count}x ${gaugeTxt(w.gauge)}${w.ground ? " + GND" : ""}`, wireLabel(w), lf * sets, `MC cable, ${w.count}/${gaugeTxt(w.gauge)}${w.ground ? ` with ${gaugeTxt(w.ground)} ground` : ""}`);
     else {
       if (w.conduit !== "No conduit") add(`${w.id}:c`, `${w.size} ${w.conduit}`, wireLabel(w), lf * sets, `${w.size} ${w.conduit} conduit`);
       add(`${w.id}:w`, `${gaugeTxt(w.gauge)} ${w.ins} ${mat}`, `${w.count * sets} wires × ${fmtLF(lf)} · ${wireLabel(w)}`, lf * w.count * sets, `${gaugeTxt(w.gauge)} ${w.ins} ${mat === "AL" ? "aluminum" : "copper"} wire`);
       if (w.ground) add(`${w.id}:g`, `${gaugeTxt(w.ground)} ground ${mat}`, `${sets} ground${sets > 1 ? "s" : ""} × ${fmtLF(lf)} · ${wireLabel(w)}`, lf * sets, `${gaugeTxt(w.ground)} ${mat === "AL" ? "aluminum" : "copper"} ground wire`);
     }
+    if (hasTrench(w)) foot.forEach(f => { if (f.key === `${w.id}:c`) f.ug = true; }); // no straps underground
   });
   counts.filter(c => c.feed && c.feed.ft).forEach(c => {
     const f = c.feed, base = c.qty * f.ft, sub = `${c.qty} × ${f.ft}' for ${c.name}`;
@@ -3543,10 +3557,13 @@ function renderTakeoff() {
   if (tsView === "ug") {
     $("tsTitle").textContent = "Underground for sub pricing"; $("tsAllBox").hidden = true;
     $("tsJob").innerHTML = `<b>${esc(job ? job.name : "Example job")}</b> · ${new Date().toLocaleDateString()}<br>AJ Electrical`;
-    $("tsHint").textContent = "Every underground run: the ditch to dig, the conduit going in it, and the backfill. Send it to your underground sub with Email, Copy, or Print. The trench footage includes any extra % you set on the count sheet.";
-    const u = ugRows(); $("tsEmpty").hidden = !!u.length;
-    $("tsTable").innerHTML = `<thead><tr><th>Item</th><th class="n">Quantity</th></tr></thead><tbody>` + u.map(x => `<tr class="sec"><td colspan="2">${esc(x.title)}</td></tr>` + x.lines.map(l => `<tr><td>${esc(l[0])}${l[2] ? `<small>${esc(l[2])}</small>` : ""}</td><td class="n"><b>${esc(l[1])}</b></td></tr>`).join("")).join("") +
-      (u.length ? `<tr class="sec"><td colspan="2">Totals</td></tr><tr><td>Total ditch to dig</td><td class="n"><b>${ugTot(u).lf.toLocaleString()} ft</b></td></tr>${ugTot(u).fill.map(f => `<tr><td>${esc(f[0])} backfill</td><td class="n"><b>${f[1]} CY${f[2] ? ` · ${f[2]} tons` : ""}</b></td></tr>`).join("")}` : "") + `</tbody>`;
+    $("tsHint").textContent = "Every underground run: the ditch to dig, the conduit going in it, spacers and backfill. Uncheck anything you don't want the sub to price; it stays off the email, copy and print. The trench footage includes any extra % you set on the count sheet.";
+    const u = ugRows(true), tt = ugTot(u); $("tsEmpty").hidden = !!u.length;
+    const ck = (k, on, what) => `<input type="checkbox" class="ug-send no-print" data-k="${esc(k)}"${on ? " checked" : ""} title="${on ? "Uncheck to leave this off what you send the sub" : "Check to send this to the sub"}" aria-label="Send ${esc(what)}">`;
+    $("tsTable").innerHTML = `<thead><tr><th>Item</th><th class="n">Quantity</th></tr></thead><tbody>` + u.map(x => `<tr class="sec${x.off ? " ug-off" : ""}"><td colspan="2">${ck(x.id, !x.off, x.title)} ${esc(x.title)}${x.off ? ` <small class="no-print">left off</small>` : ""}</td></tr>` +
+      x.lines.map(l => `<tr class="${l.off ? "ug-off" : ""}"><td>${x.off ? "" : ck(l.k, !l.off, l.a)} ${esc(l.a)}${l.c ? `<small>${esc(l.c)}</small>` : ""}</td><td class="n"><b>${esc(l.b)}</b></td></tr>`).join("")).join("") +
+      (u.length ? `<tr class="sec"><td colspan="2">Totals (what you're sending)</td></tr><tr><td>Total ditch to dig</td><td class="n"><b>${tt.lf.toLocaleString()} ft</b></td></tr>${tt.fill.map(f => `<tr><td>${esc(f[0])} backfill</td><td class="n"><b>${f[1]} CY${f[2] ? ` · ${f[2]} tons` : ""}</b></td></tr>`).join("")}` : "") + `</tbody>`;
+    $("tsTable").querySelectorAll(".ug-send").forEach(c => c.onchange = () => { const o = ugOff(); if (c.checked) delete o[c.dataset.k]; else o[c.dataset.k] = true; if (job) saveJob(job); renderTakeoff(); });
     return;
   }
   if (tsView === "asm") {
@@ -3655,27 +3672,31 @@ function fillRedCrops(t) {
   allNotes().filter(n => n.h.c === "r").forEach(n => cropOf(n.pg, n.h).then(u => { const im = t.querySelector(`img.sup-crop[data-k="${n.no}"]`); if (im) im.src = u; }));
 }
 /* Underground sub sheet: one section per underground run type, from the trench footage (with its extra %) */
-function ugRows() {
-  const { foot } = takeoffRows();
-  return wiresList().filter(isUG).map(w => {
+let exampleUgOff = {};
+const ugOff = () => job ? (job.ugOff || (job.ugOff = {})) : exampleUgOff;
+function ugRows(all) {
+  const { foot } = takeoffRows(), off = ugOff();
+  return wiresList().filter(hasTrench).map(w => {
     const t = foot.find(f => f.key === `${w.id}:t`); if (!t) return null;
-    const runs = w.runs || 1, fl = ugFill(w, t.total), lines = [
-      ["Ditch to dig", `${t.total.toLocaleString()} ft`, `${w.width || 30}" wide bucket × ${w.depth || 24}" deep`],
-      ["Conduit going in the ditch", `${runs} run${runs > 1 ? "s" : ""}`, `${w.size} ${w.conduit}, ${(t.total * runs).toLocaleString()} ft total`]];
-    const sp = ugSpacers(w, t.total);
-    if (sp) lines.push(["Duct bank spacers", `${sp} ea`, `${spacerName(w)}, one every ${w.spacer}'`]);
-    lines.push(fl ? [`${w.backfill} backfill`, `${fl.cy} CY${fl.tons ? ` · ${fl.tons} tons` : ""}`, fl.deep === (w.depth || 24) ? "Whole ditch" : `Bottom ${fl.deep}" of the ditch, native dirt above`] : ["Backfill", "Native dirt", "Dirt back in the ditch"]);
-    return { title: w.label ? `${w.label} · ${w.size} ${w.conduit}` : `${w.size} ${w.conduit} underground`, lf: t.total, fill: fl && [w.backfill, fl.cy, fl.tons], lines };
-  }).filter(Boolean);
+    const runs = ditchRuns(w), fl = ugFill(w, t.total), sp = ugSpacers(w, t.total), lines = [
+      { k: `${w.id}:dig`, a: "Ditch to dig", b: `${t.total.toLocaleString()} ft`, c: `${w.width || 30}" wide bucket × ${w.depth || 24}" deep` },
+      { k: `${w.id}:cond`, a: "Conduit going in the ditch", b: `${runs} run${runs > 1 ? "s" : ""}`, c: `${w.size} ${w.conduit}, ${(t.total * runs).toLocaleString()} ft total` }];
+    if (sp) lines.push({ k: `${w.id}:sp`, a: "Duct bank spacers", b: `${sp} ea`, c: `${spacerName(w)}, one every ${w.spacer}'` });
+    lines.push(fl ? { k: `${w.id}:fill`, a: `${w.backfill} backfill`, b: `${fl.cy} CY${fl.tons ? ` · ${fl.tons} tons` : ""}`, c: fl.deep === (w.depth || 24) ? "Whole ditch" : `Bottom ${fl.deep}" of the ditch, native dirt above`, fill: [w.backfill, fl.cy, fl.tons] }
+      : { k: `${w.id}:fill`, a: "Backfill", b: "Native dirt", c: "Dirt back in the ditch" });
+    lines.forEach(l => { l.off = !!off[l.k] || !!off[w.id]; });
+    const name = !isUG(w) && w.amps ? `${w.amps} amp feeder` : `${w.size} ${w.conduit}${isUG(w) ? " underground" : ""}`;
+    return { id: w.id, off: !!off[w.id], title: w.label ? `${w.label} · ${name}` : name, lf: t.total, lines };
+  }).filter(Boolean).filter(x => all || !x.off).map(x => all ? x : { ...x, lines: x.lines.filter(l => !l.off) });
 }
 function ugTot(u) {
-  const fill = {};
-  u.forEach(x => { if (x.fill) { const f = fill[x.fill[0]] || (fill[x.fill[0]] = [x.fill[0], 0, 0]); f[1] += x.fill[1]; f[2] += x.fill[2] || 0; } });
-  return { lf: Math.round(u.reduce((t, x) => t + x.lf, 0)), fill: Object.values(fill).map(f => [f[0], f[1], f[2] ? Math.round(f[2] * 10) / 10 : 0]) };
+  const fill = {}, live = u.filter(x => !x.off);
+  live.forEach(x => x.lines.forEach(l => { if (l.fill && !l.off) { const f = fill[l.fill[0]] || (fill[l.fill[0]] = [l.fill[0], 0, 0]); f[1] += l.fill[1]; f[2] += l.fill[2] || 0; } }));
+  return { lf: Math.round(live.filter(x => x.lines.some(l => l.k.endsWith(":dig") && !l.off)).reduce((t, x) => t + x.lf, 0)), fill: Object.values(fill).map(f => [f[0], f[1], f[2] ? Math.round(f[2] * 10) / 10 : 0]) };
 }
 function ugText() {
   const u = ugRows(), name = job ? job.name : "Example job", lines = [`Underground for pricing: ${name}`, `AJ Electrical · ${new Date().toLocaleDateString()}`, ""];
-  u.forEach(x => { lines.push(x.title.toUpperCase()); x.lines.forEach(l => lines.push(`${l[0]}: ${l[1]}${l[2] ? ` (${l[2]})` : ""}`)); lines.push(""); });
+  u.forEach(x => { if (!x.lines.length) return; lines.push(x.title.toUpperCase()); x.lines.forEach(l => lines.push(`${l.a}: ${l.b}${l.c ? ` (${l.c})` : ""}`)); lines.push(""); });
   if (u.length) { const t = ugTot(u); lines.push("TOTALS", `Ditch to dig: ${t.lf.toLocaleString()} ft`); t.fill.forEach(f => lines.push(`${f[0]} backfill: ${f[1]} CY${f[2] ? ` (${f[2]} tons)` : ""}`)); }
   return lines.join("\n");
 }
@@ -3699,7 +3720,7 @@ function openTakeoff(view) {
   if (tool) setTool(null);
   tsView = view || tsView;
   renderTakeoff();
-  $("takeoffModal").hidden = false; $("tsClose").focus();
+  $("takeoffModal").hidden = false; tsTop(); $("tsCloseTop").focus({ preventScroll: true });
 }
 $("takeoffBtn").onclick = () => openTakeoff("count");
 $("tsCountTab").onclick = () => { tsView = "count"; renderTakeoff(); };
@@ -3740,7 +3761,10 @@ $("tsAllSet").onclick = () => {
   renderTakeoff(); toast(v ? `Added ${v}% to every footage line.` : "Extra % cleared on every footage line.");
 };
 $("tsAll").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); $("tsAllSet").click(); } });
-$("tsClose").onclick = () => { $("takeoffModal").hidden = true; };
+$("tsClose").onclick = $("tsCloseTop").onclick = () => { $("takeoffModal").hidden = true; };
+// every sheet opens at the top (the Done at the bottom used to pull it down)
+const tsTop = () => { const c = $("takeoffModal").querySelector(".modal-card"); if (c) c.scrollTop = 0; $("takeoffModal").scrollTop = 0; };
+["tsCountTab", "tsSupTab", "tsUgTab", "tsNotesTab", "tsAsmTab", "tsBidTab", "tsRateTab", "tsPropTab"].forEach(id => $(id).addEventListener("click", tsTop));
 $("takeoffModal").addEventListener("keydown", e => { if (e.key === "Escape") $("takeoffModal").hidden = true; });
 $("tsCopy").onclick = async () => {
   try { await navigator.clipboard.writeText(tsView === "bid" ? bidText() : tsView === "ug" ? ugText() : takeoffText()); toast(tsView === "bid" ? "Bid sheet copied." : tsView === "ug" ? "Underground sheet copied. Paste it into an email or text." : "Material list copied. Paste it into an email or text."); }
@@ -4576,13 +4600,14 @@ function wireLabel(w) {
   if (w.label) return `${w.label} · ${wireSpec(w)}`;
   return wireSpec(w);
 }
+const wireShort = w => isJH(w) ? `J-hooks every ${w.interval || 5}'` : isUG(w) ? `${w.size} ${w.conduit} underground` : w.amps ? `${w.amps} amp${hasTrench(w) ? " underground" : ""}` : `${w.conduit === "No conduit" || NOPIPE.includes(w.conduit) ? w.conduit === "No conduit" ? "" : w.conduit + " " : w.size + " " + w.conduit + " · "}${w.count}x ${gaugeTxt(w.gauge)}${hasTrench(w) ? " underground" : ""}`;
 function wireSpec(w) {
   if (isUG(w)) return `${(w.runs || 1) > 1 ? `${w.runs} runs of ` : ""}${w.size} ${w.conduit} underground · ${trenchLabel(w)}`;
   if (isJH(w)) return `J-hooks every ${w.interval || 5}'`;
   const sets = w.sets > 1 ? `${w.sets} sets of ` : "", amps = w.amps ? `${w.amps}A ${w.mat === "AL" ? "AL" : "CU"} · ` : "";
   const pipe = w.conduit === "No conduit" ? "" : w.conduit === "MC cable" || w.conduit === "Romex (NM-B)" ? w.conduit : `${w.size} ${w.conduit}`;
   const wire = `${w.count}x ${gaugeTxt(w.gauge)} ${w.ins}` + (w.ground ? ` + ${gaugeTxt(w.ground)} GND` : "");
-  return amps + sets + (pipe ? `${pipe} · ${wire}` : wire);
+  return amps + sets + (pipe ? `${pipe} · ${wire}` : wire) + (w.trench ? ` · underground ${trenchLabel(w)}` : "");
 }
 const wireTotal = w => isUG(w) || isJH(w) ? 0 : ((w.count || 0) + (w.ground ? 1 : 0)) * (w.sets || 1);
 const pipeRuns = w => w.sets || 1; // each parallel set is its own conduit
@@ -4599,10 +4624,11 @@ function renderWires() {
     b.title = "Draw a run of this type";
     const sw = document.createElement("span"); sw.className = "wire-swatch"; sw.style.borderColor = w.color;
     const tx = document.createElement("span"); tx.className = "cnt-txt";
-    const nm = document.createElement("b"); nm.textContent = wireLabel(w);
-    const ds = document.createElement("span"); ds.className = "d";
-    ds.textContent = !lf ? "Nothing drawn yet" : isJH(w) ? `${fmtLF(lf)} · ${hooksOf(w)} J-hooks` : isUG(w) ? `${fmtLF(lf)} of conduit and trench` : `${fmtLF(lf * pipeRuns(w))} of conduit · ${fmtLF(lf * wireTotal(w))} of wire`;
-    tx.append(nm, ds);
+    // short in the side bar (like "800 amp · Lighting"); the full spec and footage are in the tooltip and on the count sheet
+    const nm = document.createElement("b"); nm.textContent = wireShort(w);
+    tx.append(nm);
+    if (w.label) { const ds = document.createElement("span"); ds.className = "d"; ds.textContent = w.label; tx.append(ds); }
+    b.title = `${wireLabel(w)}\n${!lf ? "Nothing drawn yet" : isJH(w) ? `${fmtLF(lf)} · ${hooksOf(w)} J-hooks` : isUG(w) ? `${fmtLF(lf)} of conduit and trench` : `${fmtLF(lf * pipeRuns(w))} of conduit · ${fmtLF(lf * wireTotal(w))} of wire`}\nClick to draw a run of this type`;
     b.append(sw, tx);
     b.onclick = () => startRunType(w.id);
     const e = document.createElement("button"); e.type = "button"; e.className = "cnt-edit"; e.title = "Edit this run type"; e.setAttribute("aria-label", "Edit " + wireLabel(w));
@@ -4644,11 +4670,14 @@ const isUG = w => w && w.kind === "ug";
 /* Backfill for an underground ditch, roughly: length x bucket width x backfill depth, in cubic yards (rounded up to the half yard).
    Tons use about 1.4 tons a yard for gravel and 1.35 for sand. Concrete stays in yards. */
 const FILL_TONS = { Gravel: 1.4, Sand: 1.35 };
+// conduit with wire can be underground too (w.trench): same ditch, backfill and spacers; its parallel sets are the conduits in the ditch
+const hasTrench = w => isUG(w) || !!(w && w.kind !== "ug" && w.kind !== "jhook" && w.trench);
+const ditchRuns = w => isUG(w) ? (w.runs || 1) : (w.sets || 1);
 // duct bank spacers: one every so many feet along the ditch, plus one at the start; each holds every conduit in the ditch
-const ugSpacers = (w, lf) => isUG(w) && w.spacer && lf ? Math.ceil(lf / w.spacer) + 1 : 0;
-const spacerName = w => `${w.size} duct bank spacer for ${w.runs || 1} conduit${(w.runs || 1) > 1 ? "s" : ""}`;
+const ugSpacers = (w, lf) => hasTrench(w) && w.spacer && lf ? Math.ceil(lf / w.spacer) + 1 : 0;
+const spacerName = w => `${w.size} duct bank spacer for ${ditchRuns(w)} conduit${ditchRuns(w) > 1 ? "s" : ""}`;
 function ugFill(w, lf) {
-  if (!isUG(w) || !w.backfill || w.backfill === "None" || !lf) return null;
+  if (!hasTrench(w) || !w.backfill || w.backfill === "None" || !lf) return null;
   const deep = w.fillDepth && w.fillDepth !== "full" ? Math.min(+w.fillDepth, w.depth || 24) : (w.depth || 24);
   const cy = Math.ceil(lf * ((w.width || 30) / 12) * (deep / 12) / 27 * 2) / 2;
   return { cy, deep, tons: FILL_TONS[w.backfill] ? Math.ceil(cy * FILL_TONS[w.backfill] * 2) / 2 : null };
@@ -4665,21 +4694,23 @@ function wireFields() {
     width: +$("wWidth").value || 30, runs: Math.max(1, Math.min(20, parseInt($("wRuns").value, 10) || 1)), fillDepth: $("wFillDepth").value, spacer: +$("wSpacer").value || 0 };
   return { label, kind: "wire", conduit: $("wConduit").value, size: $("wSize").value, count: Math.max(1, Math.min(40, parseInt($("wCount").value, 10) || 1)),
     gauge: $("wGauge").value, ins: $("wIns").value, ground: $("wGround").value, color: $("wColor").value,
-    sets: Math.max(1, Math.min(12, parseInt($("wSets").value, 10) || 1)), mat: $("wMat").value, amps: parseInt($("wAmps").value, 10) || null };
+    sets: Math.max(1, Math.min(12, parseInt($("wSets").value, 10) || 1)), mat: $("wMat").value, amps: parseInt($("wAmps").value, 10) || null,
+    ...($("wTrench").checked ? { trench: true, depth: +$("wDepth").value, backfill: $("wFill").value, width: +$("wWidth").value || 30, fillDepth: $("wFillDepth").value, spacer: +$("wSpacer").value || 0 } : {}) };
 }
 function wirePreview() {
   $("wireForm").classList.toggle("ug", $("wKind").value === "ug");
   $("wireForm").classList.toggle("jh", $("wKind").value === "jhook");
+  $("wireForm").classList.toggle("tr", $("wKind").value === "wire" && $("wTrench").checked);
   $("wSize").disabled = NOPIPE.includes($("wConduit").value);
   const w = wireFields();
   $("wirePrev").textContent = wireLabel(w);
-  if (isUG(w)) { const per = ugFill(w, 100); $("wGravel").textContent = per ? `${w.backfill} backfill: about ${per.cy} cubic yards${per.tons ? ` (${per.tons} tons)` : ""} per 100 ft of ditch. The count sheet figures it for the whole length you draw.` : "Pick a backfill to see how much it takes."; }
+  if (hasTrench(w)) { const per = ugFill(w, 100); $("wGravel").textContent = per ? `${w.backfill} backfill: about ${per.cy} cubic yards${per.tons ? ` (${per.tons} tons)` : ""} per 100 ft of ditch. The count sheet figures it for the whole length you draw.` : "Pick a backfill to see how much it takes."; }
   const f = isUG(w) ? null : fillOf(w), el = $("wireFill");
   el.className = "wire-fill" + (f && f.used > f.max ? " over" : "");
   el.textContent = !f ? "" : `Conduit fill about ${Math.round(f.used * 100)}% (EMT sizes; ${Math.round(f.max * 100)}% allowed)` +
     (f.used > f.max ? `. Too full: try ${conduitFor(w)}.` : ".");
 }
-["wLabel", "wConduit", "wSize", "wCount", "wGauge", "wIns", "wGround", "wSets", "wDepth", "wFill", "wWidth", "wRuns", "wFillDepth", "wSpacer"].forEach(id => $(id).addEventListener("input", wirePreview));
+["wLabel", "wConduit", "wSize", "wCount", "wGauge", "wIns", "wGround", "wSets", "wDepth", "wFill", "wWidth", "wRuns", "wFillDepth", "wSpacer", "wTrench"].forEach(id => $(id).addEventListener("input", wirePreview));
 $("wKind").addEventListener("input", () => {
   // underground runs are usually PVC; going back to wire picks EMT again
   if ($("wKind").value === "ug" && ["EMT", "MC cable", "Romex (NM-B)", "No conduit", "Flex (FMC)", "Sealtite (LFMC)"].includes($("wConduit").value)) $("wConduit").value = "PVC Sch 40";
@@ -4711,7 +4742,7 @@ function openWire(id) {
   $("wMat").value = w.mat || "CU"; fillAmps(); $("wAmps").value = w.amps || ""; $("wSets").value = w.sets || 1;
   $("wConduit").value = w.conduit; $("wSize").value = w.size; $("wCount").value = w.count; $("wGauge").value = w.gauge; $("wIns").value = w.ins; $("wGround").value = w.ground || "";
   $("wColor").value = w.color || PALETTE[(list.length + 3) % PALETTE.length];
-  $("wLabel").value = w.label || ""; $("wKind").value = isUG(w) ? "ug" : isJH(w) ? "jhook" : "wire"; $("wHook").value = w.interval || 5; $("wDepth").value = String(w.depth || 24); $("wFill").value = w.backfill || "None"; $("wWidth").value = String(w.width || 30); $("wRuns").value = w.runs || 1; $("wFillDepth").value = w.fillDepth || "full"; $("wSpacer").value = String(w.spacer || 0);
+  $("wLabel").value = w.label || ""; $("wKind").value = isUG(w) ? "ug" : isJH(w) ? "jhook" : "wire"; $("wHook").value = w.interval || 5; $("wDepth").value = String(w.depth || 24); $("wFill").value = w.backfill || "None"; $("wWidth").value = String(w.width || 30); $("wRuns").value = w.runs || 1; $("wFillDepth").value = w.fillDepth || "full"; $("wSpacer").value = String(w.spacer || 0); $("wTrench").checked = !!w.trench;
   if (isUG(w)) { $("wCount").value = 3; $("wGauge").value = "12"; $("wIns").value = "STR"; }
   $("wireDelete").hidden = !editingWire;
   $("wireSave").textContent = editingWire ? "Save" : "Save and draw";
