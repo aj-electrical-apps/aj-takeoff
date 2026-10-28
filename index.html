@@ -195,11 +195,21 @@ button { cursor: pointer; }
 .wire-swatch { width: 22px; height: 0; border-top: 4px solid; border-radius: 2px; flex: none; }
 .ask-em { display: flex; gap: 8px; align-items: center; }
 #ampForm:not(.m-amps) .ask-amps, #ampForm:not(.m-fan) .ask-fan, #ampForm:not(.m-drop) .ask-drop, #ampForm:not(.m-cat) .ask-cat,
-#ampForm:not(.m-misc) .ask-misc, #ampForm:not(.m-em) .ask-em, #ampForm:not(.m-mount) .ask-mount, #ampForm:not(.m-light) .ask-light, #ampForm:not(.m-light) .ask-db, #ampForm:not(.m-db) .ask-light { display: none; }
+#ampForm:not(.m-brk) .ask-brk, #ampForm:not(.m-misc) .ask-misc, #ampForm:not(.m-em) .ask-em, #ampForm:not(.m-mount) .ask-mount, #ampForm:not(.m-light) .ask-light, #ampForm:not(.m-light) .ask-db, #ampForm:not(.m-db) .ask-light { display: none; }
 .ask-db { display: flex; gap: 8px; align-items: center; }
 .ts-table tr.ug-off td { color: var(--muted); text-decoration: line-through; }
 .ts-table tr.ug-off td input { text-decoration: none; }
 @media print { .ts-table tr.ug-off { display: none; } }
+#ampForm.m-brk { width: min(660px, 100%); }
+.ask-brk { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 6px 0; min-width: 0; max-width: 100%; overflow: hidden; }
+.brk-wrap { overflow-x: auto; }
+.brk-tbl { border-collapse: collapse; width: 100%; font-size: 13px; }
+.brk-tbl th { text-align: left; font-weight: 600; color: var(--muted); font-size: 12px; padding: 2px 4px; }
+.brk-tbl td { padding: 2px 4px; }
+.brk-tbl select, .brk-tbl input { width: 100%; min-width: 60px; padding-left: 6px; padding-right: 22px; }
+.brk-tbl input { padding-right: 6px; }
+.brk-tbl select[data-f="a"] { min-width: 84px; } .brk-tbl select[data-f="how"] { min-width: 132px; }
+.brk-tbl .x { border: 0; background: none; color: var(--muted); font-size: 16px; cursor: pointer; }
 .ug-check { display: flex; align-items: center; gap: 8px; font-weight: 600; }
 .ug-check small { font-weight: 400; color: var(--muted); }
 #wireForm.ug .wire-only, #wireForm:not(.ug):not(.tr) .ug-only, #wireForm.tr .ugk-only, #wireForm.jh .wire-only, #wireForm.jh .pipe-row, #wireForm:not(.jh) .jh-only { display: none; }
@@ -524,7 +534,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v92</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v93</small></div>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
@@ -1037,6 +1047,12 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <div class="opt"><label for="dropConduit">Conduit</label><select id="dropConduit"></select></div>
       <div class="opt"><label for="dropSize">Size</label><select id="dropSize"></select></div>
       <div class="opt"><label for="dropLen">Length (ft)</label><input type="number" id="dropLen" min="1" max="500" step="1" inputmode="numeric"></div>
+    </div>
+    <div class="ask-brk">
+      <b>Breakers in this panel</b>
+      <p class="hint" style="margin:2px 0 6px">Pick each breaker size and how many. Each one adds its circuit wire, sized from the breaker, times the average feet. Leave it empty if the items you place already carry their wiring.</p>
+      <div class="brk-wrap"><table class="brk-tbl"><thead><tr><th>Breaker</th><th>Poles</th><th>How many</th><th>Avg feet each</th><th>Wired with</th><th></th></tr></thead><tbody id="brkBody"></tbody></table></div>
+      <button class="btn sm" type="button" id="brkAdd">+ Add breakers</button> <span class="hint" id="brkSum"></span>
     </div>
     <div class="sched three ask-misc">
       <div class="opt"><label for="miscQty">Amount each click</label><input type="number" id="miscQty" min="0" step="any" inputmode="decimal"></div>
@@ -2044,6 +2060,27 @@ const LIGHT_W = { "2x4 lay-in": 40, "2x2 lay-in": 30, "1x4 lay-in": 30, "Recesse
   "High bay": 150, "Linear pendant": 40, "Decorative pendant": 25, "Track light": 12, "Chandelier": 60, "Wall pack": 40, "Floodlight": 75, "Canopy light": 40, "Soffit light": 15, "Pole light": 150, "Bollard": 15, "Gooseneck": 20,
   "Exit sign": 3, "Wall-mount exit sign": 3, "Emergency battery light": 3, "Bug-eye emergency light": 3, "Exit/emergency combo": 5, "Remote emergency head": 2,
   "Vanity light": 15, "Wall sconce": 15, "Bed / reading light": 8, "Wall wash": 20, "Linear wall bracket": 25, "Step / stair light": 3, "Night / path light": 3, "Picture light": 8, "Interior wall pack": 25 };
+/* Panel breakers (Jonathan 2026-10-28): a panel count can list its breakers, [{ a: amps, p: poles, n: how many, ft: avg feet, how: "mc" | "conduit" }].
+   Each breaker goes on the count, supplier and bid sheets (times the panels placed), and adds its circuit wire like item wiring does. */
+const BRK_TYPES = ["Panel", "Service entrance"];
+const BRK_AMPS = [15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100];
+let brkRows = [];
+const brkGauge = a => a <= 20 ? "12" : a <= 30 ? "10" : a <= 40 ? "8" : a <= 55 ? "6" : a <= 70 ? "4" : a <= 85 ? "3" : "2"; // copper at 75°C, #12 smallest
+const brkPipe = g => ["12", "10"].includes(g) ? '3/4"' : ["8", "6"].includes(g) ? '1"' : '1 1/4"';
+const brkWires = r => r.how === "mc" ? (r.p === 3 ? 3 : 2) : r.p + (r.p === 1 ? 1 : 0) + 1; // MC has its own ground; conduit counts a ground wire
+function renderBrk() {
+  const tb = $("brkBody"); if (!tb) return;
+  const opt = (list, v, lab) => list.map(o => `<option value="${o}"${String(o) === String(v) ? " selected" : ""}>${lab ? lab(o) : o}</option>`).join("");
+  tb.innerHTML = brkRows.map((r, i) => `<tr data-i="${i}"><td><select data-f="a">${opt(BRK_AMPS, r.a, x => x + "A")}</select></td><td><select data-f="p">${opt([1, 2, 3], r.p)}</select></td>
+    <td><input type="number" data-f="n" min="0" max="200" step="1" value="${r.n}"></td><td><input type="number" data-f="ft" min="0" max="2000" step="5" value="${r.ft}"></td>
+    <td><select data-f="how"><option value="mc"${r.how === "mc" ? " selected" : ""}>MC cable</option><option value="conduit"${r.how === "conduit" ? " selected" : ""}>EMT and wire</option></select></td>
+    <td><button type="button" class="x" data-del="${i}" title="Remove" aria-label="Remove">×</button></td></tr>`).join("") || `<tr><td colspan="6" class="hint">No breakers yet.</td></tr>`;
+  tb.querySelectorAll("[data-f]").forEach(el => el.onchange = () => { const r = brkRows[+el.closest("tr").dataset.i], f = el.dataset.f; r[f] = f === "how" ? el.value : Math.max(0, +el.value || 0); if (f === "p" && !r.p) r.p = 1; brkSum(); });
+  tb.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { brkRows.splice(+b.dataset.del, 1); renderBrk(); });
+  brkSum();
+}
+function brkSum() { const n = brkRows.reduce((t, r) => t + (+r.n || 0), 0), ft = brkRows.reduce((t, r) => t + (+r.n || 0) * (+r.ft || 0), 0); $("brkSum").textContent = n ? `${n} breakers · ${ft.toLocaleString()} ft of circuits` : ""; }
+$("brkAdd").onclick = () => { const l = brkRows[brkRows.length - 1]; brkRows.push(l ? { ...l, n: 1 } : { a: 20, p: 1, n: 1, ft: 50, how: "mc" }); renderBrk(); const ins = $("brkBody").querySelectorAll('input[data-f="n"]'); if (ins.length) ins[ins.length - 1].select(); };
 const askAnswer = () => {
   const m = DEVICES[ampBase].ask, label = $("ampLabel").value.trim();
   if (m === "cat") {
@@ -2053,6 +2090,7 @@ const askAnswer = () => {
     if (isLightCat(cat) && $("askDb").checked) Object.assign(a, { db: true, watts: $("askWatts").value.trim(), cct: $("askCct").value.trim() });
     if (catDrop(cat, t)) a.drop = askDropVal();
     if (cat.misc) Object.assign(a, { miscQty: Math.max(0, +$("miscQty").value || 1), miscUnit: $("miscUnit").value, sup: $("miscSup").checked });
+    if (BRK_TYPES.includes(t)) { const b = brkRows.filter(r => r.n > 0).map(r => ({ ...r })); if (b.length) a.brk = b; }
     return a;
   }
   if (m === "amps") return { amps: $("ampAmps").value, volts: $("ampVolts").value, label };
@@ -2060,7 +2098,7 @@ const askAnswer = () => {
   if (m === "drop") return { drop: askDropVal(), label };
   return { label };
 };
-const sameAnswer = (c, a) => ["amps", "volts", "fanKind", "kindName", "mount", "miscQty", "miscUnit", "watts", "cct"].every(k => String(c[k] || "") === String(a[k] || "")) && !!c.db === !!a.db && !!c.em === !!a.em && !!c.sup === !!a.sup && ["label"].every(k => String(c[k] || "") === String(a[k] || "")) && (c.label || "") === a.label && JSON.stringify(c.drop || null) === JSON.stringify(a.drop || null);
+const sameAnswer = (c, a) => JSON.stringify(c.brk || []) === JSON.stringify(a.brk || []) && ["amps", "volts", "fanKind", "kindName", "mount", "miscQty", "miscUnit", "watts", "cct"].every(k => String(c[k] || "") === String(a[k] || "")) && !!c.db === !!a.db && !!c.em === !!a.em && !!c.sup === !!a.sup && ["label"].every(k => String(c[k] || "") === String(a[k] || "")) && (c.label || "") === a.label && JSON.stringify(c.drop || null) === JSON.stringify(a.drop || null);
 function askRows() {
   const d = DEVICES[ampBase], m = d.ask;
   if (m !== "cat") { $("ampForm").className = "modal-card m-" + m; document.querySelector('label[for="ampLabel"]').textContent = "Label or description"; $("ampLabel").placeholder = "e.g. LP-1, or Shop welder by bay door"; return; }
@@ -2072,6 +2110,7 @@ function askRows() {
   if (isLightCat(cat)) cls.push("m-light");
   if (isLightCat(cat) && $("askDb").checked) cls.push("m-db");
   if (cat.misc) cls.push("m-misc");
+  if (BRK_TYPES.includes(t)) cls.push("m-brk");
   $("ampForm").className = "modal-card " + cls.join(" ");
   const desc = PRICE_BY_DESC.includes(`${cat.key}|${t}`) || cat.misc;
   document.querySelector('label[for="ampLabel"]').textContent = cat.misc ? "What it is" : desc ? "Description for supplier pricing" : "Label or description";
@@ -2120,7 +2159,8 @@ function openAmps(base, editId) {
     $("askDb").checked = !!(askEditing && askEditing.db);
     $("askMount").value = askEditing ? askEditing.mount || "" : last.mount || "";
   }
-  askRows(); askDefaults();
+  brkRows = askEditing && askEditing.brk ? askEditing.brk.map(r => ({ ...r })) : [];
+  askRows(); askDefaults(); renderBrk();
   $("ampLabel").value = askEditing ? askEditing.label || "" : "";
   if (last.fanKind) $("askFan").value = last.fanKind;
   $("ampDelete").hidden = !askEditing; $("ampDelete").textContent = "Delete count";
@@ -2534,6 +2574,22 @@ function takeoffRows() {
   drops.forEach((d, key) => foot.push({ key, label: `${d.size} ${d.conduit} · ${d.what}`, sub: `${d.parts.join(" + ")}`, base: d.lf, pct: +ex[key] || 0, sup: `${d.size} ${d.conduit} conduit`, color: "#c92a2a", drop: true }));
   const loose = lfOf(null);
   if (loose) foot.push({ key: "none:r", label: "Runs with no type", sub: "Give these runs a conduit & wire type to put them on the supplier sheet", base: loose, pct: +ex["none:r"] || 0, sup: null, color: "#888" });
+  // panel breakers and their circuits, times the number of that panel placed
+  countsList().filter(c => c.brk && c.brk.length).forEach(c => {
+    const pc = counts.find(x => x.id === c.id), q = pc ? pc.qty : 0; if (!q) return;
+    const pn = c.label || c.kindName || "panel";
+    c.brk.forEach((r, i) => {
+      const n = (+r.n || 0) * q; if (!n) return;
+      counts.push({ id: `brk:${c.id}:${i}`, brk: true, asm: "", feed: null, label: "", name: `${r.a}A ${r.p}-pole breaker`, what: `In ${pn}${q > 1 ? ` (${r.n} each × ${q} panels)` : ""}`, qty: n, by: [], color: c.color, group: "gr", code: `bkr|${r.p}` });
+      if (!r.ft) return;
+      const g = brkGauge(r.a), w = brkWires(r), base = n * r.ft, sub = `${n} × ${r.ft}' for ${r.a}A ${r.p}-pole in ${pn}`, k = `brk:${c.id}:${i}`;
+      if (r.how === "mc") { const f = { method: "mc", gauge: g, wires: w }; foot.push({ key: `${k}:m`, label: mcName(f), sub, base, pct: +ex[`${k}:m`] || 0, sup: mcName(f), color: c.color }); }
+      else {
+        foot.push({ key: `${k}:c`, label: `${brkPipe(g)} EMT`, sub, base, pct: +ex[`${k}:c`] || 0, sup: `${brkPipe(g)} EMT conduit`, color: c.color });
+        foot.push({ key: `${k}:w`, label: `${gaugeTxt(g)} THHN CU`, sub: `${w} wires × ${n} × ${r.ft}' for ${r.a}A ${r.p}-pole in ${pn}`, base: base * w, pct: +ex[`${k}:w`] || 0, sup: `${gaugeTxt(g)} THHN copper wire`, color: c.color });
+      }
+    });
+  });
   foot.forEach(f => { f.total = Math.ceil(f.base * (1 + f.pct / 100)); });
   if (dboOn()) counts.push(...dboRows(counts));
   return { counts, foot };
@@ -3854,7 +3910,7 @@ $("ampForm").addEventListener("submit", e => {
   const ans = askAnswer(), list = countsList();
   if (askEditing) {
     remember([]);
-    ["amps", "volts", "drop", "em", "kindName", "fanKind", "miscQty", "miscUnit", "sup", "db"].forEach(k => delete askEditing[k]);
+    ["amps", "volts", "drop", "em", "kindName", "fanKind", "miscQty", "miscUnit", "sup", "db", "brk"].forEach(k => delete askEditing[k]);
     if (!ans.db && askEditing.cct && !askEditing.sched) { delete askEditing.cct; askEditing.watts = ""; }
     Object.assign(askEditing, ans);
     if (job) { job.updated = new Date().toISOString(); saveJob(job); }
