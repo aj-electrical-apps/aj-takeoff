@@ -200,7 +200,7 @@ button { cursor: pointer; }
 .ts-table tr.ug-off td { color: var(--muted); text-decoration: line-through; }
 .ts-table tr.ug-off td input { text-decoration: none; }
 @media print { .ts-table tr.ug-off { display: none; } }
-#ampForm.m-brk { width: min(660px, 100%); }
+#ampForm.m-brk { width: min(900px, calc(100vw - 24px)); max-width: none; }
 #pnlModal .modal-card { width: min(680px, calc(100vw - 32px)); max-width: none; }
 #pnlModal .opt { min-width: 0; } #pnlModal .opt select, #pnlModal .opt input { width: 100%; min-width: 0; box-sizing: border-box; }
 #pnlModal .actions { flex-wrap: wrap; } #pnlTbl input { width: 70px; }
@@ -214,6 +214,8 @@ button { cursor: pointer; }
 .brk-tbl select, .brk-tbl input { width: 100%; min-width: 60px; padding-left: 6px; padding-right: 22px; }
 .brk-tbl input { padding-right: 6px; }
 .brk-tbl select[data-f="a"] { min-width: 84px; } .brk-tbl select[data-f="how"] { min-width: 132px; }
+#ampForm.m-brk .brk-tbl select[data-f="how"] { min-width: 100px; } .brk-tbl select[data-f="g"], .brk-tbl select[data-f="cs"] { min-width: 112px; } .brk-tbl select[data-f="ct"] { min-width: 150px; } .brk-tbl select[data-f="p"] { min-width: 56px; }
+.brk-tbl tr.brk-parts td { padding: 0 4px 6px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--line); }
 .brk-tbl .x { border: 0; background: none; color: var(--muted); font-size: 16px; cursor: pointer; }
 .ug-check { display: flex; align-items: center; gap: 8px; font-weight: 600; }
 .ug-check small { font-weight: 400; color: var(--muted); }
@@ -539,7 +541,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v94</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v95</small></div>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
@@ -1080,8 +1082,8 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     </div>
     <div class="ask-brk">
       <b>Breakers in this panel</b>
-      <p class="hint" style="margin:2px 0 6px">Pick each breaker size and how many. Each one adds its circuit wire, sized from the breaker, times the average feet. Leave it empty if the items you place already carry their wiring.</p>
-      <div class="brk-wrap"><table class="brk-tbl"><thead><tr><th>Breaker</th><th>Poles</th><th>How many</th><th>Avg feet each</th><th>Wired with</th><th></th></tr></thead><tbody id="brkBody"></tbody></table></div>
+      <p class="hint" style="margin:2px 0 6px">Pick each breaker size and how many. Wire and conduit fill in from the NEC (marked NEC) as a placeholder, with EMT for conduit. Change any of them. Each one adds its circuit parts times the average feet. Leave it empty if the items you place already carry their wiring.</p>
+      <div class="brk-wrap"><table class="brk-tbl"><thead><tr><th>Breaker</th><th>Poles</th><th>How many</th><th>Avg feet each</th><th>Wired with</th><th>Wire</th><th>Conduit size</th><th>Conduit type</th><th></th></tr></thead><tbody id="brkBody"></tbody></table></div>
       <button class="btn sm" type="button" id="brkAdd">+ Add breakers</button> <span class="hint" id="brkSum"></span>
     </div>
     <div class="sched three ask-misc">
@@ -2095,17 +2097,48 @@ const LIGHT_W = { "2x4 lay-in": 40, "2x2 lay-in": 30, "1x4 lay-in": 30, "Recesse
 const BRK_TYPES = ["Panel", "Service entrance"];
 const BRK_AMPS = [15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100];
 let brkRows = [];
-const brkGauge = a => a <= 20 ? "12" : a <= 30 ? "10" : a <= 40 ? "8" : a <= 55 ? "6" : a <= 70 ? "4" : a <= 85 ? "3" : "2"; // copper at 75°C, #12 smallest
-const brkPipe = g => ["12", "10"].includes(g) ? '3/4"' : ["8", "6"].includes(g) ? '1"' : '1 1/4"';
+const brkGauge = a => { const g = sizeForAmps("CU", a).gauge; return g === "14" ? "12" : g; }; // NEC 310.16 75°C copper with 240.4(D), #12 smallest
 const brkWires = r => r.how === "mc" ? (r.p === 3 ? 3 : 2) : r.p + (r.p === 1 ? 1 : 0) + 1; // MC has its own ground; conduit counts a ground wire
+const BRK_GAUGES = ["12", "10", "8", "6", "4", "3", "2", "1", "1/0", "2/0", "3/0"];
+const brkCT = () => CONDUITS.filter(c => !NOPIPE.includes(c));
+/* Breaker circuit spec (Jonathan 2026-10-28): wire, ground, conduit size and type. Anything not picked is the NEC placeholder:
+   wire from the breaker amps, ground from 250.122, conduit sized for 40% fill, EMT. */
+function brkSpec(r) {
+  const nec = brkGauge(r.a), g = r.g || nec, egc = egcFor("CU", r.a), hots = r.p + (r.p === 1 ? 1 : 0), ct = r.ct || "EMT";
+  const necCs = conduitFor({ conduit: "EMT", ins: "THHN", gauge: g, count: hots, ground: egc }), cs = r.cs || necCs;
+  return { nec, g, egc, hots, ct, cs, necCs };
+}
+// one circuit's parts: [qty, name, unit]. Conduit fittings match the supplier sheet (coupling every 10', strap every 3', 2 connectors per circuit)
+function brkParts(r) {
+  const ft = +r.ft || 0, sp = brkSpec(r); if (!ft) return [];
+  if (r.how === "mc") return [[ft, mcName({ method: "mc", gauge: sp.g, wires: brkWires(r) }), "ft"], [2, "MC connector", ""], [Math.ceil(ft / 6), "MC strap", ""]];
+  const nm = `${sp.cs} ${sp.ct}`;
+  return [[ft, `${nm} conduit`, "ft"], [ft * sp.hots, `${gaugeTxt(sp.g)} THHN copper wire`, "ft"], [ft, `${gaugeTxt(sp.egc)} THHN copper ground wire`, "ft"],
+    [2, `${nm} connector`, ""], [Math.ceil(ft / 10), `${nm} coupling`, ""], [Math.ceil(ft / 3), `${nm} strap`, ""]];
+}
 function renderBrk() {
   const tb = $("brkBody"); if (!tb) return;
   const opt = (list, v, lab) => list.map(o => `<option value="${o}"${String(o) === String(v) ? " selected" : ""}>${lab ? lab(o) : o}</option>`).join("");
-  tb.innerHTML = brkRows.map((r, i) => `<tr data-i="${i}"><td><select data-f="a">${opt(BRK_AMPS, r.a, x => x + "A")}</select></td><td><select data-f="p">${opt([1, 2, 3], r.p)}</select></td>
+  tb.innerHTML = brkRows.map((r, i) => {
+    const sp = brkSpec(r), mc = r.how === "mc", n = +r.n || 0, parts = brkParts(r);
+    const gOpts = `<option value="">${gaugeTxt(sp.nec)} NEC</option>` + opt(BRK_GAUGES.filter(g => g !== sp.nec), r.g || "", gaugeTxt);
+    const csOpts = `<option value="">${sp.necCs} NEC</option>` + opt(CSIZES.filter(c => c !== sp.necCs), r.cs || "");
+    const ctOpts = `<option value="">EMT</option>` + opt(brkCT().filter(c => c !== "EMT"), r.ct || "");
+    const list = parts.map(([q, nm, u]) => `${(q * n).toLocaleString()}${u ? " " + u : ""} ${esc(nm)}`).join(" · ");
+    return `<tr data-i="${i}"><td><select data-f="a">${opt(BRK_AMPS, r.a, x => x + "A")}</select></td><td><select data-f="p">${opt([1, 2, 3], r.p)}</select></td>
     <td><input type="number" data-f="n" min="0" max="200" step="1" value="${r.n}"></td><td><input type="number" data-f="ft" min="0" max="2000" step="5" value="${r.ft}"></td>
-    <td><select data-f="how"><option value="mc"${r.how === "mc" ? " selected" : ""}>MC cable</option><option value="conduit"${r.how === "conduit" ? " selected" : ""}>EMT and wire</option></select></td>
-    <td>${r.spare ? `<small class="hint">spare</small>` : ""}<button type="button" class="x" data-del="${i}" title="Remove" aria-label="Remove">×</button></td></tr>`).join("") || `<tr><td colspan="6" class="hint">No breakers yet.</td></tr>`;
-  tb.querySelectorAll("[data-f]").forEach(el => el.onchange = () => { const r = brkRows[+el.closest("tr").dataset.i], f = el.dataset.f; r[f] = f === "how" ? el.value : Math.max(0, +el.value || 0); if (f === "p" && !r.p) r.p = 1; brkSum(); });
+    <td><select data-f="how"><option value="mc"${mc ? " selected" : ""}>MC</option><option value="conduit"${!mc ? " selected" : ""}>Conduit</option></select></td>
+    <td><select data-f="g">${gOpts}</select></td><td><select data-f="cs"${mc ? " disabled" : ""}>${csOpts}</select></td><td><select data-f="ct"${mc ? " disabled" : ""}>${ctOpts}</select></td>
+    <td>${r.spare ? `<small class="hint">spare</small>` : ""}<button type="button" class="x" data-del="${i}" title="Remove" aria-label="Remove">×</button></td></tr>
+    <tr class="brk-parts" data-i="${i}"><td colspan="9">${r.spare ? "Spare: breaker only, no wire." : list ? `<b>Parts for ${n}:</b> ${list}` : "No wire (0 feet)."}</td></tr>`;
+  }).join("") || `<tr><td colspan="9" class="hint">No breakers yet.</td></tr>`;
+  tb.querySelectorAll("[data-f]").forEach(el => el.onchange = () => {
+    const r = brkRows[+el.closest("tr").dataset.i], f = el.dataset.f;
+    if (["how", "g", "cs", "ct"].includes(f)) { if (el.value) r[f] = el.value; else delete r[f]; } else r[f] = Math.max(0, +el.value || 0);
+    if (f === "p" && !r.p) r.p = 1;
+    if (f === "a") { delete r.g; delete r.cs; } // new amps: back to the NEC sizes
+    renderBrk();
+  });
   tb.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { brkRows.splice(+b.dataset.del, 1); renderBrk(); });
   brkSum();
 }
@@ -2700,11 +2733,13 @@ function takeoffRows() {
       const n = (+r.n || 0) * q; if (!n) return;
       counts.push({ id: `brk:${c.id}:${i}`, brk: true, asm: "", feed: null, label: "", name: `${r.a}A ${r.p}-pole breaker${r.spare ? " (spare)" : ""}`, what: `In ${pn}${q > 1 ? ` (${r.n} each × ${q} panels)` : ""}`, qty: n, by: [], color: c.color, group: "gr", code: `bkr|${r.p}` });
       if (!r.ft) return;
-      const g = brkGauge(r.a), w = brkWires(r), base = n * r.ft, sub = `${n} × ${r.ft}' for ${r.a}A ${r.p}-pole in ${pn}`, k = `brk:${c.id}:${i}`;
-      if (r.how === "mc") { const f = { method: "mc", gauge: g, wires: w }; foot.push({ key: `${k}:m`, label: mcName(f), sub, base, pct: +ex[`${k}:m`] || 0, sup: mcName(f), color: c.color }); }
+      const sp = brkSpec(r), w = brkWires(r), base = n * r.ft, sub = `${n} × ${r.ft}' for ${r.a}A ${r.p}-pole in ${pn}`, k = `brk:${c.id}:${i}`;
+      if (r.how === "mc") { const f = { method: "mc", gauge: sp.g, wires: w }; foot.push({ key: `${k}:m`, label: mcName(f), sub, base, pct: +ex[`${k}:m`] || 0, sup: mcName(f), color: c.color }); counts[counts.length - 1].parts = [[2, "MC connector"], [Math.ceil(r.ft / 6), "MC strap"]]; }
       else {
-        foot.push({ key: `${k}:c`, label: `${brkPipe(g)} EMT`, sub, base, pct: +ex[`${k}:c`] || 0, sup: `${brkPipe(g)} EMT conduit`, color: c.color });
-        foot.push({ key: `${k}:w`, label: `${gaugeTxt(g)} THHN CU`, sub: `${w} wires × ${n} × ${r.ft}' for ${r.a}A ${r.p}-pole in ${pn}`, base: base * w, pct: +ex[`${k}:w`] || 0, sup: `${gaugeTxt(g)} THHN copper wire`, color: c.color });
+        const nm = `${sp.cs} ${sp.ct}`;
+        foot.push({ key: `${k}:c`, label: nm, sub, base, pct: +ex[`${k}:c`] || 0, sup: `${nm} conduit`, color: c.color, conn: 2 * n });
+        foot.push({ key: `${k}:w`, label: `${gaugeTxt(sp.g)} THHN CU`, sub: `${sp.hots} wires × ${n} × ${r.ft}' for ${r.a}A ${r.p}-pole in ${pn}`, base: base * sp.hots, pct: +ex[`${k}:w`] || 0, sup: `${gaugeTxt(sp.g)} THHN copper wire`, color: c.color });
+        foot.push({ key: `${k}:g`, label: `${gaugeTxt(sp.egc)} THHN CU ground`, sub: `Ground, ${n} × ${r.ft}' for ${r.a}A ${r.p}-pole in ${pn}`, base, pct: +ex[`${k}:g`] || 0, sup: `${gaugeTxt(sp.egc)} THHN copper ground wire`, color: c.color });
       }
     });
   });
@@ -2760,7 +2795,7 @@ function supplierRows() {
   const { counts, foot } = takeoffRows(), mat = new Map(), parts = new Map(), need = new Map(), fit = new Map();
   foot.filter(f => f.sup).forEach(f => mat.set(f.sup, (mat.get(f.sup) || 0) + f.total));
   counts.forEach(c => {
-    let list = asmFor(c.asm).concat(c.em ? [[1, "Emergency battery kit"]] : []);
+    let list = asmFor(c.asm).concat(c.em ? [[1, "Emergency battery kit"]] : [], c.parts || []);
     if (c.feed && c.feed.method === "romex") list = list.map(([q, n]) => [q, ROMEX_PART[n] || n]);
     // floor boxes, poke-throughs and ceiling boxes go to the supplier with their description, for pricing
     if (PRICE_BY_DESC.includes(c.asm) && list.length) list = [[list[0][0], `${list[0][1]} · ${c.label ? c.label + " (price this)" : "no description yet, add one"}`], ...list.slice(1)];
@@ -2771,12 +2806,12 @@ function supplierRows() {
   });
   // conduit fittings: coupling every 10', connector every 100', strap every 3' (underground: no straps); drops carry their own fittings
   foot.filter(f => f.sup && / conduit$/.test(f.sup) && !f.drop).forEach(f => {
-    const nm = f.sup.replace(/ conduit$/, ""), cur = fit.get(nm) || { lf: 0, ug: 0 };
-    cur.lf += f.total; if (f.ug) cur.ug += f.total; fit.set(nm, cur);
+    const nm = f.sup.replace(/ conduit$/, ""), cur = fit.get(nm) || { lf: 0, ug: 0, conn: 0, connLf: 0 };
+    cur.lf += f.total; if (f.ug) cur.ug += f.total; if (f.conn) { cur.conn += f.conn; cur.connLf += f.total; } fit.set(nm, cur); // breaker circuits: 2 connectors each
   });
   const fittings = [];
   fit.forEach((v, nm) => {
-    fittings.push({ name: `${nm} coupling`, qty: Math.ceil(v.lf / 10) }, { name: `${nm} connector`, qty: Math.ceil(v.lf / 100) });
+    fittings.push({ name: `${nm} coupling`, qty: Math.ceil(v.lf / 10) }, { name: `${nm} connector`, qty: Math.ceil((v.lf - v.connLf) / 100) + v.conn });
     if (v.lf - v.ug > 0) fittings.push({ name: `${nm} strap`, qty: Math.ceil((v.lf - v.ug) / 3) });
   });
   const ov = overOf(), set = (m, k) => { m.key = k; m.calc = m.qty; if (ov[k] != null && ov[k] !== "") m.qty = +ov[k]; return m; };
