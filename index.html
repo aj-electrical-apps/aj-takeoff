@@ -524,7 +524,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v91</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v92</small></div>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
@@ -1380,6 +1380,7 @@ function refDraw() {
       };
       el.querySelector(".ref-bar").onclick = e => { const a = e.target.closest("button")?.dataset.a; if (a === "fit") refFit(r); if (a === "min") { r.min = true; refDraw(); } if (a === "x") refClose(r); if (a === "pop") refPop(r); };
       v.onwheel = e => { e.preventDefault(); const b = v.getBoundingClientRect(), mx = e.clientX - b.left, my = e.clientY - b.top, f = Math.exp(-e.deltaY * 0.0015), z = Math.max(0.02, Math.min(8, r.z * f)); r.tx = mx - (mx - r.tx) * z / r.z; r.ty = my - (my - r.ty) * z / r.z; r.z = z; refXf(r); };
+      v.oncontextmenu = e => e.preventDefault(); // right-click drag moves it too
       v.onpointerdown = e => { v.setPointerCapture(e.pointerId); v.style.cursor = "grabbing"; const sx = e.clientX - r.tx, sy = e.clientY - r.ty; v.onpointermove = ev => { r.tx = ev.clientX - sx; r.ty = ev.clientY - sy; refXf(r); }; v.onpointerup = () => { v.onpointermove = null; v.style.cursor = ""; }; };
       // size: drag the corner grip or the left, right or bottom edge, as big or small as you like
       el.querySelectorAll("[data-rz]").forEach(g => g.onpointerdown = e => {
@@ -1465,6 +1466,7 @@ function rsOpen() {
     v.addEventListener("wheel", e => { e.preventDefault(); const b = v.getBoundingClientRect(), mx = e.clientX - b.left, my = e.clientY - b.top, z = Math.max(0.02, Math.min(8, P.z * Math.exp(-e.deltaY * 0.0015))); P.tx = mx - (mx - P.tx) * z / P.z; P.ty = my - (my - P.ty) * z / P.z; P.z = z; xf(); }, { passive: false });
     v.addEventListener("pointerdown", e => { v.setPointerCapture(e.pointerId); const sx = e.clientX - P.tx, sy = e.clientY - P.ty; const mv = ev => { P.tx = ev.clientX - sx; P.ty = ev.clientY - sy; xf(); }; const up = () => { v.removeEventListener("pointermove", mv); v.removeEventListener("pointerup", up); }; v.addEventListener("pointermove", mv); v.addEventListener("pointerup", up); });
     v.addEventListener("dblclick", P.fit);
+    v.addEventListener("contextmenu", e => e.preventDefault()); // right-click drag moves the sheet, no menu
     el.querySelector(".ph").addEventListener("click", e => {
       const a = e.target.closest("button") && e.target.closest("button").dataset.a, i = S.panes.indexOf(P); if (!a) return;
       if (a === "x") { S.panes.splice(i, 1); el.remove(); save(); return layout(); }
