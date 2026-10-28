@@ -333,7 +333,8 @@ button { cursor: pointer; }
 /* Scale dialog */
 .modal { position: fixed; inset: 0; z-index: 25; display: grid; place-items: center; background: rgb(0 0 0 / .35); padding: 16px; }
 .modal-card { width: min(460px, 100%); max-height: 100%; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 14px; }
-.modal-card h2 { margin: 0; font-size: 20px; text-wrap: balance; }
+.modal-card h2 { margin: 0; font-size: 20px; text-wrap: balance; cursor: move; user-select: none; }
+.modal-card.dragging { user-select: none; box-shadow: 0 10px 30px rgb(0 0 0 / .3); }
 .job-folder { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; gap: 6px; }
 .job-folder p { margin: 0; }
 .jf-acts { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -541,7 +542,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v95</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v96</small></div>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
@@ -2227,6 +2228,33 @@ $("pnlNameBox").onclick = () => pnlStep("name");
 $("pnlColBox").onclick = () => pnlStep("col");
 $("pnlSave").onclick = pnlSave;
 $("pnlCancel").onclick = () => { $("pnlModal").hidden = true; pnl = null; if (hlMode === "pnl") setHl("pnl"); };
+/* Move popups (Jonathan 2026-10-28): left-click drag the title, or any empty part of the card, to move it off the drawing.
+   Each popup remembers where it was put (this browser). Double-click the title to put it back in the middle. */
+const modalPos = (() => { try { return JSON.parse(localStorage.getItem("aj-modal-pos") || "{}") || {}; } catch (e) { return {}; } })();
+const modalPlace = (card, x, y) => { // keep at least the title on screen
+  card.style.transform = ""; const r = card.getBoundingClientRect();
+  x = Math.max(-r.left - r.width + 120, Math.min(innerWidth - r.left - 120, x)); y = Math.max(-r.top, Math.min(innerHeight - r.top - 40, y));
+  card.style.transform = x || y ? `translate(${x}px, ${y}px)` : ""; return [x, y];
+};
+document.addEventListener("pointerdown", e => {
+  const card = e.target.closest && e.target.closest(".modal-card"); if (!card || e.button !== 0) return;
+  const onTitle = e.target.closest("h2"), modal = card.closest(".modal");
+  if (!onTitle && e.target.closest("input, select, textarea, button, a, label, table, canvas, img, [contenteditable], .no-drag")) return;
+  const key = modal && modal.id || "", m = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(card.style.transform || ""), x0 = m ? +m[1] : 0, y0 = m ? +m[2] : 0, sx = e.clientX, sy = e.clientY;
+  let moved = false, at = [x0, y0];
+  const mv = ev => { if (!moved && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 4) return; moved = true; card.classList.add("dragging"); at = modalPlace(card, x0 + ev.clientX - sx, y0 + ev.clientY - sy); };
+  const up = () => { removeEventListener("pointermove", mv); removeEventListener("pointerup", up); card.classList.remove("dragging");
+    if (moved && key) { modalPos[key] = at; try { localStorage.setItem("aj-modal-pos", JSON.stringify(modalPos)); } catch (er) {} } };
+  addEventListener("pointermove", mv); addEventListener("pointerup", up);
+});
+document.addEventListener("dblclick", e => {
+  const h = e.target.closest && e.target.closest(".modal-card h2"); if (!h) return;
+  const card = h.closest(".modal-card"), modal = card.closest(".modal"); card.style.transform = "";
+  if (modal && modal.id) { delete modalPos[modal.id]; try { localStorage.setItem("aj-modal-pos", JSON.stringify(modalPos)); } catch (er) {} }
+});
+// put each popup back where it was last moved to when it opens
+new MutationObserver(list => list.forEach(r => { const m = r.target; if (m.hidden || !modalPos[m.id]) return; const card = m.querySelector(".modal-card"); if (card) requestAnimationFrame(() => modalPlace(card, ...modalPos[m.id])); }))
+  .observe(document.body, { subtree: true, attributes: true, attributeFilter: ["hidden"] });
 const askAnswer = () => {
   const m = DEVICES[ampBase].ask, label = $("ampLabel").value.trim();
   if (m === "cat") {
