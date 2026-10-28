@@ -524,7 +524,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v90</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v91</small></div>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
@@ -608,6 +608,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <button class="btn sm railbtn" id="railBtn" type="button" title="Show or hide the full list of sheets" aria-pressed="true">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 3.5h12M2 8h12M2 12.5h12"/></svg>All sheets</button>
       <div class="tab-list" id="tabList" role="tablist" aria-label="Open sheets"></div>
+      <button class="btn sm" id="rsBtn" type="button" title="Open one window with several sheets side by side that you can put on your other screen">⧉ Reference screen</button>
     </div>
     <section class="viewer" id="viewer">
       <div class="stage" id="stage"><div class="sheet" id="sheet"><img id="sheetImg" alt="" draggable="false"><canvas id="cmpCanvas" hidden></canvas><svg id="overlay" aria-hidden="true"></svg></div></div>
@@ -652,7 +653,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 13V7h6V3h6"/><circle cx="2" cy="13" r="1.3" fill="currentColor"/><circle cx="14" cy="3" r="1.3" fill="currentColor"/></svg>
             Linear run</button>
           <button class="btn tool" id="scaleBtn" type="button" title="Set the drawing scale for this sheet">Set scale</button>
-          <button class="btn tool erase" id="eraseBtn" type="button" aria-pressed="false" title="Click a symbol on the sheet to remove it (E)">Erase</button>
+          <button class="btn tool erase" id="eraseBtn" type="button" aria-pressed="false" title="Click a symbol, or inside a yellow or red note box, to remove it (E)">Erase</button>
           <button class="btn tool hl-y" id="hlYBtn" type="button" aria-pressed="false" title="Yellow highlighter: drag over a note to save it to your Notes page">Yellow note</button>
           <button class="btn tool hl-r" id="hlRBtn" type="button" aria-pressed="false" title="Red highlighter: drag over a note to save it to your Notes page, count sheet and supplier sheet">Red note</button>
           <button class="btn tool hl-room" id="roomBtn" type="button" aria-pressed="false" title="Typical room: drag a box around one room you marked up, then say how many of that room the job has">Typical room</button>
@@ -1366,7 +1367,7 @@ function refDraw() {
   refs.forEach(r => {
     if (!r.el) {
       const el = r.el = document.createElement("div"); el.className = "ref-win no-print";
-      el.innerHTML = `<div class="ref-bar"><b></b><button type="button" data-a="fit" title="Fit the whole sheet">Fit</button><button type="button" data-a="pop" title="Open in its own window so you can drag it to another screen">↗ New window</button><button type="button" data-a="min" title="Tuck it into the top bar">−</button><button type="button" data-a="x" title="Close">×</button></div><div class="ref-view"><img alt="" draggable="false"></div><span class="ref-edge-l" data-rz="l"></span><span class="ref-edge-r" data-rz="r"></span><span class="ref-edge-b" data-rz="b"></span><span class="ref-grip" data-rz="rb" title="Drag to make it any size"></span>`;
+      el.innerHTML = `<div class="ref-bar"><b></b><button type="button" data-a="fit" title="Fit the whole sheet">Fit</button><button type="button" data-a="pop" title="Send it to your Reference screen window, which holds several sheets side by side on another screen">↗ Reference screen</button><button type="button" data-a="min" title="Tuck it into the top bar">−</button><button type="button" data-a="x" title="Close">×</button></div><div class="ref-view"><img alt="" draggable="false"></div><span class="ref-edge-l" data-rz="l"></span><span class="ref-edge-r" data-rz="r"></span><span class="ref-edge-b" data-rz="b"></span><span class="ref-grip" data-rz="rb" title="Drag to make it any size"></span>`;
       document.body.appendChild(el);
       const im = el.querySelector("img"), v = el.querySelector(".ref-view");
       im.onload = () => refFit(r); im.src = r.p.url;
@@ -1407,21 +1408,83 @@ function refDraw() {
   });
 }
 function refClose(r, quiet) { const i = refs.indexOf(r); if (i < 0) return; refs.splice(i, 1); r.el && r.el.remove(); if (!quiet) refDraw(); }
-function refPop(r) {
-  const w = window.open("", "_blank", `width=${Math.min(1400, screen.availWidth)},height=${Math.min(950, screen.availHeight)}`);
-  if (!w) return toast("Your browser blocked the new window. Allow pop-ups for this site and try again.");
-  const t = esc(`${refName(r)} · ${job ? job.name : "Example job"}`);
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${t}</title><style>html,body{margin:0;height:100%;overflow:hidden;background:#f1f3f5;font:13px system-ui,sans-serif}#v{position:absolute;inset:0;cursor:grab;touch-action:none}img{position:absolute;left:0;top:0;transform-origin:0 0;max-width:none;pointer-events:none}#h{position:fixed;left:8px;top:8px;background:rgba(0,0,0,.65);color:#fff;padding:4px 8px;border-radius:5px;z-index:2}</style></head><body><div id="h">${t} · scroll to zoom, drag to move, double-click to fit</div><div id="v"><img id="i" alt=""></div><script>
-var v=document.getElementById("v"),im=document.getElementById("i"),z=1,tx=0,ty=0;function xf(){im.style.transform="translate("+tx+"px,"+ty+"px) scale("+z+")"}
-function fit(){var W=innerWidth,H=innerHeight;z=Math.min(W/im.naturalWidth,H/im.naturalHeight);tx=(W-im.naturalWidth*z)/2;ty=(H-im.naturalHeight*z)/2;xf()}
-im.onload=fit;v.ondblclick=fit;v.onwheel=function(e){e.preventDefault();var f=Math.exp(-e.deltaY*.0015),n=Math.max(.02,Math.min(8,z*f));tx=e.clientX-(e.clientX-tx)*n/z;ty=e.clientY-(e.clientY-ty)*n/z;z=n;xf()};
-v.onpointerdown=function(e){v.setPointerCapture(e.pointerId);var sx=e.clientX-tx,sy=e.clientY-ty;v.onpointermove=function(ev){tx=ev.clientX-sx;ty=ev.clientY-sy;xf()};v.onpointerup=function(){v.onpointermove=null}};
-<\/script></body></html>`);
-  w.document.close();
-  // the image goes over as a data copy so the window keeps working on its own
-  const fr = new FileReader(); fr.onload = () => { try { w.document.getElementById("i").src = fr.result; } catch (e) {} }; fr.readAsDataURL(r.p.blob);
-  refClose(r);
+function refPop(r) { refScreenAdd(r.p); refClose(r); }
+/* Reference screen: one separate window holding several sheets side by side (tiled), meant for a second monitor.
+   Pick sheets in its Add sheet list, or send them from a floating reference. Each pane zooms and pans on its own;
+   ⤢ makes one pane fill the window. The sheets it had open are remembered per job and come back next time. */
+let rsWin = null;
+const rsKey = () => `aj-refscreen-${job ? job.id : "example"}`;
+const rsLoad = () => { try { return JSON.parse(localStorage.getItem(rsKey()) || "null") || { ids: [], cols: 0 }; } catch (e) { return { ids: [], cols: 0 }; } };
+const rsSave = st => { try { localStorage.setItem(rsKey(), JSON.stringify(st)); } catch (e) {} };
+function rsOpen() {
+  if (rsWin && !rsWin.closed && rsWin.rs && rsWin.rs.job === (job ? job.id : null)) { rsWin.focus(); return rsWin; }
+  if (rsWin && !rsWin.closed) rsWin.close();
+  const w = window.open("", "ajrefscreen", `width=${Math.min(1600, screen.availWidth)},height=${Math.min(1000, screen.availHeight)}`);
+  if (!w) { toast("Your browser blocked the Reference screen window. Click the blocked pop-up icon in the address bar, pick Always allow, then try again."); return null; }
+  rsWin = w; const d = w.document, jn = job ? job.name : "Example job";
+  d.open(); d.write(`<!doctype html><html><head><meta charset="utf-8"><title>Reference screen · ${esc(jn)}</title></head><body></body></html>`); d.close();
+  const st = d.createElement("style");
+  st.textContent = `html,body{margin:0;height:100%;font:13px system-ui,-apple-system,Segoe UI,sans-serif;background:#dee2e6}
+  #bar{display:flex;gap:8px;align-items:center;padding:6px 10px;background:#1c7ed6;color:#fff;height:34px;box-sizing:border-box}
+  #bar b{margin-right:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#bar select,#bar button{font:inherit;padding:3px 8px;border-radius:5px;border:0}
+  #bar button{background:rgba(255,255,255,.2);color:#fff;cursor:pointer}#bar button:hover{background:rgba(255,255,255,.35)}
+  #grid{position:absolute;top:34px;left:0;right:0;bottom:0;display:grid;gap:4px;padding:4px;box-sizing:border-box}
+  .pane{position:relative;display:flex;flex-direction:column;background:#fff;border:1px solid #adb5bd;border-radius:6px;overflow:hidden;min-height:0;min-width:0}
+  .pane.big{position:absolute;inset:4px;z-index:5}
+  .ph{display:flex;align-items:center;gap:4px;padding:3px 6px;background:#f1f3f5;border-bottom:1px solid #dee2e6}.ph b{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ph button{font:inherit;font-size:12px;border:1px solid #ced4da;background:#fff;border-radius:4px;padding:1px 7px;cursor:pointer}
+  .pv{flex:1;position:relative;overflow:hidden;cursor:grab;touch-action:none;background:#f8f9fa}.pv img{position:absolute;left:0;top:0;transform-origin:0 0;max-width:none;pointer-events:none;user-select:none}
+  #empty{position:absolute;top:50%;left:0;right:0;text-align:center;color:#495057;font-size:16px}`;
+  d.head.appendChild(st);
+  const bar = d.createElement("div"); bar.id = "bar";
+  bar.innerHTML = `<b>Reference screen · ${esc(jn)}</b><select id="add"></select><select id="cols" title="How many sheets across"><option value="0">Layout: auto</option><option value="1">1 across</option><option value="2">2 across</option><option value="3">3 across</option><option value="4">4 across</option></select><button id="fitall" type="button">Fit all</button><button id="clear" type="button">Clear</button>`;
+  const grid = d.createElement("div"); grid.id = "grid";
+  const empty = d.createElement("div"); empty.id = "empty"; empty.textContent = "Pick a sheet in Add sheet above, or click ↗ Reference screen on a floating sheet in the app.";
+  d.body.append(bar, grid, empty);
+  const S = w.rs = { job: job ? job.id : null, panes: [], cols: rsLoad().cols || 0 };
+  const fill = () => { d.getElementById("add").innerHTML = `<option value="">+ Add sheet…</option>` + pages.map((pg, i) => `<option value="${esc(pg.id)}">${esc(sheetName(pg, i))}</option>`).join(""); };
+  fill(); S.fill = fill;
+  d.getElementById("cols").value = String(S.cols);
+  const save = () => rsSave({ ids: S.panes.map(x => x.id), cols: S.cols });
+  const layout = () => {
+    const n = S.panes.length, c = S.cols || Math.max(1, Math.ceil(Math.sqrt(n))), r = Math.max(1, Math.ceil(n / c));
+    grid.style.gridTemplateColumns = `repeat(${Math.min(c, Math.max(n, 1))}, minmax(0, 1fr))`; grid.style.gridTemplateRows = `repeat(${r}, minmax(0, 1fr))`;
+    empty.hidden = n > 0; S.panes.forEach(x => grid.appendChild(x.el));
+    w.requestAnimationFrame(() => S.panes.forEach(x => x.fit()));
+  };
+  S.add = pg => {
+    if (S.panes.some(x => x.id === pg.id)) return;
+    const el = d.createElement("div"); el.className = "pane";
+    el.innerHTML = `<div class="ph"><b></b><button data-a="l" title="Move left">◀</button><button data-a="r" title="Move right">▶</button><button data-a="fit" title="Fit the whole sheet">Fit</button><button data-a="big" title="Fill the window (click again to go back)">⤢</button><button data-a="x" title="Remove from the reference screen">×</button></div><div class="pv"><img alt=""></div>`;
+    el.querySelector("b").textContent = sheetName(pg, pages.indexOf(pg));
+    const im = el.querySelector("img"), v = el.querySelector(".pv"), P = { id: pg.id, el, z: 1, tx: 0, ty: 0 };
+    const xf = () => { im.style.transform = `translate(${P.tx}px,${P.ty}px) scale(${P.z})`; };
+    P.fit = () => { if (!im.naturalWidth || !v.clientWidth) return; P.z = Math.min(v.clientWidth / im.naturalWidth, v.clientHeight / im.naturalHeight); P.tx = (v.clientWidth - im.naturalWidth * P.z) / 2; P.ty = (v.clientHeight - im.naturalHeight * P.z) / 2; xf(); };
+    im.onload = P.fit;
+    const fr = new FileReader(); fr.onload = () => { im.src = fr.result; }; fr.readAsDataURL(pg.blob);
+    v.addEventListener("wheel", e => { e.preventDefault(); const b = v.getBoundingClientRect(), mx = e.clientX - b.left, my = e.clientY - b.top, z = Math.max(0.02, Math.min(8, P.z * Math.exp(-e.deltaY * 0.0015))); P.tx = mx - (mx - P.tx) * z / P.z; P.ty = my - (my - P.ty) * z / P.z; P.z = z; xf(); }, { passive: false });
+    v.addEventListener("pointerdown", e => { v.setPointerCapture(e.pointerId); const sx = e.clientX - P.tx, sy = e.clientY - P.ty; const mv = ev => { P.tx = ev.clientX - sx; P.ty = ev.clientY - sy; xf(); }; const up = () => { v.removeEventListener("pointermove", mv); v.removeEventListener("pointerup", up); }; v.addEventListener("pointermove", mv); v.addEventListener("pointerup", up); });
+    v.addEventListener("dblclick", P.fit);
+    el.querySelector(".ph").addEventListener("click", e => {
+      const a = e.target.closest("button") && e.target.closest("button").dataset.a, i = S.panes.indexOf(P); if (!a) return;
+      if (a === "x") { S.panes.splice(i, 1); el.remove(); save(); return layout(); }
+      if (a === "fit") return P.fit();
+      if (a === "big") { el.classList.toggle("big"); return w.requestAnimationFrame(P.fit); }
+      const j = a === "l" ? i - 1 : i + 1; if (j < 0 || j >= S.panes.length) return;
+      S.panes.splice(i, 1); S.panes.splice(j, 0, P); save(); layout();
+    });
+    S.panes.push(P); save(); layout();
+  };
+  d.getElementById("add").onchange = e => { const pg = pages.find(x => x.id === e.target.value); e.target.value = ""; if (pg) S.add(pg); };
+  d.getElementById("cols").onchange = e => { S.cols = +e.target.value; save(); layout(); };
+  d.getElementById("fitall").onclick = () => S.panes.forEach(x => x.fit());
+  d.getElementById("clear").onclick = () => { S.panes.forEach(x => x.el.remove()); S.panes = []; save(); layout(); };
+  w.addEventListener("resize", () => S.panes.forEach(x => x.fit()));
+  rsLoad().ids.forEach(id => { const pg = pages.find(x => x.id === id); if (pg) S.add(pg); });
+  layout();
+  return w;
 }
+function refScreenAdd(p) { const w = rsOpen(); if (w && w.rs) { w.rs.add(p); w.focus(); } }
 function renderRail() {
   const rail = $("rail");
   const same = rail.children.length === pages.length && pages.every((p, i) => rail.children[i].dataset.id === p.id);
@@ -1445,6 +1508,7 @@ function renderRail() {
   });
   rail.children[current]?.scrollIntoView({ block: "nearest", inline: "nearest" });
   if (refs.length) refDraw();
+  if (rsWin && !rsWin.closed && rsWin.rs && rsWin.rs.fill) rsWin.rs.fill();
 }
 function renderSheet() {
   const p = pages[current];
@@ -2360,8 +2424,8 @@ $("hlForm").addEventListener("submit", e => {
   if (!$("takeoffModal").hidden) renderTakeoff();
   toast(h.c === "r" ? "Saved to your Notes page, count sheet and supplier sheet." : "Saved to your Notes page.");
 });
-const dropHl = () => { const { pg, h } = hlEdit; pg.hl = (pg.hl || []).filter(x => x !== h); saveMeta(pg); $("hlModal").hidden = true; drawOverlay(); if (!$("takeoffModal").hidden) renderTakeoff(); };
-$("hlDelete").onclick = () => { dropHl(); toast("Note deleted."); };
+const dropHl = () => { const { pg, h } = hlEdit; remember([pg]); pg.hl = (pg.hl || []).filter(x => x !== h); saveMeta(pg); $("hlModal").hidden = true; drawOverlay(); if (!$("takeoffModal").hidden) renderTakeoff(); };
+$("hlDelete").onclick = () => { dropHl(); toast("Note deleted. Undo brings it back."); };
 $("hlCancel").onclick = () => { $("hlModal").hidden = true; }; // a new box stays, with no typed note
 $("hlModal").addEventListener("keydown", e => { if (e.key === "Escape") $("hlModal").hidden = true; });
 // every highlight in sheet order, numbered for the Notes page
@@ -3889,7 +3953,7 @@ function updateHint() {
     const d = devInfo(placeType);
     t.innerHTML = `Placing <b></b>. Click the sheet to drop one. <b>${countOn(p, d.id)}</b> on this sheet. Right-click one to delete it.`;
     t.querySelector("b").textContent = nameOf(d);
-  } else if (tool === "erase") t.textContent = "Click a symbol to remove it.";
+  } else if (tool === "erase") t.textContent = "Click a symbol, or inside a yellow or red note box, to remove it.";
   else if (tool === "calibrate") t.textContent = draft.length ? "Now click the other end of the known dimension." : "Click one end of a dimension you know.";
   else if (tool === "measure") {
     const m = lastMeasure && lastMeasure.pageId === p.id && !draft.length ? lastMeasure.pts : live;
@@ -4010,7 +4074,11 @@ $("overlay").addEventListener("click", e => {
     let best = null, bd = 14 / k;
     p.devices.forEach(v => { const dd = dist([v.x, v.y], q); if (dd < bd) { bd = dd; best = v; } });
     if (best) { remember(); p.devices = p.devices.filter(v => v !== best); if (dropEmptyRooms(p, [best])) toast("That was the last mark in the typical room, so its box is gone too. Undo brings it back."); hoverDev = null; saveMeta(p); drawOverlay(); renderCounts(); }
-    else toast("No symbol there. Click right on the symbol to remove it.");
+    else {
+      const h = hlAt(p, q);
+      if (h) { remember(); p.hl = p.hl.filter(x => x !== h); saveMeta(p); drawOverlay(); if (!$("takeoffModal").hidden) renderTakeoff(); toast(`${h.c === "r" ? "Red" : "Yellow"} note deleted. Undo brings it back.`); }
+      else toast("No symbol or note there. Click right on the symbol, or inside the yellow or red box, to remove it.");
+    }
     return;
   }
   const prev = draft[draft.length - 1];
@@ -4232,7 +4300,7 @@ $("sheet").addEventListener("pointerleave", e => { if (e.pointerType === "mouse"
    Undo puts that copy back and jumps to the sheet that changed. */
 let undoStack = [], redoStack = [];
 function snapState(ids) {
-  return { c: JSON.stringify(countsList()), p: ids.map(id => { const pg = pages.find(x => x.id === id); return pg && [id, JSON.stringify([pg.devices, pg.runs, pg.ftPerPx || null, pg.scaleLabel || "", pg.rooms || []])]; }).filter(Boolean) };
+  return { c: JSON.stringify(countsList()), p: ids.map(id => { const pg = pages.find(x => x.id === id); return pg && [id, JSON.stringify([pg.devices, pg.runs, pg.ftPerPx || null, pg.scaleLabel || "", pg.rooms || [], pg.hl || []])]; }).filter(Boolean) };
 }
 function remember(list) {
   const ids = (list || [pages[current]]).filter(Boolean).map(pg => pg.id);
@@ -4244,10 +4312,10 @@ function restoreState(s) {
   let first = -1;
   s.p.forEach(([id, st]) => {
     const i = pages.findIndex(x => x.id === id); if (i < 0) return;
-    const pg = pages[i], cur = JSON.stringify([pg.devices, pg.runs, pg.ftPerPx || null, pg.scaleLabel || "", pg.rooms || []]);
+    const pg = pages[i], cur = JSON.stringify([pg.devices, pg.runs, pg.ftPerPx || null, pg.scaleLabel || "", pg.rooms || [], pg.hl || []]);
     if (cur === st) return;
-    const [dv, rn, fp, sl, rm] = JSON.parse(st);
-    Object.assign(pg, { devices: dv, runs: rn, ftPerPx: fp, scaleLabel: sl, rooms: rm || pg.rooms || [] }); saveMeta(pg);
+    const [dv, rn, fp, sl, rm, hl] = JSON.parse(st);
+    Object.assign(pg, { devices: dv, runs: rn, ftPerPx: fp, scaleLabel: sl, rooms: rm || pg.rooms || [], hl: hl || pg.hl || [] }); saveMeta(pg);
     if (first < 0) first = i;
   });
   sel.clear(); hoverDev = null; placed = [];
@@ -4316,6 +4384,7 @@ function setRail(show) {
   lsSet("aj-rail-hidden", show ? null : "1");
 }
 $("railBtn").onclick = () => setRail(document.querySelector(".desk").classList.contains("no-rail"));
+$("rsBtn").onclick = () => { const w = rsOpen(); if (w && w.rs && !w.rs.panes.length && pages[current]) w.rs.add(pages[current]); };
 
 /* Overlay: up to 3 sheets, each tinted its own color, multiplied together on white.
    Lines that match on every sheet come out dark; lines on only one sheet keep that sheet's color.
