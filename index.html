@@ -546,7 +546,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v99</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v100</small></div>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
@@ -880,7 +880,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="sym-bar" id="symBar" hidden role="region" aria-label="Find symbol">
   <div id="symMsg"></div>
-  <div class="row"><label for="symThr">Pickier</label><input type="range" id="symThr" min="40" max="95" step="1" value="60"><span class="hint" id="symThrV"></span></div>
+  <div class="row"><label for="symThr">Pickier</label><input type="range" id="symThr" min="40" max="95" step="1" value="65"><span class="hint" id="symThrV"></span></div>
   <div class="row"><button class="btn" type="button" id="symClose">Done</button><span class="spacer"></span><button class="btn" type="button" id="symAgain">Search this sheet</button><button class="btn primary" type="button" id="symAdd">Add dots</button></div>
 </div>
 <div class="modal" id="pnlModal" hidden role="dialog" aria-modal="true" aria-labelledby="pnlTitle">
@@ -2265,11 +2265,12 @@ function pnlSave() {
    turned 4 ways). Busy drawings give some misses and false hits, so it always asks first. */
 let sym = null, symType = null;
 const symBmp = pg => { if (!bitmaps.has(pg.id)) { bitmaps.set(pg.id, createImageBitmap(pg.blob)); while (bitmaps.size > 2) { const [k0, b0] = bitmaps.entries().next().value; bitmaps.delete(k0); b0.then(b => b.close && b.close()); } } return bitmaps.get(pg.id); };
-function symInk(img, rx, ry, rw, rh, sc) { // ink (0 white .. 1 black) of a rect, scaled by sc
+function symInk(img, rx, ry, rw, rh, sc, blur = true) { // ink (0 white .. 1 black) of a rect, scaled by sc
   const w = Math.max(1, Math.round(rw * sc)), h = Math.max(1, Math.round(rh * sc)), c = document.createElement("canvas"); c.width = w; c.height = h;
   const x = c.getContext("2d", { willReadFrequently: true }); x.fillStyle = "#fff"; x.fillRect(0, 0, w, h); x.drawImage(img, rx, ry, rw, rh, 0, 0, w, h);
   const px = x.getImageData(0, 0, w, h).data, d = new Float32Array(w * h);
   for (let i = 0; i < d.length; i++) d[i] = 1 - (px[i * 4] * .299 + px[i * 4 + 1] * .587 + px[i * 4 + 2] * .114) / 255;
+  if (!blur) return { w, h, d };
   // soften by a 3x3 blur so thin lines still line up when the symbol sits a fraction of a pixel off
   const o = new Float32Array(w * h);
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let t = 0, n = 0; for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const X = x + i, Y = y + j; if (X >= 0 && Y >= 0 && X < w && Y < h) { t += d[Y * w + X]; n++; } } o[y * w + x] = t / n; }
@@ -2295,44 +2296,74 @@ function symScore(P, I, T, x0, y0) { // NCC of template T at x0,y0 in page P; -1
   let num = 0; for (let y = 0; y < T.h; y++) { const ro = (y0 + y) * P.w + x0, to = y * T.w; for (let x = 0; x < T.w; x++) num += T.z[to + x] * P.d[ro + x]; }
   return num / (n * T.sd * Math.sqrt(v));
 }
+/* v100 (Jonathan: "not accurate enough", thin-line symbols hit every wall): find by the tag first.
+   Box the symbol WITH its label (like F5). The label is read from the sheet's text, every other "F5" on the sheet is found,
+   and the symbol is checked at the same spot next to each one (the boxed picture, label included, must match there).
+   Without a readable label it falls back to the item's own tag, and with no text at all to a strict shape-only search. */
+const symNorm = t => String(t || "").toUpperCase().replace(/[^A-Z0-9\-\/.]/g, "").replace(/^[.\-]+|[.\-]+$/g, "");
+const symCenter = w => [w[1] + w[3] / 2, w[2] + w[4] / 2];
+function symBest(img, cx, cy, R, rots) { // best match of the sharp template near cx,cy (page px) within R
+  const sc = sym.sc, T0 = sym.fine[0], half = Math.max(T0.w, T0.h) / 2 / sc, rx = Math.max(0, cx - R - half), ry = Math.max(0, cy - R - half);
+  const rw = Math.min(img.width - rx, 2 * (R + half)), rh = Math.min(img.height - ry, 2 * (R + half)); if (rw < 4 || rh < 4) return null;
+  const P = symInk(img, rx, ry, rw, rh, sc, true), I = symIntegral(P); let best = null;
+  rots.forEach(ri => { const T = sym.fine[ri];
+    for (let y = 0; y + T.h <= P.h; y++) for (let x = 0; x + T.w <= P.w; x++) { const s = symScore(P, I, T, x, y); if (!best || s > best.s) best = { s, x: rx + (x + T.w / 2) / sc, y: ry + (y + T.h / 2) / sc }; } });
+  return best;
+}
 async function symLearn(pg, r) {
-  if (r.w < 6 || r.h < 6) return toast("That box was too small. Drag a snug box around one symbol.");
-  const img = await symBmp(pg), sc = Math.min(1, 36 / Math.max(r.w, r.h), Math.sqrt(8e6 / (img.width * img.height))), cs = Math.min(sc * .6, Math.sqrt(2.5e6 / (img.width * img.height))); // caps keep big sheets from eating memory
-  const rots = t => { const a = [t]; for (let i = 0; i < 3; i++) a.push(symRot(a[i])); return a.map(symPrep); };
-  sym = { type: symType, sc, cs, fine: rots(symInk(img, r.x, r.y, r.w, r.h, sc)), coarse: rots(symInk(img, r.x, r.y, r.w, r.h, cs)), cands: [], pgId: null, thr: +$("symThr").value, rad: Math.max(r.w, r.h) * .6 };
+  if (r.w < 6 || r.h < 6) return toast("That box was too small. Drag a box around one symbol and its label.");
+  const img = await symBmp(pg), size = Math.max(r.w, r.h), sc = Math.min(1, 40 / size), cs = Math.min(sc * .5, Math.sqrt(2.5e6 / (img.width * img.height)));
+  const rots = (t, n) => { const a = [t]; for (let i = 0; i < n; i++) a.push(symRot(a[i])); return a.map(symPrep); };
+  // the label inside the box: words from the sheet's text that sit inside it
+  const inBox = (pg.words || []).filter(w => { const [x, y] = symCenter(w); return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h && symNorm(w[0]); });
+  const d = devInfo(symType) || {}, own = symNorm(d.tag || d.label);
+  const lab = inBox.find(w => symNorm(w[0]) === own) || inBox.sort((a, b) => b[4] - a[4])[0];
+  sym = { type: symType, sc, cs, size, rad: size * .45, cands: [], pgId: null, thr: 0,
+    fine: rots(symInk(img, r.x, r.y, r.w, r.h, sc, true), 3), coarse: rots(symInk(img, r.x, r.y, r.w, r.h, cs, true), 3),
+    tag: lab ? symNorm(lab[0]) : own, off: lab ? [r.x + r.w / 2 - symCenter(lab)[0], r.y + r.h / 2 - symCenter(lab)[1]] : null, rotLab: lab ? !!lab[5] : false };
+  sym.mode = (pg.words || []).length && sym.tag ? "tag" : "shape";
+  sym.thr = sym.mode === "tag" ? 65 : 80; $("symThr").value = sym.thr;
   await symSearch(pg);
 }
 async function symSearch(pg) {
   if (!sym) return;
-  const img = await symBmp(pg), W = img.width, H = img.height, out = [];
-  busy("Finding symbols…", 0, "Comparing the symbol across the sheet, on this computer");
+  const img = await symBmp(pg), out = []; let noSym = 0;
+  const words = pg.words || [], tagMode = words.length && sym.tag;
+  busy("Finding symbols…", 0, tagMode ? `Looking for ${sym.tag} next to its symbol, on this computer` : "Comparing the symbol across the sheet, on this computer");
   try {
-    const PC = symInk(img, 0, 0, W, H, sym.cs), IC = symIntegral(PC), PF = symInk(img, 0, 0, W, H, sym.sc), IF = null, coarse = [];
-    const floor = .25; // loose first pass; the sharper pass decides
-    for (let ri = 0; ri < 4; ri++) {
-      const T = sym.coarse[ri];
-      for (let y = 0; y + T.h <= PC.h; y++) {
-        for (let x = 0; x + T.w <= PC.w; x++) { const s = symScore(PC, IC, T, x, y); if (s > floor) coarse.push({ x, y, s, ri }); }
-        if (y % 40 === 0) { busy("Finding symbols…", (ri + y / PC.h) / 5); await new Promise(res => setTimeout(res)); }
+    if (tagMode) {
+      const hits = words.filter(w => symNorm(w[0]) === sym.tag);
+      for (let i = 0; i < hits.length; i++) {
+        const w = hits[i], [lx, ly] = symCenter(w), turned = !!w[5] !== sym.rotLab;
+        let b;
+        if (sym.off) { // the label was boxed with the symbol: check the same spot beside this label, the same way round
+          const o = turned ? [-sym.off[1], sym.off[0]] : sym.off;
+          b = symBest(img, lx + o[0], ly + o[1], Math.max(6, sym.size * .2), turned ? [1, 3] : [0]);
+          if (!b || b.s < .45) { const b2 = symBest(img, lx, ly, sym.size * 1.2, [0, 1, 2, 3]); if (b2 && (!b || b2.s > b.s)) b = b2; } // drawn a little differently
+        } else b = symBest(img, lx, ly, Math.max(60, sym.size * 2.5), [0, 1, 2, 3]); // label not in the box: look around it
+        if (b && b.s >= .3) out.push({ x: b.x, y: b.y, s: b.s, tag: true }); else noSym++;
+        if (i % 10 === 0) { busy("Finding symbols…", i / hits.length); await new Promise(res => setTimeout(res)); }
       }
+      sym.hits = hits.length;
+    } else {
+      // no text on this sheet: shape only, strict. A blurred quick pass, then each spot is checked sharp.
+      const PC = symInk(img, 0, 0, img.width, img.height, sym.cs, true), IC = symIntegral(PC), coarse = [];
+      for (let ri = 0; ri < 4; ri++) {
+        const T = sym.coarse[ri];
+        for (let y = 0; y + T.h <= PC.h; y++) {
+          for (let x = 0; x + T.w <= PC.w; x++) { const s = symScore(PC, IC, T, x, y); if (s > .5) coarse.push({ x: (x + T.w / 2) / sym.cs, y: (y + T.h / 2) / sym.cs, s }); }
+          if (y % 40 === 0) { busy("Finding symbols…", (ri + y / PC.h) / 6); await new Promise(res => setTimeout(res)); }
+        }
+      }
+      coarse.sort((a, b) => b.s - a.s);
+      const keep = []; coarse.forEach(c => { if (keep.length < 400 && !keep.some(k => Math.hypot(k.x - c.x, k.y - c.y) < sym.size * .6)) keep.push(c); });
+      keep.forEach(c => { const b = symBest(img, c.x, c.y, sym.size * .25, [0, 1, 2, 3]); if (b && b.s > .5) out.push(b); });
     }
-    coarse.sort((a, b) => b.s - a.s);
-    const keep = []; coarse.forEach(c => { const T = sym.coarse[c.ri]; if (keep.length < 4000 && !keep.some(k => Math.abs(k.x - c.x) < T.w * .6 && Math.abs(k.y - c.y) < T.h * .6)) keep.push(c); });
-    const f = sym.sc / sym.cs;
-    keep.forEach(c => { // refine on the sharper picture
-      const T = sym.fine[c.ri]; let best = -1, bx = 0, by = 0;
-      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
-        const x = Math.round(c.x * f) + dx, y = Math.round(c.y * f) + dy; if (x < 0 || y < 0 || x + T.w > PF.w || y + T.h > PF.h) continue;
-        const s = symScore(PF, IF, T, x, y); if (s > best) { best = s; bx = x; by = y; }
-      }
-      if (best > .35) out.push({ x: (bx + T.w / 2) / sym.sc, y: (by + T.h / 2) / sym.sc, s: best });
-    });
   } finally { busy(null, null); }
   out.sort((a, b) => b.s - a.s);
   const fin = []; out.forEach(c => { if (!fin.some(k => Math.hypot(k.x - c.x, k.y - c.y) < sym.rad)) fin.push(c); });
-  // skip spots that already have a dot of any item
-  sym.cands = fin.filter(c => !pg.devices.some(v => Math.hypot(v.x - c.x, v.y - c.y) < sym.rad));
-  sym.had = fin.length - sym.cands.length; sym.pgId = pg.id;
+  sym.cands = fin.filter(c => !pg.devices.some(v => Math.hypot(v.x - c.x, v.y - c.y) < sym.rad)); // already has a dot
+  sym.had = fin.length - sym.cands.length; sym.noSym = noSym; sym.mode = tagMode ? "tag" : "shape"; sym.pgId = pg.id;
   symShow(); drawOverlay();
 }
 function symShow() {
@@ -2340,14 +2371,15 @@ function symShow() {
   const on = sym.cands.filter(c => !c.off && c.s * 100 >= sym.thr).length, d = sym.type ? devInfo(sym.type) : null, nm = d ? nameOf(d) : "this item";
   $("symThrV").textContent = sym.thr + "%";
   $("symMsg").innerHTML = sym.pgId !== (pages[current] || {}).id ? `Looking for <b>${esc(nm)}</b>. Click <b>Search this sheet</b> to look on this sheet.`
-    : `Found <b>${on}</b> look-alike${on === 1 ? "" : "s"} for <b>${esc(nm)}</b>${sym.had ? ` (${sym.had} already had a dot)` : ""}. Click a blue circle to drop a wrong one. Slide right to be pickier. It won't catch everything on a busy sheet, so look it over.`;
+    : (sym.mode === "tag" ? `Found <b>${on}</b> ${esc(sym.tag)} symbol${on === 1 ? "" : "s"} by the <b>${esc(sym.tag)}</b> tags on this sheet${sym.had ? ` (${sym.had} already had a dot)` : ""}${sym.noSym ? `. ${sym.noSym} ${esc(sym.tag)} tag${sym.noSym === 1 ? " has" : "s have"} no matching symbol beside it (like the schedule), so ${sym.noSym === 1 ? "it's" : "they're"} left out` : ""}.`
+      : `Found <b>${on}</b> look-alike${on === 1 ? "" : "s"} for <b>${esc(nm)}</b> by shape only, since this sheet has no text to read the tag from${sym.had ? ` (${sym.had} already had a dot)` : ""}.`) + ` Click a blue circle to drop a wrong one. Slide right to be pickier.`;
   $("symAdd").textContent = on ? `Add ${on} dot${on === 1 ? "" : "s"}` : "Add dots"; $("symAdd").disabled = !on;
 }
 $("symBtn").onclick = () => {
   if (hlMode === "sym") { setHl("sym"); return; }
   const t = tool === "place" ? placeType : sym && sym.type;
   if (!t) return toast("First pick the item, like a recessed light with its label, the same way you would to place it. Then click Find symbol.");
-  symType = t; setHl("sym"); toast("Drag a snug box around one of its symbols on the drawing.");
+  symType = t; setHl("sym"); toast("Drag a box around one of its symbols and its tag, like F5.");
 };
 $("symThr").oninput = () => { if (!sym) return; sym.thr = +$("symThr").value; symShow(); drawOverlay(); };
 $("symAgain").onclick = () => symSearch(pages[current]);
