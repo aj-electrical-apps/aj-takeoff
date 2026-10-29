@@ -546,7 +546,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v101</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v102</small></div>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
@@ -2302,6 +2302,24 @@ function symScore(P, I, T, x0, y0) { // NCC of template T at x0,y0 in page P; -1
    Without a readable label it falls back to the item's own tag, and with no text at all to a strict shape-only search. */
 const symNorm = t => String(t || "").toUpperCase().replace(/[^A-Z0-9\-\/.]/g, "").replace(/^[.\-]+|[.\-]+$/g, "");
 const symCenter = w => [w[1] + w[3] / 2, w[2] + w[4] / 2];
+// words read from the picture (OCR) mix up look-alike letters, so F5 and FS count as the same tag there
+const symLoose = t => { const n = symNorm(t); return n.slice(0, 1) + n.slice(1).replace(/O/g, "0").replace(/[IL]/g, "1").replace(/S/g, "5").replace(/Z/g, "2").replace(/B/g, "8"); };
+const symSame = (w, tag) => w[6] ? symLoose(w[0]) === symLoose(tag) : symNorm(w[0]) === tag;
+/* Many CAD sheets draw their text as lines (no real text in the PDF). Then the sheet is read once with OCR in tiles,
+   on this computer, and the words are saved with the sheet. Marked with a 1 in slot 6 so look-alike letters match. */
+async function symOcrSheet(pg) {
+  const img = await symBmp(pg), W = img.width, H = img.height, T = 1500, ov = 100, out = [], tiles = [];
+  for (let y = 0; y < H; y += T - ov) for (let x = 0; x < W; x += T - ov) tiles.push({ x, y, w: Math.min(T, W - x), h: Math.min(T, H - y) });
+  try {
+    for (let i = 0; i < tiles.length; i++) {
+      const ws = await ocrWords(pg, tiles[i], `Reading the sheet's text, part ${i + 1} of ${tiles.length}…`, false, true);
+      ws.forEach(w => { if (!out.some(o => o[0] === w[0] && Math.abs(o[1] - w[1]) < 12 && Math.abs(o[2] - w[2]) < 12)) out.push([w[0], w[1], w[2], w[3], w[4], 0, 1]); });
+    }
+  } catch (e) { toast("Couldn't read the sheet's text (the reader didn't load). Using the shape only."); return null; }
+  finally { busy(null, null); }
+  if (out.length) { pg.words = out; savePage(pg, pages.indexOf(pg)); }
+  return out;
+}
 function symBest(img, cx, cy, R, rots, set = sym.fine) { // best match of the sharp template near cx,cy (page px) within R
   const sc = sym.sc, T0 = set[0], half = Math.max(T0.w, T0.h) / 2 / sc, rx = Math.max(0, cx - R - half), ry = Math.max(0, cy - R - half);
   const rw = Math.min(img.width - rx, 2 * (R + half)), rh = Math.min(img.height - ry, 2 * (R + half)); if (rw < 4 || rh < 4) return null;
@@ -2315,9 +2333,10 @@ async function symLearn(pg, r) {
   const img = await symBmp(pg), size = Math.max(r.w, r.h), sc = Math.min(1, 40 / size), cs = Math.min(sc * .5, Math.sqrt(2.5e6 / (img.width * img.height)));
   const rots = (t, n) => { const a = [t]; for (let i = 0; i < n; i++) a.push(symRot(a[i])); return a.map(symPrep); };
   // the label inside the box: words from the sheet's text that sit inside it
+  if (!(pg.words || []).length) { toast("This sheet's text is drawn as lines, so the app is reading it first. This happens once per sheet."); await symOcrSheet(pg); }
   const inBox = (pg.words || []).filter(w => { const [x, y] = symCenter(w); return x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h && symNorm(w[0]); });
   const d = devInfo(symType) || {}, own = symNorm(d.tag || d.label);
-  const lab = inBox.find(w => symNorm(w[0]) === own) || inBox.find(w => /^[A-Z]{1,4}-?\d+[A-Z]?$/.test(symNorm(w[0]))) || inBox.sort((a, b) => b[4] - a[4])[0]; // a fixture-style tag like F5 or LS-2 wins
+  const lab = inBox.find(w => symSame(w, own)) || inBox.find(w => /^[A-Z]{1,4}-?\d+[A-Z]?$/.test(symNorm(w[0]))) || inBox.sort((a, b) => b[4] - a[4])[0]; // a fixture-style tag like F5 or LS-2 wins
   sym = { type: symType, sc, cs, size, rad: size * .45, cands: [], pgId: null, thr: 0,
     fine: rots(symInk(img, r.x, r.y, r.w, r.h, sc, true), 3), coarse: rots(symInk(img, r.x, r.y, r.w, r.h, cs, true), 3),
     tag: lab ? symNorm(lab[0]) : own, off: lab ? [r.x + r.w / 2 - symCenter(lab)[0], r.y + r.h / 2 - symCenter(lab)[1]] : null, rotLab: lab ? !!lab[5] : false };
@@ -2342,7 +2361,7 @@ async function symSearch(pg) {
     if (tagMode) {
       // a tag lined up in a column with other tags (same left edge, stacked close) is a schedule row, not a fixture
       const rowy = w => words.filter(o => o !== w && Math.abs(o[1] - w[1]) < 4 && Math.abs(o[2] - w[2]) < w[4] * 6 && /^[A-Z]{1,3}-?\d/i.test(o[0])).length >= 2;
-      const all = words.filter(w => symNorm(w[0]) === sym.tag), hits = all.filter(w => !rowy(w)); sym.sched = all.length - hits.length;
+      const all = words.filter(w => symSame(w, sym.tag)), hits = all.filter(w => !rowy(w)); sym.sched = all.length - hits.length;
       // every exact tag counts (F5, not F5E or F50); the nearest thing shaped like the symbol, any side and either way round, is where the dot goes
       const set = sym.body || sym.fine, bs = sym.bodySize || sym.size;
       for (let i = 0; i < hits.length; i++) {
@@ -2576,7 +2595,7 @@ function loadTess() {
   if (window.Tesseract) return Promise.resolve();
   return tessLoad || (tessLoad = new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = TESS + "tesseract.min.js"; sc.onload = res; sc.onerror = () => { tessLoad = null; rej(new Error("load")); }; document.head.appendChild(sc); }));
 }
-async function ocrWords(pg, r, what = "Reading the schedule…", small) {
+async function ocrWords(pg, r, what = "Reading the schedule…", small, sparse) {
   await loadTess();
   // small: a short label like a sheet number, sized so its letters come out a size the reader likes
   const img = await createImageBitmap(pg.blob), sc = small ? Math.max(.5, Math.min(3, 160 / r.h)) : Math.max(1, Math.min(3, 3000 / Math.max(r.w, r.h))), c = document.createElement("canvas");
@@ -2585,7 +2604,7 @@ async function ocrWords(pg, r, what = "Reading the schedule…", small) {
   const wk = await Tesseract.createWorker("eng", 1, { workerPath: TESS + "worker.min.js", corePath: "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1", langPath: "https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng@1.0.0/4.0.0_best_int",
     logger: m => { if (m.status === "recognizing text") busy(what, m.progress, "Reading the picture of the schedule (OCR), on this computer"); } });
   try {
-    await wk.setParameters(small ? { tessedit_pageseg_mode: "11" } : { preserve_interword_spaces: "1" });
+    await wk.setParameters(small || sparse ? { tessedit_pageseg_mode: "11" } : { preserve_interword_spaces: "1" }); // 11: scattered words, like tags on a plan
     const { data } = await wk.recognize(c);
     return (data.words || []).filter(w => w.text.trim() && w.confidence > 20).map(w => [w.text.trim(), Math.round(r.x + w.bbox.x0 / sc), Math.round(r.y + w.bbox.y0 / sc), Math.round((w.bbox.x1 - w.bbox.x0) / sc), Math.round((w.bbox.y1 - w.bbox.y0) / sc)]);
   } finally { wk.terminate(); }
