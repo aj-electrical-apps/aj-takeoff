@@ -392,6 +392,8 @@ html.look-new body { font-family: var(--font-ui); }
 .drive.busy .dot { background: var(--accent); animation: pulse 1s ease-in-out infinite alternate; }
 .drive.bad { color: var(--warn); }
 .drive.bad .dot { background: var(--warn); }
+.team-who { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.team-who input { flex: 1; min-width: 0; height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); font: inherit; }
 .drive span.t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @keyframes pulse { from { opacity: .35 } to { opacity: 1 } }
 @media (prefers-reduced-motion: reduce) { .drive.busy .dot { animation: none; } }
@@ -669,7 +671,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v109</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v110</small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
@@ -745,7 +747,8 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
     <div class="spacer"></div>
     <div class="drive" id="driveStatus" role="status"><span class="dot"></span><span class="t" id="driveText">Saved in this browser</span>
-      <button class="btn sm" id="driveRetry" type="button" hidden>Try again</button></div>
+      <button class="btn sm" id="driveRetry" type="button" hidden>Try again</button>
+      <button class="btn sm primary" id="teamLoad" type="button" hidden>Load it</button></div>
     <div class="group" id="clearGroup">
       <button class="btn" id="clearBtn">Delete job</button>
     </div>
@@ -994,6 +997,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
   <div class="modal-card">
     <h2 id="jobsTitle">Jobs</h2>
     <p class="hint" id="jobsWhere">Jobs save to the AJ Takeoff Jobs folder in your Google Drive, so you can open them on any device.</p>
+    <label class="team-who" id="teamWhoBox" hidden>Your name <input id="teamWho" maxlength="30" placeholder="So others see who saved a job" autocomplete="name"></label>
     <input type="search" class="job-find" id="jobsFind" placeholder="Search jobs by name, GC or address" aria-label="Search jobs">
     <ul class="job-list" id="jobList"></ul>
     <p class="empty" id="jobsEmpty">No jobs yet. Start one below, then upload its plans.</p>
@@ -1015,6 +1019,18 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
         <button class="btn primary" type="submit" id="jobSave">Start job</button>
       </div>
     </form>
+  </div>
+</div>
+
+<div class="modal" id="teamModal" hidden role="dialog" aria-modal="true" aria-labelledby="teamTitle">
+  <div class="modal-card" style="max-width:480px">
+    <h2 id="teamTitle">This job changed online</h2>
+    <p id="teamMsg"></p>
+    <p class="hint" id="teamNote"></p>
+    <div class="actions">
+      <button class="btn" type="button" id="teamMine">Keep mine</button>
+      <button class="btn primary" type="button" id="teamTheirs">Open their copy</button>
+    </div>
   </div>
 </div>
 
@@ -1403,7 +1419,7 @@ function db() {
 async function store(fn, name = "pages") {
   try { const d = await db(); const tx = d.transaction(name, "readwrite"); fn(tx.objectStore(name)); await new Promise(r => { tx.oncomplete = tx.onerror = tx.onabort = r; }); } catch (e) {}
 }
-const meta = p => ({ fileId: p.fileId || null, name: p.name, zoom: p.zoom, pxPerInch: p.pxPerInch || null, ftPerPx: p.ftPerPx || null, scaleLabel: p.scaleLabel || "", runs: p.runs, devices: p.devices, hl: p.hl || [], rooms: p.rooms || [], add: p.add || "", prevAdd: p.prevAdd || "" });
+const meta = p => ({ fileId: p.fileId || null, name: p.name, zoom: p.zoom, pxPerInch: p.pxPerInch || null, ftPerPx: p.ftPerPx || null, scaleLabel: p.scaleLabel || "", runs: p.runs, devices: p.devices, hl: p.hl || [], rooms: p.rooms || [], add: p.add || "", prevAdd: p.prevAdd || "", cloud: p.cloud || null });
 const savePage = (p, i) => p.example ? null : (scheduleSync(), store(s => s.put({ id: p.id, jobId: job.id, order: i, blob: p.blob, thumb: p.thumb || null, words: p.words || null, prevBlob: p.prevBlob || null, ...meta(p) })));
 const saveMeta = (p, quiet) => p.example ? null : (quiet || scheduleSync(), store(s => { const g = s.get(p.id); g.onsuccess = () => g.result && s.put({ ...g.result, ...meta(p) }); }));
 async function getAll(name) {
@@ -1414,7 +1430,7 @@ async function loadSaved(jobId) {
   try {
     const all = (await getAll("pages")).filter(r => r.jobId === jobId);
     return all.sort((a, b) => a.order - b.order).map(r => ({ id: r.id, name: r.name || "", zoom: r.zoom || "FULL", blob: r.blob, url: URL.createObjectURL(r.blob), thumb: r.thumb || null, thumbUrl: r.thumb ? URL.createObjectURL(r.thumb) : null,
-      pxPerInch: r.pxPerInch || null, ftPerPx: r.ftPerPx || null, scaleLabel: r.scaleLabel || "", runs: r.runs || [], devices: r.devices || [], hl: r.hl || [], rooms: r.rooms || [], fileId: r.fileId || null, words: r.words || null, add: r.add || "", prevAdd: r.prevAdd || "", prevBlob: r.prevBlob || null }))
+      pxPerInch: r.pxPerInch || null, ftPerPx: r.ftPerPx || null, scaleLabel: r.scaleLabel || "", runs: r.runs || [], devices: r.devices || [], hl: r.hl || [], rooms: r.rooms || [], fileId: r.fileId || null, words: r.words || null, add: r.add || "", prevAdd: r.prevAdd || "", prevBlob: r.prevBlob || null, cloud: r.cloud || null }))
       .map((p, i, all) => ({ ...p, zoom: all[0].zoom === "FREE" ? "FULL" : all[0].zoom })); // every sheet shares one zoom
   } catch (e) { return []; }
 }
@@ -6250,11 +6266,12 @@ function driveMsg(e) {
   }
 }
 function setDrive(state, text) {
+  if (state === "off" && teamOn) return;
   const el = $("driveStatus");
   el.className = "drive " + ({ ok: "ok", busy: "busy", bad: "bad" }[state] || "");
   $("driveText").textContent = text || (state === "off" ? "Saved in this browser only" : "Saved in this browser");
-  $("driveRetry").hidden = state !== "bad";
-  if (state === "off") $("jobsWhere").textContent = "Jobs are kept in this browser. To keep a copy in Google Drive, or open a job on another device, use Save / Open.";
+  $("driveRetry").hidden = state !== "bad"; $("teamLoad").hidden = true;
+  if (state === "off" && !teamOn) $("jobsWhere").textContent = "Jobs are kept in this browser. To keep a copy in Google Drive, or open a job on another device, use Save / Open.";
 }
 $("driveRetry").onclick = () => { syncWanted = true; runSync(); };
 
@@ -6301,6 +6318,7 @@ function scheduleSync() {
 async function runSync() {
   if (syncing || !syncWanted || !job) return;
   if (loading) return scheduleSync(); // wait until the plans finish loading
+  if (await teamReady) return runTeamSync();
   if (!(await mcpReady)) return setDrive("off");
   syncing = true; syncWanted = false;
   const j = job, list = pages;
@@ -6370,6 +6388,7 @@ let driveIndex = {}; // job id -> newest Drive file, from the last listing
 async function listDriveJobs(localList) {
   const head = $("driveJobsHead"), ul = $("driveJobList"), note = $("driveJobsNote");
   ul.replaceChildren(); head.hidden = true; note.hidden = true;
+  if (await teamReady) return listTeamJobs();
   if (!(await mcpReady)) { note.hidden = false; note.textContent = "Google Drive isn't available in this view, so only jobs saved in this browser are listed."; return; }
   note.hidden = false; note.textContent = "Checking your Google Drive…";
   let files;
@@ -6910,11 +6929,13 @@ const saveJob = j => { if (job && j.id === job.id) scheduleSync(); return putJob
 function showJobName() { $("jobName").textContent = job ? job.name : "Example job"; }
 async function openJob(j) {
   if (tool) setTool(null);
+  if (teamOn && syncWanted && job && job !== j) { clearTimeout(syncTimer); await runTeamSync(); }
   pages.forEach(p => { URL.revokeObjectURL(p.url); p.thumbUrl && URL.revokeObjectURL(p.thumbUrl); });
   clearTimeout(syncTimer); syncWanted = false;
   job = j; lsSet("aj-current-job", j ? j.id : null); showJobName(); coScope = null; showOld = false; coChip();
   dropCmp(); sel.clear(); undoStack = []; redoStack = []; updHist(); tabs = [];
-  setDrive(j && j.driveJsonId ? "ok" : "idle", j && j.driveJsonId ? "Saved to Google Drive" : null);
+  if (teamOn) setDrive(j && j.teamUrl ? "ok" : "idle", j && j.teamUrl ? "Saved online" : "Saved on this computer");
+  else setDrive(j && j.driveJsonId ? "ok" : "idle", j && j.driveJsonId ? "Saved to Google Drive" : null);
   if (!j) return loadExamples();
   pages = await loadSaved(j.id);
   current = Math.max(0, pages.findIndex(p => !p.name));
@@ -6922,6 +6943,8 @@ async function openJob(j) {
   if (tabs.length && !tabs.includes(pages[current]?.id)) current = Math.max(0, pages.findIndex(p => p.id === tabs[tabs.length - 1]));
   renderAll();
   folderCheck(true);
+  if (teamOn && !j.teamUrl) { syncWanted = true; scheduleSync(); } // a job that isn't online yet goes up
+  else if (teamOn) teamCheck();
 }
 function newJobRecord(fields) {
   const now = new Date().toISOString();
@@ -6946,8 +6969,11 @@ function jobRowsInto(list, arr, modalId) {
     b.querySelector(".jt").textContent = j.name;
     b.querySelector(".jm").textContent = [j.customer, j.created && "Started " + stampDate(j.created), j.bidDate && "Bid " + j.bidDate, j.updated && "Last worked " + stampDate(j.updated)].filter(Boolean).join(" · ") || "No details yet";
     b.querySelector(".js").textContent = `${jobCounts[j.id] || 0} sheets`;
+    const tt = teamTag(j); if (tt) { const tag = document.createElement("span"); tag.className = "badge"; tag.textContent = tt; b.querySelector(".jm").appendChild(tag); }
     b.onclick = async () => {
       $(modalId).hidden = true;
+      const t = teamOn && teamIndex[segId(j.id)];
+      if (t && !t.deleted && j.teamUrl && t.url !== j.teamUrl) return pullTeam(t);
       if (job && job.id === j.id) return;
       const f = driveIndex[j.id];
       if (f && j.driveJsonId && f.fileId !== j.driveJsonId) await pullJob(f); else await openJob(j);
@@ -6955,7 +6981,7 @@ function jobRowsInto(list, arr, modalId) {
     li.appendChild(b); list.appendChild(li);
   });
 }
-$("jobsFind").oninput = () => { const q = $("jobsFind").value.trim(), hit = jobs.filter(j => jobMatch(j, q)); jobRowsInto($("jobList"), hit, "jobsModal"); $("jobsEmpty").hidden = !!hit.length; $("jobsEmpty").textContent = q ? "No jobs match that." : "No jobs yet. Start one below, then upload its plans."; };
+$("jobsFind").oninput = () => { const q = $("jobsFind").value.trim(), hit = jobs.filter(j => jobMatch(j, q)); jobRowsInto($("jobList"), hit, "jobsModal"); $("jobsEmpty").hidden = !!hit.length; $("jobsEmpty").textContent = q ? "No jobs match that." : "No jobs yet. Start one below, then upload its plans."; if (teamOn) drawTeamRemote(q); };
 async function showRecent() {
   try { jobs = (await getAll("jobs")).sort((a, b) => (b.updated || "").localeCompare(a.updated || "")); } catch (e) {}
   jobCounts = await sheetCounts();
@@ -7020,19 +7046,245 @@ async function ensureJob(firstFileName) {
 }
 const touchJob = () => { if (job) { job.updated = new Date().toISOString(); saveJob(job); } };
 
+/* ---------- team jobs (Jonathan 2026-10-29: "when someone puts in a new job it saves it so everyone can see it") ----------
+   On the AJ Takeoff website every job also saves online, in Vercel Blob, a few seconds after each change:
+     team/sheet/<job>/<sheet>-img|thumb|prev.jpg   each sheet image, uploaded once (again only if the sheet is replaced)
+     team/sheet/<job>/<sheet>-words.json            the sheet's text, for Read panel and Auto-name
+     team/data/<job>/m<details>-<random>.json       the job itself: counts, runs, bid, proposal and every sheet's details
+   api/jobs lists the newest copy of every job. Before saving, the app checks nobody else saved the job since
+   this computer last did; if someone did, it asks whose copy to keep. This browser still keeps its own copy,
+   so the app keeps working when the internet drops and catches up when it's back. */
+let teamOn = false, teamJobs = [], teamIndex = {}, teamNewer = null, teamWho = lsGet("aj-who") || "";
+const segId = id => String(id).replace(/[^\w-]/g, "_").slice(0, 80);
+const TEAM_KEYS = [["img", "blob"], ["thumb", "thumb"], ["prev", "prevBlob"]];
+const wordsMark = w => w && w.length ? `${w.length}|${JSON.stringify(w[0]).slice(0, 60)}|${JSON.stringify(w[w.length - 1]).slice(0, 60)}` : "";
+const clockTime = t => new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+const whenSaved = t => { const d = new Date(t); return d.toDateString() === new Date().toDateString() ? clockTime(d) : d.toLocaleDateString([], { month: "short", day: "numeric" }) + " " + clockTime(d); };
+const teamReady = (async () => {
+  if (!onOwnSite() && !window.AJ_TEAM_TEST) return false;
+  try {
+    const r = await fetch("/api/jobs", { cache: "no-store" });
+    if (!r.ok) return false;
+    teamJobs = (await r.json()).jobs || [];
+  } catch (e) { return false; }
+  teamOn = true; teamIndex = {}; teamJobs.forEach(f => teamIndex[f.id] = f);
+  $("jobsWhere").textContent = "Jobs save online by themselves, so everyone using the app sees them on any computer.";
+  $("teamWhoBox").hidden = false; $("teamWho").value = teamWho;
+  if (job && !syncing) setDrive(job.teamUrl ? "ok" : "idle", job.teamUrl ? "Saved online" : "Saved on this computer");
+  setTimeout(teamMoveUp, 2500);
+  return true;
+})();
+$("teamWho").oninput = () => { teamWho = $("teamWho").value.trim().slice(0, 30); lsSet("aj-who", teamWho || null); };
+async function teamPut(path, blob, type) {
+  if (window.AJ_TEAM_PUT) return window.AJ_TEAM_PUT(path, blob, type); // tests only
+  blobClient = blobClient || await import("./blob-client.js");
+  return (await blobClient.upload(path, blob, { access: "public", handleUploadUrl: "/api/team-upload", contentType: type, multipart: blob.size > 20e6 })).url;
+}
+async function teamCurrent(j) {
+  const r = await fetch(`/api/jobs?id=${segId(j.id)}`, { cache: "no-store" });
+  if (!r.ok) throw new Error("job list");
+  return (await r.json()).current;
+}
+const b64url = o => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+// Upload one job (its new or changed sheets, then the job itself). Returns { conflict } when someone else saved it first.
+async function teamPush(j, list, { force, progress } = {}) {
+  const tid = segId(j.id);
+  if (!force) {
+    const cur = await teamCurrent(j);
+    if (cur && cur.url !== (j.teamUrl || null)) return { conflict: cur };
+  }
+  const todo = [];
+  list.forEach(p => {
+    TEAM_KEYS.forEach(([k, f]) => { const b = p[f]; if (b && !(p.cloud && p.cloud[k] && p.cloud[k][1] === b.size)) todo.push([p, k, b]); });
+    const wm = wordsMark(p.words);
+    if (wm && !(p.cloud && p.cloud.words && p.cloud.words[1] === wm)) todo.push([p, "words", new Blob([JSON.stringify(p.words)], { type: "application/json" }), wm]);
+  });
+  let next = 0, sent = 0;
+  const worker = async () => {
+    while (next < todo.length) {
+      const [p, k, b, mark] = todo[next++], png = b.type === "image/png", json = k === "words";
+      const url = await teamPut(`team/sheet/${tid}/${segId(p.id)}-${k}.${json ? "json" : png ? "png" : "jpg"}`, b, json ? "application/json" : png ? "image/png" : "image/jpeg");
+      p.cloud = { ...(p.cloud || {}), [k]: [url, json ? mark : b.size] };
+      if (!p.example) saveMeta(p, true);
+      if (progress) progress(++sent, todo.length);
+    }
+  };
+  if (todo.length) await Promise.all([worker(), worker(), worker()]);
+  const { driveJsonId, driveSheetsId, teamUrl, teamForce, folderAt, ...keep } = j;
+  const data = { app: "aj-takeoff", v: 1, kind: "team-job", savedAt: new Date().toISOString(), by: teamWho, job: keep,
+    pages: list.map(p => { const { fileId, ...m } = meta(p); return { id: p.id, ...m }; }) };
+  const details = b64url({ n: (j.name || "").slice(0, 70), c: (j.customer || "").slice(0, 50), a: (j.address || "").slice(0, 60), b: j.bidDate || "", cr: j.created || "", u: j.updated || "", s: list.length, by: teamWho.slice(0, 30) });
+  const url = await teamPut(`team/data/${tid}/m${details}.json`, new Blob([JSON.stringify(data)], { type: "application/json" }), "application/json");
+  j.teamUrl = url; delete j.teamForce;
+  await putJobLocal(j);
+  teamIndex[tid] = { ...(teamIndex[tid] || {}), id: tid, name: j.name, customer: j.customer, bidDate: j.bidDate, updated: j.updated, sheets: list.length, by: teamWho, url, saved: data.savedAt };
+  fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "tidy", id: tid }) }).catch(() => {});
+  return { url };
+}
+async function runTeamSync() {
+  if (syncing || !syncWanted || !job) return;
+  syncing = true; syncWanted = false;
+  const j = job, list = pages.filter(p => !p.example);
+  let held = false;
+  try {
+    setDrive("busy", "Saving online…");
+    const r = await teamPush(j, list, { force: j.teamForce, progress: (a, n) => setDrive("busy", `Saving sheets online… ${a} of ${n}`) });
+    if (r.conflict) { held = true; syncWanted = true; teamConflict(j, r.conflict); return; }
+    if (job === j) setDrive("ok", `Saved online ${clockTime(Date.now())}`);
+  } catch (e) {
+    syncWanted = true;
+    setDrive("bad", "Couldn't save online. Check the internet");
+  } finally {
+    syncing = false;
+    if (syncWanted && !held && $("driveStatus").className.indexOf("bad") < 0) scheduleSync();
+  }
+}
+function teamConflict(j, cur) {
+  if (job !== j) return;
+  const who = cur.by || "Someone else";
+  setDrive("bad", cur.deleted ? "Deleted from the job list" : `${who} saved this job too`);
+  $("teamMsg").textContent = cur.deleted
+    ? `${who} deleted “${j.name}” from everyone's job list. Your copy and your changes are still on this computer.`
+    : `${who} saved changes to “${j.name}” at ${whenSaved(cur.saved)}, after this computer last saved it. Your newest changes aren't online yet.`;
+  $("teamTheirs").textContent = cur.deleted ? "Leave it deleted" : "Open their copy";
+  $("teamMine").textContent = cur.deleted ? "Put it back with my changes" : "Keep mine, save over theirs";
+  $("teamNote").textContent = cur.deleted ? "" : "Their copy stays saved online for a while either way, so nothing is lost for good.";
+  $("teamTheirs").onclick = async () => {
+    $("teamModal").hidden = true;
+    if (cur.deleted) { syncWanted = false; setDrive("idle", "Not online: deleted from the job list"); }
+    else { syncWanted = false; await pullTeam(cur); }
+  };
+  $("teamMine").onclick = () => { $("teamModal").hidden = true; j.teamForce = true; syncWanted = true; runSync(); };
+  $("teamModal").hidden = false;
+}
+$("teamModal").addEventListener("keydown", e => { if (e.key === "Escape") $("teamModal").hidden = true; });
+// Copy the online copy of a job into this browser (sheets it already has are reused), then open it.
+async function pullTeam(f) {
+  const title = "Opening the newest copy…";
+  try {
+    busy(title, 0, f.name);
+    const r = await fetch(f.url);
+    if (!r.ok) throw new Error("job");
+    const data = await r.json();
+    if (data.app !== "aj-takeoff" || !data.job) throw new Error("job");
+    const have = new Map((await getAll("pages")).filter(x => x.jobId === data.job.id).map(x => [x.id, x]));
+    const j = { ...newJobRecord({}), ...(jobs.find(x => x.id === data.job.id) || {}), ...data.job, teamUrl: f.url };
+    delete j.teamForce;
+    const get = async (c, old, size) => {
+      if (!c) return old || null;
+      if (old && (size ? size(old) : old.size) === c[1]) return old;
+      const res = await fetch(c[0]);
+      if (!res.ok) throw new Error("sheet");
+      return c[0].endsWith(".json") ? await res.json() : await res.blob();
+    };
+    const rows = new Array(data.pages.length);
+    let next = 0, done = 0;
+    const worker = async () => {
+      while (next < data.pages.length) {
+        const i = next++, pg = data.pages[i], h = have.get(pg.id) || {}, c = pg.cloud || {};
+        const [blob, thumb, prevBlob, words] = await Promise.all([get(c.img, h.blob), get(c.thumb, h.thumb), get(c.prev, h.prevBlob), get(c.words, h.words, wordsMark)]);
+        rows[i] = { ...pg, jobId: j.id, order: i, blob, thumb, prevBlob, words: words || null, fileId: h.fileId || null };
+        busy(title, ++done / data.pages.length, `Sheet ${done} of ${data.pages.length}`);
+      }
+    };
+    await Promise.all([worker(), worker(), worker(), worker()]);
+    await store(s => { have.forEach((_, id) => s.delete(id)); rows.filter(x => x.blob).forEach(x => s.put(x)); });
+    await putJobLocal(j);
+    jobs = jobs.filter(x => x.id !== j.id).concat(j);
+    busy(null, null);
+    syncWanted = false;
+    await openJob(j);
+    setDrive("ok", `Opened the newest copy${f.by ? `, saved by ${f.by}` : ""}`);
+  } catch (e) {
+    busy(null, null);
+    toast("That job couldn't be opened from online. Check the internet and try again.");
+  }
+}
+// The Jobs window in team mode: this computer's jobs, then everyone else's
+async function listTeamJobs() {
+  const head = $("driveJobsHead"), ul = $("driveJobList"), note = $("driveJobsNote");
+  ul.replaceChildren(); head.hidden = true; note.hidden = false; note.textContent = "Checking everyone's jobs…";
+  try {
+    const r = await fetch("/api/jobs", { cache: "no-store" });
+    if (!r.ok) throw new Error("list");
+    teamJobs = (await r.json()).jobs || [];
+  } catch (e) { note.textContent = "Couldn't reach the online job list, so only the jobs on this computer are shown."; return; }
+  note.hidden = true;
+  teamIndex = {}; teamJobs.forEach(f => teamIndex[f.id] = f);
+  $("jobsFind").hidden = jobs.length + teamJobs.length < 6;
+  $("jobsFind").oninput();
+}
+function drawTeamRemote(q) {
+  const head = $("driveJobsHead"), ul = $("driveJobList"), mine = new Set(jobs.map(j => segId(j.id)));
+  const rest = teamJobs.filter(f => !mine.has(f.id) && jobMatch(f, q));
+  ul.replaceChildren(); head.hidden = !rest.length; head.textContent = "Everyone's other jobs";
+  rest.forEach(f => {
+    const li = document.createElement("li");
+    const b = document.createElement("button"); b.type = "button"; b.className = "job-row";
+    b.innerHTML = `<span><span class="jt"></span><br><span class="jm"></span></span><span class="js"></span>`;
+    b.querySelector(".jt").textContent = f.name;
+    b.querySelector(".jm").textContent = [f.customer, f.bidDate && "Bid " + f.bidDate, `Saved ${whenSaved(f.saved)}${f.by ? " by " + f.by : ""}`].filter(Boolean).join(" · ");
+    b.querySelector(".js").textContent = `${f.sheets || 0} sheets`;
+    b.onclick = () => { $("jobsModal").hidden = true; pullTeam(f); };
+    li.appendChild(b); ul.appendChild(li);
+  });
+  if (rest.length && !$("jobList").children.length) $("jobsEmpty").hidden = true;
+  if (!q && !rest.length && !jobs.length) $("jobsEmpty").textContent = "No jobs yet, here or online. Start one below.";
+}
+// a note on a job row when the online copy is newer, or the job was deleted online
+function teamTag(j) {
+  const f = teamOn && teamIndex[segId(j.id)];
+  if (!f || f.url === j.teamUrl || !j.teamUrl && !f.url) return "";
+  if (f.deleted) return " · Deleted from the online list";
+  return ` · Newer copy online${f.by ? " from " + f.by : ""}, opens it`;
+}
+const teamDelete = j => teamOn && fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "delete", id: segId(j.id), by: teamWho }) }).catch(() => {});
+// Every minute, and when the app comes back into view: has someone else saved the open job?
+async function teamCheck() {
+  if (!teamOn || !job || document.hidden || syncing || syncWanted || !job.teamUrl) return;
+  try {
+    const j = job, cur = await teamCurrent(j);
+    if (job !== j || syncing || syncWanted || !cur || cur.deleted || cur.url === j.teamUrl) return;
+    teamNewer = cur;
+    setDrive("ok", `Newer copy saved by ${cur.by || "someone else"} at ${clockTime(cur.saved)}`);
+    $("teamLoad").hidden = false;
+  } catch (e) {}
+}
+setInterval(teamCheck, 60000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) teamCheck(); });
+$("teamLoad").onclick = () => { if (teamNewer) pullTeam(teamNewer); };
+// The first time this version opens: put every job saved in this browser online
+async function teamMoveUp() {
+  if (!teamOn) return;
+  const todo = jobs.filter(j => !j.teamUrl && !teamIndex[segId(j.id)]);
+  let n = 0;
+  for (const j of todo) {
+    n++;
+    if (job && job.id === j.id) { syncWanted = true; scheduleSync(); continue; }
+    const list = await loadSaved(j.id);
+    try {
+      if (!syncing) setDrive("busy", `Putting your jobs online: ${n} of ${todo.length}`);
+      await teamPush(j, list, {});
+    } catch (e) {}
+    list.forEach(p => { URL.revokeObjectURL(p.url); p.thumbUrl && URL.revokeObjectURL(p.thumbUrl); });
+  }
+  if (todo.length && !syncing && !syncWanted && job) setDrive(job.teamUrl ? "ok" : "idle", job.teamUrl ? "Saved online" : "Saved on this computer");
+  if (todo.length) toast(`Your ${todo.length === 1 ? "job is" : todo.length + " jobs are"} online now, so everyone can open ${todo.length === 1 ? "it" : "them"}.`);
+}
+
 /* Delete the open job, with an in-page confirm (the viewer blocks confirm()) */
 function askClear() {
   if (!job) return;
   $("clearGroup").innerHTML = `<span class="confirm"></span>`;
   const c = $("clearGroup").firstChild;
-  c.append(`Delete "${job.name}" and its ${pages.length} sheets? `);
+  c.append(`Delete "${job.name}" and its ${pages.length} sheets${teamOn ? " for everyone" : ""}? `);
   c.insertAdjacentHTML("beforeend", `<button class="btn" id="yesClear">Delete</button><button class="btn" id="noClear">Keep</button>`);
   $("noClear").onclick = restoreClear;
   $("yesClear").onclick = async () => {
     const ids = pages.map(p => p.id), jid = job.id, gone = { ...job };
     clearTimeout(syncTimer); syncWanted = false;
     await store(s => ids.forEach(id => s.delete(id)));
-    trashJobInDrive(gone);
+    trashJobInDrive(gone); teamDelete(gone);
     await store(s => s.delete(jid), "jobs");
     restoreClear();
     jobs = (await getAll("jobs").catch(() => [])).sort((a, b) => (b.updated || "").localeCompare(a.updated || ""));
