@@ -394,6 +394,9 @@ html.look-new body { font-family: var(--font-ui); }
 .drive.bad .dot { background: var(--warn); }
 .team-who { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
 .team-who input { flex: 1; min-width: 0; height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); font: inherit; }
+.cnt-div { display: flex; align-items: center; gap: 8px; margin: 6px 2px 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.cnt-div::after { content: ""; flex: 1; height: 1px; background: var(--line); order: 1; }
+.cnt-div .sn { order: 2; font-weight: 600; }
 .drive span.t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @keyframes pulse { from { opacity: .35 } to { opacity: 1 } }
 @media (prefers-reduced-motion: reduce) { .drive.busy .dot { animation: none; } }
@@ -671,7 +674,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v110</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v111</small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
@@ -2191,12 +2194,14 @@ function renderCounts() {
   // sections in toolbox order; a closed section hides its counts until it's clicked open again
   const secKey = cntSecKey;
   const secName = k => catOf(k) ? catOf(k).name : k === "other" ? "Other" : SECTION[k] || (GROUPS.find(g => g.key === k) || {}).name || k;
-  all.sort((a, b) => secRank(secKey(a)) - secRank(secKey(b)));
+  // panels sit together at the end of their section, under a small "Panels" divider (Jonathan 2026-10-29)
+  const isPnl = d => !!d.custom && /^panel/i.test(d.kindName || d.kind || "");
+  all.sort((a, b) => secRank(secKey(a)) - secRank(secKey(b)) || isPnl(a) - isPnl(b) || (isPnl(a) ? String(a.label || "").localeCompare(String(b.label || ""), undefined, { numeric: true }) : 0));
   const closed = cntClosed(), keys = [...new Set(all.map(secKey))];
   $("cntFoldAll").hidden = keys.length < 2;
   $("cntFoldAll").textContent = keys.length && keys.every(k => closed.includes(k)) ? "Open all" : "Close all";
   $("cntFoldAll").onclick = () => { const shut = $("cntFoldAll").textContent === "Close all"; cntSetClosed(shut ? keys : []); renderCounts(); };
-  let lastSec = null;
+  let lastSec = null, pnlSec = null;
   all.forEach(d => {
     const sk = secKey(d), isClosed = closed.includes(sk);
     if (sk !== lastSec) {
@@ -2217,6 +2222,13 @@ function renderCounts() {
       on.onclick = () => { if (only) hideSecs.clear(); else { hideSecs.clear(); others.forEach(x => hideSecs.add(x)); } drawOverlay(); renderCounts(); };
       h.append(hb, eye, on); ul.appendChild(h);
     }
+    if (!isClosed && isPnl(d) && pnlSec !== sk) {
+      pnlSec = sk;
+      const list = all.filter(x => secKey(x) === sk && isPnl(x)), tot = list.reduce((t, x) => t + pages.reduce((a, pg) => a + qtyOn(pg, x.id), 0) + impQty(x.id), 0);
+      const dv = document.createElement("li"); dv.className = "cnt-div";
+      dv.innerHTML = `<span>Panels · ${list.length}</span><span class="sn">${tot}</span>`;
+      ul.appendChild(dv);
+    }
     if (isClosed) { const nS = p ? qtyOn(p, d.id) : 0, nA = pages.reduce((t, pg) => t + qtyOn(pg, d.id), 0) + impQty(d.id); sheetTot += nS; allTot += nA; return; }
     const nS = p ? qtyOn(p, d.id) : 0, nA = pages.reduce((t, pg) => t + qtyOn(pg, d.id), 0) + impQty(d.id);
     sheetTot += nS; allTot += nA;
@@ -2228,7 +2240,7 @@ function renderCounts() {
     const tx = document.createElement("span"); tx.className = "cnt-txt";
     const nm = document.createElement("b"); nm.textContent = nameOf(d);
     const kind = document.createElement("span"); kind.textContent = d.custom && !(d.amps && !d.tag) && !typeTitled(d) ? ` · ${d.kind}` : "";
-    const ds = document.createElement("span"); ds.className = "d"; ds.textContent = typeTitled(d) ? [kindSub(d), [d.sMaker, d.sModel].filter(Boolean).join(" "), d.desc].filter(Boolean).join(" · ") : d.custom ? (specOf(d) || "Tap the pencil to add a mounting height") : specOf(d);
+    const ds = document.createElement("span"); ds.className = "d"; ds.textContent = typeTitled(d) ? [kindSub(d), [d.sMaker, d.sModel].filter(Boolean).join(" "), d.desc].filter(Boolean).join(" · ") : d.custom ? (specOf(d) || (d.amps ? "" : "Tap the pencil to add a mounting height")) : specOf(d);
     tx.append(nm, kind, ds);
     const n = document.createElement("span"); n.className = "cnt-n"; n.innerHTML = `${nS}<small>of ${nA}</small>`;
     b.append(tx, n);
