@@ -9,7 +9,7 @@
  *   Plan sheets/<job>/             every plan sheet image and its text, copied once (new sheets each night)
  * Dated folders older than 90 days go to the trash. Plan sheets are kept.
  *
- * Setup: paste this in, add the Script property APP_PASSWORD (the app's password), then run  setUpDailyBackup  once.
+ * Setup: paste this in and run  setUpDailyBackup  once. If the app has a password, also add the Script property APP_PASSWORD.
  */
 const SITE = "https://aj-commercial-takeoff.vercel.app";
 const BID_BACKUPS_FOLDER = "1Q1AgXUgvyylm-Npq2txLHOmlZhZdmWkA"; // "Bid tracker backups"; Daily backups goes next to it
@@ -25,8 +25,7 @@ function setUpDailyBackup() {
 function backupNow() {
   const started = Date.now();
   const pass = PropertiesService.getScriptProperties().getProperty("APP_PASSWORD");
-  if (!pass) throw new Error("Add the Script property APP_PASSWORD first (Project Settings > Script Properties).");
-  const auth = { Authorization: "Basic " + Utilities.base64Encode("aj:" + pass.trim()) };
+  const auth = pass ? { Authorization: "Basic " + Utilities.base64Encode("aj:" + pass.trim()) } : {}; // only needed when the app has a password
   const fetchSite = path => {
     const r = UrlFetchApp.fetch(SITE + path, { headers: auth, muteHttpExceptions: true });
     if (r.getResponseCode() === 401) throw new Error("The APP_PASSWORD Script property doesn't match the app's password.");
