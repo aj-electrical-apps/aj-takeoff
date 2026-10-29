@@ -451,6 +451,9 @@ td .bid-ln[data-q], td .bid-ln[data-s] { width: calc(100% - 80px); }
 .sched-tbl input[type=text], .sched-tbl select { width: 100%; min-width: 70px; font: inherit; font-size: 12px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 3px 4px; }
 .sched-tbl td.k input { width: 64px; min-width: 0; font-weight: 600; }
 .sched-tbl tr.off td { opacity: .45; }
+.ex-row { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; padding: 2px 0; }
+.ex-row input { margin-top: 3px; width: 16px; height: 16px; flex: none; }
+tr.ex-off .ex-row span { color: var(--muted); text-decoration: line-through; }
 .imp-src { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; margin: 6px 0; }
 .imp-src textarea { flex: 1 1 260px; min-height: 36px; font: inherit; font-size: 12px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 6px; }
 .imp-cols { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
@@ -595,7 +598,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v106</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v107</small></div>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
@@ -3424,6 +3427,18 @@ const propOf = () => {
   if (!p.appx) p.appx = { A: "", B: "", C: "" };
   return p;
 };
+/* Standard exclusions (Jonathan 2026-10-29): a prefilled list kept on this device for every job. Each proposal checks the ones
+   it prints (all checked to start; p.exclOff holds the ones turned off). The job's own exclusions (p.excl) always print under them. */
+const EXCL_DEF = ["Utility company fees, charges and back charges", "Permit and inspection fees", "Bonds (payment and performance)", "Cutting, patching and painting",
+  "Concrete work, including housekeeping pads, light pole bases and encasement", "Excavation in rock, hand digging and hauling off spoils", "Temporary power and lighting",
+  "Fire alarm system", "Low voltage, data, phone, security and camera cabling", "Control wiring for HVAC, plumbing and building automation", "Lightning protection",
+  "Roof penetrations, curbs and flashing", "Firestopping of penetrations made by others", "Engineering, design and stamped drawings",
+  "Arc flash, short circuit and coordination studies", "Removal or disposal of hazardous materials (asbestos, PCB ballasts, lamps)", "Overtime, shift and weekend work",
+  "Repair of damage caused by other trades", "Work not shown on the drawings or listed in this proposal"];
+const exclStd = () => { try { const v = JSON.parse(localStorage.getItem("aj-excl-std") || "null"); if (Array.isArray(v)) return v; } catch (e) {} return EXCL_DEF.slice(); };
+const setExclStd = l => { try { localStorage.setItem("aj-excl-std", JSON.stringify(l.map(x => String(x).trim()).filter(Boolean))); } catch (e) {} };
+const exclPrinted = p => [...exclStd().filter(x => !(p.exclOff || []).includes(x)), ...p.excl];
+let exclEditing = false;
 // supplier and sub names, kept on this device for every job; typing a new one adds it to the list
 // each list starts with Jonathan's names; "Edit name lists" on the Proposal tab changes them
 const VLISTS = {
@@ -3506,8 +3521,13 @@ function renderProp() {
   ${tt.laborUp ? `<tr class="no-print pr-int"><td>Plus labor markup</td><td></td><td class="n">${fmt$(tt.laborUp)}</td></tr>` : ""}
   <tr class="sec"><td colspan="3">Included</td></tr>
   ${listRows("incl", p.incl, "Add an included item, like Temporary power for the job")}
-  <tr class="sec"><td colspan="3">Excluded</td></tr>
-  ${listRows("excl", p.excl, "Add an excluded item, like Utility company fees")}
+  <tr class="sec"><td colspan="3">Excluded <span class="no-print" style="float:right;display:flex;gap:6px"><button class="btn sm" type="button" id="exAll">${exclStd().every(x => !(p.exclOff || []).includes(x)) ? "Uncheck all" : "Check all"}</button><button class="btn sm" type="button" id="exEdit">${exclEditing ? "Done editing" : "Edit standard list"}</button></span></td></tr>
+  ${exclEditing ? exclStd().map((x, i) => `<tr class="no-print"><td colspan="2"><input class="bid-ln" data-exs="${i}" value="${esc(x)}"></td><td class="n"><button class="btn sm" type="button" data-exsdel="${i}">Delete</button></td></tr>`).join("") +
+    `<tr class="no-print"><td colspan="2"><input class="bid-ln" id="exsNew" placeholder="Add to the standard list for every job"></td><td class="n"><button class="btn sm" type="button" id="exsAdd">Add</button></td></tr>
+     <tr class="no-print"><td colspan="3"><small>Changes here are for every job on this computer. </small><button class="btn sm" type="button" id="exsReset">Put back the starting list</button></td></tr>`
+  : exclStd().map((x, i) => { const on = !(p.exclOff || []).includes(x); return `<tr class="${on ? "" : "no-print ex-off"}"><td colspan="3"><label class="ex-row"><input type="checkbox" data-exon="${i}"${on ? " checked" : ""}> <span>${esc(x)}</span></label></td></tr>`; }).join("")}
+  <tr class="sec no-print"><td colspan="3"><small>Only on this job</small></td></tr>
+  ${listRows("excl", p.excl, "Add an exclusion just for this job")}
   <tr class="sec"><td colspan="3">Appendices (PDF or picture, one file each)</td></tr>
   ${["A", "B", "C"].map(L => `<tr><td>Appendix ${L} <input class="bid-ln" data-appt="${L}" value="${esc(p.appx[L] || "")}" placeholder="Title, like Lighting fixture schedule" style="width:60%"></td><td colspan="2" class="n"><span class="pr-file" id="prF${L}">…</span> <button class="btn sm no-print" type="button" data-appu="${L}">Upload</button> <button class="btn sm no-print" type="button" data-appd="${L}" hidden>Remove</button></td></tr>`).join("")}
   <tr class="sec"><td colspan="3">Proposal details</td></tr>
@@ -3552,6 +3572,16 @@ function renderProp() {
   t.querySelectorAll("[data-mk]").forEach(el => el.onchange = () => { p.mk[el.dataset.mk] = num(el.value); save(); });
   $("prTax").onchange = e => { p.tax = e.target.value === "" ? 10 : num(e.target.value); save(); };
   bindList(t, "incl", p.incl, save); bindList(t, "excl", p.excl, save);
+  t.querySelectorAll("[data-exon]").forEach(el => el.onchange = () => { const x = exclStd()[+el.dataset.exon], off = (p.exclOff || []).filter(y => y !== x); if (!el.checked) off.push(x); p.exclOff = off; save(); });
+  $("exAll").onclick = () => { const allOn = exclStd().every(x => !(p.exclOff || []).includes(x)); p.exclOff = allOn ? exclStd() : []; save(); };
+  $("exEdit").onclick = () => { exclEditing = !exclEditing; renderTakeoff(); };
+  if (exclEditing) {
+    t.querySelectorAll("[data-exs]").forEach(el => el.onchange = () => { const l = exclStd(), i = +el.dataset.exs, was = l[i], v = el.value.trim(); if (v) l[i] = v; else l.splice(i, 1); setExclStd(l); if (v && (p.exclOff || []).includes(was)) p.exclOff = p.exclOff.map(y => y === was ? v : y); save(); });
+    t.querySelectorAll("[data-exsdel]").forEach(b => b.onclick = () => { const l = exclStd(); l.splice(+b.dataset.exsdel, 1); setExclStd(l); renderTakeoff(); });
+    const addStd = () => { const v = $("exsNew").value.trim(); if (!v) return $("exsNew").focus(); setExclStd([...exclStd(), v]); renderTakeoff(); const n = $("exsNew"); if (n) n.focus(); };
+    $("exsAdd").onclick = addStd; $("exsNew").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); addStd(); } });
+    $("exsReset").onclick = () => { if (!confirm("Put back the starting exclusions? Ones you added or changed will be replaced.")) return; setExclStd(EXCL_DEF); renderTakeoff(); };
+  }
   t.querySelectorAll("[data-i]").forEach(el => el.onchange = () => { p.info[el.dataset.i] = el.type === "number" ? num(el.value) : el.value; save(false); });
   t.querySelectorAll("[data-j]").forEach(el => el.onchange = () => { if (job) { job[el.dataset.j] = el.value; save(false); } });
   t.querySelectorAll("[data-c]").forEach(el => el.onchange = () => { company()[el.dataset.c] = el.value; saveCompany(); });
@@ -3606,7 +3636,7 @@ async function makeProposal() {
   need(24); doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.text(coCur() ? "Total change order" : "Total base bid", M + 10, y + 4); doc.text(money(tt.total), W - M, y + 4, { align: "right" }); y += 24;
   if (tt.ve.length) { text("Value engineering alternates (optional deducts)", 11, "bold"); tt.ve.forEach(v => { need(15); doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.text(`${v.name}: VE alternate`, M + 10, y); doc.text(`deduct ${money(v.deduct)}`, W - M, y, { align: "right" }); y += 15; }); y += 4; }
   const bullets = (title, list) => { if (!list.length) return; y += 4; text(title, 12, "bold"); list.forEach(x => { need(14); doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.text("•", M + 6, y); const ls = doc.splitTextToSize(x, W - 2 * M - 22); ls.forEach((ln, i) => { if (i) need(14); doc.text(ln, M + 18, y); y += 14; }); }); };
-  bullets("Included", p.incl); bullets("Excluded", p.excl);
+  bullets("Included", p.incl); bullets("Excluded", exclPrinted(p));
   const ap = ["A", "B", "C"].filter(L => p.appx[L]);
   if (ap.length) { y += 4; text("Appendices", 12, "bold"); ap.forEach(L => text(`Appendix ${L}: ${p.appx[L]}`, 10.5, "normal", M + 10)); }
   y += 6; text(`This price is good for ${p.info.valid || 30} days from the date above.`, 9.5);
