@@ -283,6 +283,10 @@ button { cursor: pointer; }
 .job-fields input { height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 15px; color: var(--fg); }
 @media (max-width: 480px) { .job-fields { grid-template-columns: 1fr; } }
 
+.selinfo { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 520px; padding: 4px 12px; border: 1px solid var(--accent); border-radius: 6px; background: var(--accent-soft); font-size: 14px; }
+.selinfo[hidden] { display: none; }
+.selinfo .k { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); flex: none; }
+.selinfo .v { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .drive { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); max-width: 300px; }
 .drive .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex: none; }
 .drive.ok .dot { background: var(--ok); }
@@ -550,7 +554,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v104</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v105</small></div>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
@@ -620,6 +624,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     </div>
 
     <div class="spacer"></div>
+    <div class="selinfo" id="selInfo" role="status" hidden></div>
     <div class="drive" id="driveStatus" role="status"><span class="dot"></span><span class="t" id="driveText">Saved in this browser</span>
       <button class="btn sm" id="driveRetry" type="button" hidden>Try again</button></div>
     <div class="group" id="clearGroup">
@@ -4476,6 +4481,7 @@ function label(g, x, y, text, cls) {
 function drawOverlay() {
   const svg = $("overlay"), p = pages[current];
   svg.replaceChildren();
+  renderSelInfo();
   if (!p) return;
   if (cmp) return drawCmpHandles(svg);
   const ns = { "vector-effect": "non-scaling-stroke" };
@@ -4695,10 +4701,31 @@ function renderSel() {
   if (p) [...sel].forEach(x => { if (!p.devices.includes(x) && !p.runs.includes(x) && !(x === lastMeasure && x.pageId === p.id)) sel.delete(x); });
   const n = sel.size;
   $("selBar").hidden = !n || !!tool || !!cmp;
+  renderSelInfo();
   if (!n) return;
   let d = 0, r = 0, m = 0; sel.forEach(x => x === lastMeasure ? m++ : "t" in x ? d++ : r++);
   $("selText").textContent = [d && `${d} symbol${d > 1 ? "s" : ""}`, r && `${r} run${r > 1 ? "s" : ""}`, m && "the measurement"].filter(Boolean).join(" and ") + " highlighted";
   $("selDelete").textContent = n > 1 ? `Delete all ${n}` : "Delete";
+}
+// the top bar spells out what's highlighted: a run's name, wire and length, or a symbol's name
+function renderSelInfo() {
+  const p = pages[current], box = $("selInfo"), n = sel.size;
+  box.hidden = !n || !p || !!tool || !!cmp;
+  if (box.hidden) return;
+  const runs = [...sel].filter(x => p.runs.includes(x)), devs = [...sel].filter(x => p.devices.includes(x));
+  const len = r => p.ftPerPx ? fmtLF(runPx(p, r) * p.ftPerPx) : "";
+  let txt;
+  if (n === 1 && runs.length) { const r = runs[0], w = wireOf(r.typeId); txt = [r.name, w && wireLabel(w), len(r)].filter(Boolean).join(" · "); }
+  else if (n === 1 && devs.length) { const d = devInfo(devs[0].t); txt = d ? (d.custom ? [nameOf(d), specOf(d)].filter(Boolean).join(" · ") : `${d.id} · ${d.maker} ${d.model}`) : "1 symbol"; }
+  else if (n === 1 && sel.has(lastMeasure)) txt = p.ftPerPx ? `Measurement · ${fmtFt(dist(...lastMeasure.pts) * p.ftPerPx)}` : "Measurement";
+  else if (n === 1) { box.hidden = true; return; }
+  else {
+    const parts = [devs.length && `${devs.length} symbol${devs.length > 1 ? "s" : ""}`, runs.length && `${runs.length} run${runs.length > 1 ? "s" : ""}${p.ftPerPx ? ` (${fmtLF(runs.reduce((t, r) => t + runPx(p, r) * p.ftPerPx, 0))})` : ""}`, sel.has(lastMeasure) && "the measurement"].filter(Boolean);
+    txt = parts.join(", ");
+  }
+  box.innerHTML = `<span class="k">Highlighted</span><span class="v"></span>`;
+  box.querySelector(".v").textContent = txt;
+  box.title = txt;
 }
 function deleteSel() {
   const p = pages[current]; if (!p || !sel.size) return;
