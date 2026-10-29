@@ -239,6 +239,9 @@ button { cursor: pointer; }
 #pnlModal .opt { min-width: 0; } #pnlModal .opt select, #pnlModal .opt input { width: 100%; min-width: 0; box-sizing: border-box; }
 #pnlModal .actions { flex-wrap: wrap; } #pnlTbl input { width: 70px; }
 .pnl-steps { margin: 0 0 8px; padding-left: 20px; }
+.selbar.pnl-wiz { top: 14px; bottom: auto; max-width: min(720px, calc(100% - 24px)); font-size: 14px; border: 2px solid var(--accent); }
+.pnl-wiz #pnlWizT b { color: var(--accent); }
+.scan-cta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 10px; margin-bottom: 8px; background: var(--accent-soft); border-radius: 8px; }
 .pnl-rev { border: 1px solid #f08c00; background: rgb(255 244 230 / .6); border-radius: 8px; padding: 8px 10px; font-size: 13px; display: grid; gap: 4px; }
 .pnl-rev .ri { display: flex; gap: 8px; align-items: center; } .pnl-rev .ri span { flex: 1; }
 .pnl-tbl-wrap { overflow-x: auto; margin-top: 6px; }
@@ -256,7 +259,11 @@ button { cursor: pointer; }
 .brk-tbl .x { border: 0; background: none; color: var(--muted); font-size: 16px; cursor: pointer; }
 .ug-check { display: flex; align-items: center; gap: 8px; font-weight: 600; }
 .ug-check small { font-weight: 400; color: var(--muted); }
-#wireForm.ug .wire-only, #wireForm:not(.ug):not(.tr) .ug-only, #wireForm.tr .ugk-only, #wireForm.jh .wire-only, #wireForm.jh .pipe-row, #wireForm:not(.jh) .jh-only { display: none; }
+#wireForm .ug-check { display: flex; flex-direction: row; align-items: center; flex-wrap: wrap; }
+#wireForm .ug-check input { width: 18px; height: 18px; margin: 0; flex: none; }
+#wireForm.ug .wire-only, #wireForm:not(.ug):not(.tr):not(.ptr) .ug-only, #wireForm.tr .ugk-only, #wireForm.jh .wire-only, #wireForm.jh .pipe-row, #wireForm.jh .jh-hide, #wireForm:not(.jh) .jh-only, #wireForm.pl .wire-only:not(.ug-check) { display: none; }
+.ug-sheets { display: none; }
+@media print { body.print-ts .ug-sheets { display: block; } .ug-sheets figure { break-before: page; margin: 0; } .ug-sheets figcaption { font: 600 12pt sans-serif; margin-bottom: 6px; } .ug-sheets img { width: 100%; max-height: 9.3in; object-fit: contain; } }
 .amp-box { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
 .amp-box .sched { grid-template-columns: 1fr 1.6fr; }
 .wire-fill { font-size: 13px; color: var(--muted); }
@@ -598,7 +605,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v107</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v108</small></div>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
@@ -691,6 +698,11 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     </div>
     <section class="viewer" id="viewer">
       <div class="stage" id="stage"><div class="sheet" id="sheet"><img id="sheetImg" alt="" draggable="false"><canvas id="cmpCanvas" hidden></canvas><svg id="overlay" aria-hidden="true"></svg></div></div>
+      <div class="selbar pnl-wiz" id="pnlWiz" hidden role="status">
+        <span id="pnlWizT"></span>
+        <button class="btn sm" id="pnlWizSkip" type="button">Skip</button>
+        <button class="btn sm" id="pnlWizStop" type="button">Stop and review</button>
+      </div>
       <div class="selbar" id="selBar" hidden>
         <span id="selText"></span>
         <button class="btn sm warn" id="selDelete" type="button">Delete</button>
@@ -1060,6 +1072,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <button class="btn danger" type="button" id="cntDelete" hidden>Delete count</button>
       <span class="spacer"></span>
       <button class="btn" type="button" id="cntCancel">Cancel</button>
+      <button class="btn" type="button" id="cntMatch" title="Save it, then box one of its symbols and every match on the sheet gets a circle to check">Match symbols</button>
       <button class="btn primary" type="submit" id="cntSave">Save and place</button>
     </div>
   </form>
@@ -1190,6 +1203,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <div class="opt"><label for="dropLen">Length (ft)</label><input type="number" id="dropLen" min="1" max="500" step="1" inputmode="numeric"></div>
     </div>
     <div class="ask-brk">
+      <div class="scan-cta"><button class="btn primary" type="button" id="brkScan">Scan panel schedule</button> <span class="hint">Box the name at the top, then each side of the schedule, and the breakers fill in for you.</span></div>
       <b>Breakers in this panel</b>
       <p class="hint" style="margin:2px 0 6px">Pick each breaker size and how many. Wire and conduit fill in from the NEC (marked NEC) as a placeholder, with EMT for conduit. Change any of them. Each one adds its circuit parts times the average feet. Leave it empty if the items you place already carry their wiring.</p>
       <div class="brk-wrap"><table class="brk-tbl"><thead><tr><th>Breaker</th><th>Poles</th><th>How many</th><th>Avg feet each</th><th>Wired with</th><th>Wire</th><th>Conduit size</th><th>Conduit type</th><th>Status</th><th></th></tr></thead><tbody id="brkBody"></tbody></table></div>
@@ -1205,6 +1219,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <button class="btn danger" type="button" id="ampDelete" hidden>Delete count</button>
       <span class="spacer"></span>
       <button class="btn" type="button" id="ampCancel">Cancel</button>
+      <button class="btn" type="button" id="ampMatch" title="Save it, then box one of its symbols and every match on the sheet gets a circle to check">Match symbols</button>
       <button class="btn primary" type="submit" id="ampSave">Place it</button>
     </div>
   </form>
@@ -1215,7 +1230,8 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <h2 id="wireTitle">New run type</h2>
     <p class="hint">Pick the conduit and the wire in it. Every run you draw with this type adds to its totals.</p>
     <div class="opt"><label for="wLabel">Label</label><input type="text" id="wLabel" placeholder="e.g. Feeder to LP-1, or Parking lot lights"></div>
-    <div class="opt"><label for="wKind">What is this run</label><select id="wKind"><option value="wire">Conduit with wire</option><option value="ug">Conduit only, underground</option><option value="jhook">J-hook run (low voltage)</option></select></div>
+    <div class="opt"><label for="wKind">What is this run</label><select id="wKind"><option value="wire">Conduit with wire</option><option value="pull">Conduit with pull string</option><option value="ug">Conduit only, underground</option><option value="jhook">J-hook run (low voltage)</option></select></div>
+    <div class="opt jh-hide"><label for="wFor">What it's for</label><select id="wFor"><option value="">Pick one to fill in sizes (optional)</option><option>Primary</option><option>Secondary</option><option>Subfeed</option><option>HVAC</option><option>Lighting</option><option>Signage</option><option>Pole lights</option><option>Receptacles</option><option>Hot box</option></select></div>
     <div class="opt jh-only"><label for="wHook">J-hook every (feet)</label><input type="number" id="wHook" min="1" max="20" step="0.5" inputmode="decimal"></div>
     <label class="opt wire-only ug-check"><input type="checkbox" id="wTrench"> Underground, in a ditch <small>(adds the dig, backfill and spacers for your underground sub)</small></label>
     <div class="sched two ug-only">
@@ -2281,8 +2297,30 @@ function pnlOpen() {
   $("pnlMain").innerHTML = `<option value="">No main (lugs only)</option>` + BRK_AMPS.filter(a => a >= 60).map(a => `<option value="${a}">${a}A main</option>`).join("");
   $("pnlName").value = ""; $("pnlMsg").textContent = ""; pnlRender(); $("pnlModal").hidden = false;
 }
+/* Scan panel (Jonathan 2026-10-29): when he picks a new panel, walk him through it one box at a time:
+   1 the name at the top, 2 the left side, 3 the right side (Skip when the schedule has only one side). Then the panel window opens to check and save. */
+function pnlScan(o = {}) {
+  pnlOpen(); if (!pnl) return;
+  if (o.a && [...$("pnlAmps").options].some(x => x.value === String(o.a))) $("pnlAmps").value = String(o.a);
+  if (o.v && [...$("pnlVolts").options].some(x => x.value === o.v)) $("pnlVolts").value = o.v;
+  if (o.name) $("pnlName").value = o.name;
+  pnl.wiz = 1; pnlStep("name");
+}
+const PNL_WIZ = ["", "<b>Step 1 of 3:</b> drag a box around the panel name at the top of the schedule, like PANEL LP-1.",
+  "<b>Step 2 of 3:</b> drag a box down the left side's TRIP / POLES column, from the first circuit to the last.",
+  "<b>Step 3 of 3:</b> now the right side. Only one side on this schedule? Click Skip."];
+function pnlWizEnd() { if (hlMode === "pnl") setHl("pnl"); if (pnl) { pnl.wiz = 0; pnl.step = null; pnlRender(); } $("pnlWiz").hidden = true; $("pnlModal").hidden = false; }
+$("pnlWizSkip").onclick = () => { if (!pnl) return; if (pnl.wiz === 1) { pnl.wiz = 2; hlMode === "pnl" && setHl("pnl"); pnlStep("col"); } else pnlWizEnd(); };
+$("pnlWizStop").onclick = pnlWizEnd;
+$("brkScan").onclick = () => { const o = { a: $("ampAmps").value, v: $("ampVolts").value, name: $("ampLabel").value.trim() }; $("ampModal").hidden = true; pnlScan(o); };
 function pnlStep(step) {
   pnl.step = step; $("pnlModal").hidden = true; hlMode = null; setHl("pnl");
+  if (pnl.wiz) {
+    const said = $("pnlMsg").textContent.trim();
+    $("pnlWizT").innerHTML = (said && pnl.wiz > 1 ? esc(said) + "<br>" : "") + PNL_WIZ[pnl.wiz];
+    $("pnlWizSkip").hidden = pnl.wiz === 2; $("pnlWizSkip").textContent = pnl.wiz === 1 ? "Skip, I'll type the name" : "Skip, only one side";
+    $("pnlWiz").hidden = false; return;
+  }
   toast(step === "name" ? "Drag a box around the panel name, like BRANCH PANEL: LS." : "Drag a box down the TRIP / POLES column, or across # OF POLES and TRIP, from the first circuit to the last.");
 }
 async function pnlWords(pg, r, what) {
@@ -2299,7 +2337,7 @@ const pnlLines = words => { // group words into lines, top to bottom, left to ri
 async function pnlBox(pg, r) {
   const step = pnl && pnl.step; if (!step) return;
   setHl("pnl"); // stop drawing boxes
-  if (r.w < 8 || r.h < 8) { $("pnlModal").hidden = false; return toast("That box was too small. Try again."); }
+  if (r.w < 8 || r.h < 8) { toast("That box was too small. Try again."); if (pnl.wiz) return pnlStep(step); $("pnlModal").hidden = false; return; }
   const words = await pnlWords(pg, r, step === "name" ? "Reading the panel name…" : "Reading the breaker column…");
   if (step === "name") {
     const t = pnlLines(words).map(L => L.w.map(w => w[0]).join(" ")).join(" ").replace(/\s+/g, " ").trim();
@@ -2347,7 +2385,9 @@ async function pnlBox(pg, r) {
       : waitA ? `Read ${waitA} pole counts. Now click Read a breaker column and box the TRIP column.` : waitP ? `Read ${waitP} trip sizes. Now click Read a breaker column and box the POLES column.`
       : spaces ? `Only spaces in that box (${spaces}).` : "Didn't find any breakers in that box. Box the TRIP / POLES column, or the # OF POLES and TRIP columns.";
   }
-  pnl.step = null; pnlRender(); $("pnlModal").hidden = false;
+  pnl.step = null; pnlRender();
+  if (pnl.wiz && pnl.wiz < 3) { pnl.wiz++; pnlStep("col"); return; }
+  pnlWizEnd();
 }
 function pnlRender() {
   const rows = pnl ? pnlBucket() : [], sum = f => rows.reduce((t, b) => t + (f(b) || 0), 0), nw = b => b.n - b.sp - b.ex;
@@ -2562,7 +2602,7 @@ $("sheet").addEventListener("click", e => {
   sym.cands.forEach(c => { if (c.s * 100 < sym.thr) return; const d = Math.hypot(c.x - q[0], c.y - q[1]); if (d <= bd) { bd = d; best = c; } });
   if (!best) return; e.stopImmediatePropagation(); best.off = !best.off; symShow(); drawOverlay();
 }, true);
-$("pnlBtn").onclick = () => { if (!$("pnlModal").hidden) { $("pnlModal").hidden = true; return; } pnlOpen(); };
+$("pnlBtn").onclick = () => { if (!$("pnlModal").hidden) { $("pnlModal").hidden = true; return; } if (!$("pnlWiz").hidden) return pnlWizEnd(); pnlScan(); };
 $("pnlNameBox").onclick = () => pnlStep("name");
 $("pnlColBox").onclick = () => pnlStep("col");
 $("pnlSave").onclick = pnlSave;
@@ -3077,7 +3117,11 @@ function takeoffRows() {
       if (sp) counts.push({ id: `${w.id}:sp`, gravel: true, misc: true, sup: true, unit: "ea", group: "misc", color: w.color, feed: null, by: [], label: spacerName(w),
         name: spacerName(w), qty: sp, what: `One every ${w.spacer}' along ${fmtLF(lf)} of ditch` });
     }
-    if (isUG(w)) { /* conduit added above */ } else if (w.conduit === "Romex (NM-B)") add(`${w.id}:c`, `Romex ${w.count}x ${gaugeTxt(w.gauge)}${w.ground ? " + GND" : ""}`, wireLabel(w), lf * sets, `Romex (NM-B), ${w.count}/${gaugeTxt(w.gauge)}${w.ground ? ` with ${gaugeTxt(w.ground)} ground` : ""}`);
+    if (isUG(w)) { /* conduit added above */ } else if (isPull(w)) {
+      const runs = w.runs || 1;
+      add(`${w.id}:c`, `${w.size} ${w.conduit}`, wireLabel(w), lf * runs, `${w.size} ${w.conduit} conduit`);
+      add(`${w.id}:p`, "Pull string", `${runs > 1 ? `${runs} runs × ` : ""}${fmtLF(lf)} · ${wireLabel(w)}`, lf * runs, "Pull string");
+    } else if (w.conduit === "Romex (NM-B)") add(`${w.id}:c`, `Romex ${w.count}x ${gaugeTxt(w.gauge)}${w.ground ? " + GND" : ""}`, wireLabel(w), lf * sets, `Romex (NM-B), ${w.count}/${gaugeTxt(w.gauge)}${w.ground ? ` with ${gaugeTxt(w.ground)} ground` : ""}`);
     else if (w.conduit === "MC cable") add(`${w.id}:c`, `MC cable ${w.count}x ${gaugeTxt(w.gauge)}${w.ground ? " + GND" : ""}`, wireLabel(w), lf * sets, `MC cable, ${w.count}/${gaugeTxt(w.gauge)}${w.ground ? ` with ${gaugeTxt(w.ground)} ground` : ""}`);
     else {
       if (w.conduit !== "No conduit") add(`${w.id}:c`, `${w.size} ${w.conduit}`, wireLabel(w), lf * sets, `${w.size} ${w.conduit} conduit`);
@@ -4240,7 +4284,7 @@ function renderTakeoff() {
   if (tsView === "ug") {
     $("tsTitle").textContent = "Underground for sub pricing"; $("tsAllBox").hidden = true;
     $("tsJob").innerHTML = `<b>${esc(job ? job.name : "Example job")}</b> · ${new Date().toLocaleDateString()}<br>AJ Electrical`;
-    $("tsHint").textContent = "Every underground run: the ditch to dig, the conduit going in it, spacers and backfill. Uncheck anything you don't want the sub to price; it stays off the email, copy and print. The trench footage includes any extra % you set on the count sheet.";
+    $("tsHint").textContent = "Every underground run: the ditch to dig, the conduit going in it, spacers and backfill. Uncheck anything you don't want the sub to price; it stays off the email, copy and print. The trench footage includes any extra % you set on the count sheet. Print adds each drawing sheet with only its underground runs marked.";
     const u = ugRows(true), tt = ugTot(u); $("tsEmpty").hidden = !!u.length;
     const ck = (k, on, what) => `<input type="checkbox" class="ug-send no-print" data-k="${esc(k)}"${on ? " checked" : ""} title="${on ? "Uncheck to leave this off what you send the sub" : "Check to send this to the sub"}" aria-label="Send ${esc(what)}">`;
     $("tsTable").innerHTML = `<thead><tr><th>Item</th><th class="n">Quantity</th></tr></thead><tbody>` + u.map(x => `<tr class="sec${x.off ? " ug-off" : ""}"><td colspan="2">${ck(x.id, !x.off, x.title)} ${esc(x.title)}${x.off ? ` <small class="no-print">left off</small>` : ""}</td></tr>` +
@@ -4569,7 +4613,7 @@ function ugRows(all) {
     lines.push(fl ? { k: `${w.id}:fill`, a: `${w.backfill} backfill`, b: `${fl.cy} CY${fl.tons ? ` · ${fl.tons} tons` : ""}`, c: fl.deep === (w.depth || 24) ? "Whole ditch" : `Bottom ${fl.deep}" of the ditch, native dirt above`, fill: [w.backfill, fl.cy, fl.tons] }
       : { k: `${w.id}:fill`, a: "Backfill", b: "Native dirt", c: "Dirt back in the ditch" });
     lines.forEach(l => { l.off = !!off[l.k] || !!off[w.id]; });
-    const name = !isUG(w) && w.amps ? `${w.amps} amp feeder` : `${w.size} ${w.conduit}${isUG(w) ? " underground" : ""}`;
+    const name = !isUG(w) && w.amps ? `${w.amps} amp feeder` : `${w.size} ${w.conduit}${isUG(w) ? " underground" : isPull(w) ? " with pull string" : ""}`;
     return { id: w.id, off: !!off[w.id], title: w.label ? `${w.label} · ${name}` : name, lf: t.total, lines };
   }).filter(Boolean).filter(x => all || !x.off).map(x => all ? x : { ...x, lines: x.lines.filter(l => !l.off) });
 }
@@ -4660,14 +4704,38 @@ $("tsEmail").onclick = () => {
   const ug = tsView === "ug";
   $("tsEmail").href = `mailto:?subject=${encodeURIComponent(`${bid ? "Bid sheet" : ug ? "Underground for pricing" : "Material list"}: ${job ? job.name : "Example job"}`)}&body=${encodeURIComponent(bid ? bidText() : ug ? ugText() : takeoffText())}`;
 };
-$("tsPrint").onclick = () => {
+// the underground sub gets the drawings too: each sheet with underground runs, marked with only those runs (Jonathan 2026-10-29)
+async function ugSheetImgs() {
+  const off = ugOff(), ids = new Set(wiresList().filter(w => hasTrench(w) && !off[w.id]).map(w => w.id)), only = r => ids.has(r.typeId) && inScope(r), out = [];
+  for (let i = 0; i < pages.length; i++) {
+    const pg = pages[i]; if (!pg.blob || !pg.runs.some(only)) continue;
+    busy("Getting the drawings ready…", i / pages.length, "Marking the underground runs on each sheet");
+    const c = await sheetCanvas(pg, only), sc = Math.min(1, 2400 / Math.max(c.width, c.height)), d = document.createElement("canvas");
+    d.width = Math.round(c.width * sc); d.height = Math.round(c.height * sc); d.getContext("2d").drawImage(c, 0, 0, d.width, d.height); c.width = c.height = 0;
+    out.push({ name: sheetName(pg, i), url: d.toDataURL("image/jpeg", .85) }); d.width = d.height = 0;
+  }
+  return out;
+}
+$("tsPrint").onclick = async () => {
+  let extra = null;
+  if (tsView === "ug") {
+    try { const imgs = await ugSheetImgs(); if (imgs.length) { extra = document.createElement("div"); extra.className = "ug-sheets"; extra.innerHTML = imgs.map(m => `<figure><figcaption>${esc(m.name)} · underground runs</figcaption><img src="${m.url}" alt="${esc(m.name)}"></figure>`).join(""); $("tsTable").after(extra); await Promise.all([...extra.querySelectorAll("img")].map(im => im.decode ? im.decode().catch(() => {}) : null)); } }
+    catch (e) { toast("Couldn't add the drawings. The underground sheet will print without them."); }
+    finally { busy(null, null); }
+  }
   document.body.classList.add("print-ts");
-  const done = () => { document.body.classList.remove("print-ts"); window.removeEventListener("afterprint", done); };
+  const done = () => { document.body.classList.remove("print-ts"); if (extra) { extra.remove(); extra = null; } window.removeEventListener("afterprint", done); };
   window.addEventListener("afterprint", done);
   try { window.print(); } catch (e) { done(); toast("Printing isn't allowed here. Use Copy or Email."); }
   setTimeout(done, 60000);
 };
 
+/* Match symbols (Jonathan 2026-10-29): on a new count or one being edited, save it and go straight into Find symbol for it */
+let matchAfter = false;
+const startMatch = id => { matchAfter = false; if (!id) return; if (tool) setTool(null); symType = id; if (hlMode === "sym") setHl("sym"); setHl("sym"); toast("Drag a snug box around one of its symbols on the drawing, with its label if it has one. Every match gets a circle to check."); };
+const matchSave = form => () => { matchAfter = true; try { $(form).requestSubmit(); } finally { matchAfter = false; } };
+$("ampMatch").onclick = matchSave("ampForm");
+$("cntMatch").onclick = matchSave("countForm");
 $("ampForm").addEventListener("submit", e => {
   e.preventDefault();
   const ans = askAnswer(), list = countsList();
@@ -4678,6 +4746,7 @@ $("ampForm").addEventListener("submit", e => {
     Object.assign(askEditing, ans);
     if (job) { job.updated = new Date().toISOString(); saveJob(job); }
     $("ampModal").hidden = true; renderCounts(); drawOverlay();
+    if (matchAfter) startMatch(askEditing.id);
     return;
   }
   let c = list.find(c => c.base === ampBase && sameAnswer(c, ans));
@@ -4690,6 +4759,7 @@ $("ampForm").addEventListener("submit", e => {
   $("ampModal").hidden = true;
   renderCounts(); drawOverlay();
   setTool("place", c.id);
+  if (matchAfter) startMatch(c.id);
 });
 $("cntCancel").onclick = () => { $("countModal").hidden = true; };
 $("countModal").addEventListener("keydown", e => { if (e.key === "Escape") $("countModal").hidden = true; });
@@ -4717,6 +4787,7 @@ $("countForm").addEventListener("submit", e => {
   $("countModal").hidden = true;
   renderCounts(); drawOverlay();
   if (!editingCount) setTool("place", c.id);
+  if (matchAfter) startMatch(c.id);
 });
 
 /* ---------- scale, measure, linear runs ---------- */
@@ -5494,17 +5565,18 @@ function wireLabel(w) {
   if (w.label) return `${w.label} · ${wireSpec(w)}`;
   return wireSpec(w);
 }
-const wireShort = w => isJH(w) ? `J-hooks every ${w.interval || 5}'` : isUG(w) ? `${w.size} ${w.conduit} underground` : w.amps ? `${w.amps} amp${hasTrench(w) ? " underground" : ""}` : `${w.conduit === "No conduit" || NOPIPE.includes(w.conduit) ? w.conduit === "No conduit" ? "" : w.conduit + " " : w.size + " " + w.conduit + " · "}${w.count}x ${gaugeTxt(w.gauge)}${hasTrench(w) ? " underground" : ""}`;
+const wireShort = w => isJH(w) ? `J-hooks every ${w.interval || 5}'` : isPull(w) ? `${w.size} ${w.conduit} · pull string${hasTrench(w) ? " underground" : ""}` : isUG(w) ? `${w.size} ${w.conduit} underground` : w.amps ? `${w.amps} amp${hasTrench(w) ? " underground" : ""}` : `${w.conduit === "No conduit" || NOPIPE.includes(w.conduit) ? w.conduit === "No conduit" ? "" : w.conduit + " " : w.size + " " + w.conduit + " · "}${w.count}x ${gaugeTxt(w.gauge)}${hasTrench(w) ? " underground" : ""}`;
 function wireSpec(w) {
   if (isUG(w)) return `${(w.runs || 1) > 1 ? `${w.runs} runs of ` : ""}${w.size} ${w.conduit} underground · ${trenchLabel(w)}`;
   if (isJH(w)) return `J-hooks every ${w.interval || 5}'`;
+  if (isPull(w)) return `${(w.runs || 1) > 1 ? `${w.runs} runs of ` : ""}${w.size} ${w.conduit} · pull string${w.trench ? ` · underground ${trenchLabel(w)}` : ""}`;
   const sets = w.sets > 1 ? `${w.sets} sets of ` : "", amps = w.amps ? `${w.amps}A ${w.mat === "AL" ? "AL" : "CU"} · ` : "";
   const pipe = w.conduit === "No conduit" ? "" : w.conduit === "MC cable" || w.conduit === "Romex (NM-B)" ? w.conduit : `${w.size} ${w.conduit}`;
   const wire = `${w.count}x ${gaugeTxt(w.gauge)} ${w.ins}` + (w.ground ? ` + ${gaugeTxt(w.ground)} GND` : "");
   return amps + sets + (pipe ? `${pipe} · ${wire}` : wire) + (w.trench ? ` · underground ${trenchLabel(w)}` : "");
 }
-const wireTotal = w => isUG(w) || isJH(w) ? 0 : ((w.count || 0) + (w.ground ? 1 : 0)) * (w.sets || 1);
-const pipeRuns = w => w.sets || 1; // each parallel set is its own conduit
+const wireTotal = w => isUG(w) || isJH(w) || isPull(w) ? 0 : ((w.count || 0) + (w.ground ? 1 : 0)) * (w.sets || 1);
+const pipeRuns = w => isPull(w) ? w.runs || 1 : w.sets || 1; // each parallel set is its own conduit
 function renderWires() {
   const ul = $("wireList"), list = wiresList();
   ul.replaceChildren();
@@ -5522,7 +5594,7 @@ function renderWires() {
     const nm = document.createElement("b"); nm.textContent = wireShort(w);
     tx.append(nm);
     if (w.label) { const ds = document.createElement("span"); ds.className = "d"; ds.textContent = w.label; tx.append(ds); }
-    b.title = `${wireLabel(w)}\n${!lf ? "Nothing drawn yet" : isJH(w) ? `${fmtLF(lf)} · ${hooksOf(w)} J-hooks` : isUG(w) ? `${fmtLF(lf)} of conduit and trench` : `${fmtLF(lf * pipeRuns(w))} of conduit · ${fmtLF(lf * wireTotal(w))} of wire`}\nClick to draw a run of this type`;
+    b.title = `${wireLabel(w)}\n${!lf ? "Nothing drawn yet" : isJH(w) ? `${fmtLF(lf)} · ${hooksOf(w)} J-hooks` : isUG(w) ? `${fmtLF(lf)} of conduit and trench` : isPull(w) ? `${fmtLF(lf * pipeRuns(w))} of conduit and pull string` : `${fmtLF(lf * pipeRuns(w))} of conduit · ${fmtLF(lf * wireTotal(w))} of wire`}\nClick to draw a run of this type`;
     b.append(sw, tx);
     b.onclick = () => startRunType(w.id);
     const e = document.createElement("button"); e.type = "button"; e.className = "cnt-edit"; e.title = "Edit this run type"; e.setAttribute("aria-label", "Edit " + wireLabel(w));
@@ -5566,7 +5638,8 @@ const isUG = w => w && w.kind === "ug";
 const FILL_TONS = { Gravel: 1.4, Sand: 1.35 };
 // conduit with wire can be underground too (w.trench): same ditch, backfill and spacers; its parallel sets are the conduits in the ditch
 const hasTrench = w => isUG(w) || !!(w && w.kind !== "ug" && w.kind !== "jhook" && w.trench);
-const ditchRuns = w => isUG(w) ? (w.runs || 1) : (w.sets || 1);
+const isPull = w => w && w.kind === "pull"; // conduit with a pull string, no wire
+const ditchRuns = w => isUG(w) || isPull(w) ? (w.runs || 1) : (w.sets || 1);
 // duct bank spacers: one every so many feet along the ditch, plus one at the start; each holds every conduit in the ditch
 const ugSpacers = (w, lf) => hasTrench(w) && w.spacer && lf ? Math.ceil(lf / w.spacer) + 1 : 0;
 const spacerName = w => `${w.size} duct bank spacer for ${ditchRuns(w)} conduit${ditchRuns(w) > 1 ? "s" : ""}`;
@@ -5583,10 +5656,14 @@ const hooksOf = w => pages.reduce((t, pg) => t + pg.runs.filter(r => r.typeId ==
 function wireFields() {
   const label = $("wLabel").value.trim();
   if ($("wKind").value === "jhook") return { label, kind: "jhook", interval: Math.max(1, Math.min(20, +$("wHook").value || 5)), conduit: "No conduit", size: "", count: 0, gauge: "", ins: "", ground: "", color: $("wColor").value, sets: 1, mat: "CU", amps: null };
-  if ($("wKind").value === "ug") return { label, kind: "ug", conduit: $("wConduit").value, size: $("wSize").value, count: 0, gauge: "", ins: "", ground: "", color: $("wColor").value,
+  const wFor = $("wFor").value || undefined;
+  if ($("wKind").value === "pull") return { label, kind: "pull", for: wFor, conduit: $("wConduit").value, size: $("wSize").value, count: 0, gauge: "", ins: "", ground: "", color: $("wColor").value, sets: 1, mat: "CU", amps: null,
+    runs: $("wTrench").checked ? Math.max(1, Math.min(20, parseInt($("wRuns").value, 10) || 1)) : 1,
+    ...($("wTrench").checked ? { trench: true, depth: +$("wDepth").value, backfill: $("wFill").value, width: +$("wWidth").value || 30, fillDepth: $("wFillDepth").value, spacer: +$("wSpacer").value || 0 } : {}) };
+  if ($("wKind").value === "ug") return { label, kind: "ug", for: wFor, conduit: $("wConduit").value, size: $("wSize").value, count: 0, gauge: "", ins: "", ground: "", color: $("wColor").value,
     sets: 1, mat: "CU", amps: null, depth: +$("wDepth").value, backfill: $("wFill").value,
     width: +$("wWidth").value || 30, runs: Math.max(1, Math.min(20, parseInt($("wRuns").value, 10) || 1)), fillDepth: $("wFillDepth").value, spacer: +$("wSpacer").value || 0 };
-  return { label, kind: "wire", conduit: $("wConduit").value, size: $("wSize").value, count: Math.max(1, Math.min(40, parseInt($("wCount").value, 10) || 1)),
+  return { label, kind: "wire", for: wFor, conduit: $("wConduit").value, size: $("wSize").value, count: Math.max(1, Math.min(40, parseInt($("wCount").value, 10) || 1)),
     gauge: $("wGauge").value, ins: $("wIns").value, ground: $("wGround").value, color: $("wColor").value,
     sets: Math.max(1, Math.min(12, parseInt($("wSets").value, 10) || 1)), mat: $("wMat").value, amps: parseInt($("wAmps").value, 10) || null,
     ...($("wTrench").checked ? { trench: true, depth: +$("wDepth").value, backfill: $("wFill").value, width: +$("wWidth").value || 30, fillDepth: $("wFillDepth").value, spacer: +$("wSpacer").value || 0 } : {}) };
@@ -5595,11 +5672,13 @@ function wirePreview() {
   $("wireForm").classList.toggle("ug", $("wKind").value === "ug");
   $("wireForm").classList.toggle("jh", $("wKind").value === "jhook");
   $("wireForm").classList.toggle("tr", $("wKind").value === "wire" && $("wTrench").checked);
+  $("wireForm").classList.toggle("pl", $("wKind").value === "pull");
+  $("wireForm").classList.toggle("ptr", $("wKind").value === "pull" && $("wTrench").checked);
   $("wSize").disabled = NOPIPE.includes($("wConduit").value);
   const w = wireFields();
   $("wirePrev").textContent = wireLabel(w);
   if (hasTrench(w)) { const per = ugFill(w, 100); $("wGravel").textContent = per ? `${w.backfill} backfill: about ${per.cy} cubic yards${per.tons ? ` (${per.tons} tons)` : ""} per 100 ft of ditch. The count sheet figures it for the whole length you draw.` : "Pick a backfill to see how much it takes."; }
-  const f = isUG(w) ? null : fillOf(w), el = $("wireFill");
+  const f = isUG(w) || isPull(w) ? null : fillOf(w), el = $("wireFill");
   el.className = "wire-fill" + (f && f.used > f.max ? " over" : "");
   el.textContent = !f ? "" : `Conduit fill about ${Math.round(f.used * 100)}% (EMT sizes; ${Math.round(f.max * 100)}% allowed)` +
     (f.used > f.max ? `. Too full: try ${conduitFor(w)}.` : ".");
@@ -5608,7 +5687,8 @@ function wirePreview() {
 $("wKind").addEventListener("input", () => {
   // underground runs are usually PVC; going back to wire picks EMT again
   if ($("wKind").value === "ug" && ["EMT", "MC cable", "Romex (NM-B)", "No conduit", "Flex (FMC)", "Sealtite (LFMC)"].includes($("wConduit").value)) $("wConduit").value = "PVC Sch 40";
-  else if ($("wKind").value === "wire" && $("wConduit").value === "PVC Sch 40" && !editingWire) $("wConduit").value = "EMT";
+  else if ($("wKind").value === "wire" && $("wConduit").value === "PVC Sch 40" && !editingWire && !$("wTrench").checked) $("wConduit").value = "EMT";
+  if ($("wKind").value === "pull" && NOPIPE.includes($("wConduit").value)) $("wConduit").value = "EMT";
   wirePreview();
 });
 // changing the wire by hand means it no longer matches the picked amps
@@ -5625,6 +5705,28 @@ function pickAmps() {
   wirePreview();
 }
 $("wAmps").addEventListener("input", pickAmps);
+/* What the run is for (Jonathan 2026-10-29): picking one fills in placeholder sizes he can change. Pole lights, signage and hot box
+   start as #10 in 1" PVC underground; the others pick wire, ground and conduit by NEC from typical amps; primary is conduit and pull string for the utility. */
+const RUN_FOR = ["Primary", "Secondary", "Subfeed", "HVAC", "Lighting", "Signage", "Pole lights", "Receptacles", "Hot box"];
+const RUN_PRESET = { Primary: { pull: true, conduit: "PVC Sch 40", size: '4"', trench: true, depth: 36 }, Secondary: { amps: 400, count: 4, conduit: "PVC Sch 40", trench: true },
+  Subfeed: { amps: 100, count: 4, conduit: "EMT" }, HVAC: { amps: 40, count: 3, conduit: "EMT" }, Lighting: { amps: 20, count: 2, conduit: "EMT" }, Receptacles: { amps: 20, count: 2, conduit: "EMT" },
+  "Pole lights": { pole: true }, Signage: { pole: true }, "Hot box": { pole: true } };
+$("wFor").addEventListener("input", () => {
+  const k = $("wFor").value, p = RUN_PRESET[k]; if (!p) return wirePreview();
+  const lab = $("wLabel").value.trim(); if (!lab || RUN_FOR.includes(lab)) $("wLabel").value = k;
+  if ($("wKind").value === "ug" || $("wKind").value === "jhook") $("wKind").value = "wire";
+  if (p.pull && $("wKind").value === "wire") $("wKind").value = "pull";
+  const pole = !!p.pole, trench = pole || !!p.trench;
+  $("wConduit").value = pole ? "PVC Sch 40" : p.conduit; $("wTrench").checked = trench;
+  if (trench) $("wDepth").value = String(p.depth || 24);
+  if ($("wKind").value === "wire") {
+    $("wMat").value = "CU"; fillAmps();
+    if (pole) { $("wAmps").value = ""; $("wGauge").value = "10"; $("wCount").value = 2; $("wGround").value = "10"; $("wSets").value = 1; if ([...$("wIns").options].some(o => o.value === "THHN STR")) $("wIns").value = "THHN STR"; }
+    else { $("wAmps").value = String(p.amps); pickAmps(); $("wCount").value = p.count; }
+  }
+  $("wSize").value = pole ? '1"' : p.size || ($("wKind").value === "wire" && !NOPIPE.includes($("wConduit").value) ? conduitFor(wireFields()) : $("wSize").value);
+  wirePreview();
+});
 function openWire(id) {
   if (!pages.length) return;
   if (tool) setTool(null);
@@ -5636,7 +5738,7 @@ function openWire(id) {
   $("wMat").value = w.mat || "CU"; fillAmps(); $("wAmps").value = w.amps || ""; $("wSets").value = w.sets || 1;
   $("wConduit").value = w.conduit; $("wSize").value = w.size; $("wCount").value = w.count; $("wGauge").value = w.gauge; $("wIns").value = w.ins; $("wGround").value = w.ground || "";
   $("wColor").value = w.color || PALETTE[(list.length + 3) % PALETTE.length];
-  $("wLabel").value = w.label || ""; $("wKind").value = isUG(w) ? "ug" : isJH(w) ? "jhook" : "wire"; $("wHook").value = w.interval || 5; $("wDepth").value = String(w.depth || 24); $("wFill").value = w.backfill || "None"; $("wWidth").value = String(w.width || 30); $("wRuns").value = w.runs || 1; $("wFillDepth").value = w.fillDepth || "full"; $("wSpacer").value = String(w.spacer || 0); $("wTrench").checked = !!w.trench;
+  $("wLabel").value = w.label || ""; $("wKind").value = isUG(w) ? "ug" : isJH(w) ? "jhook" : "wire"; $("wHook").value = w.interval || 5; $("wDepth").value = String(w.depth || 24); $("wFill").value = w.backfill || "None"; $("wWidth").value = String(w.width || 30); $("wRuns").value = w.runs || 1; $("wFillDepth").value = w.fillDepth || "full"; $("wSpacer").value = String(w.spacer || 0); $("wTrench").checked = !!w.trench; $("wFor").value = w.for || ""; if (isPull(w)) $("wKind").value = "pull";
   if (isUG(w)) { $("wCount").value = 3; $("wGauge").value = "12"; $("wIns").value = "STR"; }
   $("wireDelete").hidden = !editingWire;
   $("wireSave").textContent = editingWire ? "Save" : "Save and draw";
@@ -6437,7 +6539,7 @@ function drawShape(x, d, cx, cy, rr) {
   }
   x.fillStyle = d.color; x.fill(); x.lineWidth = rr / 5; x.strokeStyle = "#1d2731"; x.stroke();
 }
-async function sheetCanvas(pg) {
+async function sheetCanvas(pg, only) { // only: draw just the runs it passes, nothing else
   const img = await createImageBitmap(pg.blob);
   const sc = Math.min(1, 6000 / Math.max(img.width, img.height));
   const W = Math.round(img.width * sc), H = Math.round(img.height * sc), c = document.createElement("canvas");
@@ -6447,16 +6549,16 @@ async function sheetCanvas(pg) {
   x.save(); x.scale(sc, sc);
   const u = Math.max(img.width, img.height) / 1100; // one "screen pixel" at a full-sheet view
   x.lineJoin = x.lineCap = "round";
-  (pg.hl || []).forEach(h => {
+  (only ? [] : pg.hl || []).forEach(h => {
     x.fillStyle = h.c === "r" ? "rgba(255,60,60,.28)" : "rgba(255,225,0,.35)"; x.fillRect(h.x, h.y, h.w, h.h);
     x.strokeStyle = h.c === "r" ? "#d33" : "#d4b100"; x.lineWidth = 1.5 * u; x.strokeRect(h.x, h.y, h.w, h.h);
   });
-  pg.runs.forEach(r => {
+  pg.runs.filter(r => !only || only(r)).forEach(r => {
     const w = wireOf(r.typeId);
-    x.strokeStyle = w ? w.color : "#0b6fb8"; x.lineWidth = 1.5 * u;
+    x.strokeStyle = w ? w.color : "#0b6fb8"; x.lineWidth = (only ? 4 : 1.5) * u;
     x.beginPath(); r.pts.forEach((q, i) => i ? x.lineTo(q[0], q[1]) : x.moveTo(q[0], q[1])); x.stroke();
   });
-  pg.devices.forEach(v => {
+  (only ? [] : pg.devices).forEach(v => {
     const d = devInfo(v.t); if (!d) return;
     drawShape(x, d, v.x, v.y, 6 * u);
     const tg = d.tag || d.label;
@@ -6465,9 +6567,9 @@ async function sheetCanvas(pg) {
   x.restore();
   // legend in the bottom-left corner: what is on this sheet
   const rows = [];
-  const seen = new Map(); pg.devices.forEach(v => seen.set(v.t, (seen.get(v.t) || 0) + 1));
+  const seen = new Map(); (only ? [] : pg.devices).forEach(v => seen.set(v.t, (seen.get(v.t) || 0) + 1));
   seen.forEach((n, t) => { const d = devInfo(t); if (d) rows.push({ d, text: `${n} × ${nameOf(d)}` }); });
-  const byType = new Map(); pg.runs.forEach(r => byType.set(r.typeId || null, (byType.get(r.typeId || null) || 0) + r.px));
+  const byType = new Map(); pg.runs.filter(r => !only || only(r)).forEach(r => byType.set(r.typeId || null, (byType.get(r.typeId || null) || 0) + r.px));
   byType.forEach((px, id) => { const w = wireOf(id); rows.push({ line: w ? w.color : "#0b6fb8", text: `${pg.ftPerPx ? fmtLF(px * pg.ftPerPx) : "Not to scale"} · ${w ? wireLabel(w) : "Run, no type"}` }); });
   if (rows.length) {
     const f = Math.max(12, Math.round(Math.max(W, H) / 150)), lh = f * 1.5, pad = f * .8;
