@@ -8,6 +8,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap">
+<script>try { if (localStorage.getItem("aj-look") !== "classic") document.documentElement.classList.add("look-new"); } catch (e) { document.documentElement.classList.add("look-new"); }</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
 <style>
@@ -205,6 +206,69 @@ button { cursor: pointer; }
 .sec-btns { display: flex; gap: 6px; flex-wrap: wrap; }
 .tool-sub { grid-column: 1 / -1; margin: 4px 0 -2px; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; }
 .tool-sub:first-child { margin-top: 0; }
+/* New look (Jonathan 2026-10-29: "dress it up like Amazon", with a way back). Everything is scoped to html.look-new;
+   the Classic look button takes the class off and the app looks exactly like v108. Saved per computer (aj-look). */
+@media (prefers-color-scheme: light) { html.look-new {
+  --bg: #eaeded; --panel: #ffffff; --sheet-bg: #dfe3e6; --fg: #0f1111; --muted: #565959; --line: #d5d9d9;
+  --accent: #007185; --accent-fg: #ffffff; --accent-soft: #e3f4f6; --warn: #b12704; --warn-soft: #fdecea; --ok: #067d62; } }
+html.look-new { --font-ui: Arial, "Helvetica Neue", Helvetica, sans-serif; --amz-nav: #131921; --amz-nav2: #232f3e; --amz-yellow: #ffd814; --amz-yellow-b: #fcd200; --amz-orange: #ffa41c; --amz-orange-b: #ff8f00; }
+html.look-new body { font-family: var(--font-ui); }
+/* dark navy top bar with white text, like the store's header */
+.look-new .toolbar { background: var(--amz-nav); color: #fff; border-bottom: 0; }
+.look-new .toolbar .brand { color: #fff; font-size: 19px; letter-spacing: 0; }
+.look-new .toolbar .brand small { color: var(--amz-orange); }
+.look-new .toolbar .btn:not(.primary) { background: transparent; color: #fff; border-color: transparent; box-shadow: none; }
+.look-new .toolbar .btn:not(.primary):hover { border-color: #fff; }
+.look-new .toolbar .jobbtn .jl, .look-new .toolbar .count, .look-new .toolbar .group-label, .look-new .toolbar .drive { color: #ccc; }
+.look-new .toolbar .group { border-left-color: rgb(255 255 255 / .18); }
+.look-new .toolbar .corners { background: var(--amz-nav2); border-color: #3a4553; }
+.look-new .toolbar .corners button { background: #4a5666; }
+.look-new .toolbar .corners button[aria-pressed="true"] { background: var(--amz-orange); }
+.look-new .toolbar .look-btn { border: 1px solid rgb(255 255 255 / .35) !important; }
+/* sheet tabs: the second, lighter navy strip */
+.look-new .tabs { background: var(--amz-nav2); border-bottom: 0; }
+.look-new .tabs > .btn { background: transparent; color: #fff; border-color: transparent; box-shadow: none; }
+.look-new .tabs > .btn:hover { border-color: #fff; }
+.look-new .tabs > .btn[aria-pressed="true"] { background: rgb(255 255 255 / .12); color: #fff; }
+.look-new .tab { background: #37475a; border-color: #37475a; }
+.look-new .tab .tl, .look-new .tab .tn, .look-new .tab-x { color: #fff; }
+.look-new .tab[aria-current="true"] { background: var(--sheet-bg); border-color: var(--sheet-bg); box-shadow: inset 0 3px 0 var(--amz-orange); }
+.look-new .tab[aria-current="true"] .tl, .look-new .tab[aria-current="true"] .tn, .look-new .tab[aria-current="true"] .tab-x { color: var(--fg); }
+/* buttons: white with a soft shadow; the main action on each screen is the yellow pill */
+.look-new .btn { border-radius: 8px; background: var(--panel); border-color: var(--line); box-shadow: 0 2px 5px rgb(15 17 17 / .08); }
+.look-new .btn:hover { border-color: #a2a6ac; background: #f7fafa; }
+.look-new .btn.primary { background: var(--amz-yellow); border-color: var(--amz-yellow-b); color: #0f1111; border-radius: 100px; font-weight: 600; }
+.look-new .btn.primary:hover:not(:disabled) { background: #f7ca00; border-color: #f2c200; filter: none; }
+.look-new .btn.warn { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+.look-new .btn[aria-pressed="true"] { background: #fff4e0; border-color: var(--amz-orange-b); color: #0f1111; }
+.look-new .btn.tool[aria-pressed="true"], .look-new .zoomrow .btn#panBtn[aria-pressed="true"] { background: var(--amz-orange); border-color: var(--amz-orange-b); color: #0f1111; box-shadow: 0 0 0 3px #fde3b3; }
+/* the side panels read like cards */
+.look-new .rail, .look-new .runs { background: var(--panel); }
+.look-new .runs h2 { font-size: 15px; text-transform: none; letter-spacing: 0; font-weight: 700; color: var(--fg); }
+.look-new .tool-sub { color: var(--muted); }
+.look-new .thumb[aria-current="true"] { border-color: var(--amz-orange); background: #fff4e0; box-shadow: 0 0 0 1px var(--amz-orange); }
+.look-new .cnt-main, .look-new .dev { border-radius: 8px; }
+.look-new .cnt-main[aria-pressed="true"], .look-new .dev[aria-pressed="true"] { border-color: var(--amz-orange-b); background: #fff4e0; box-shadow: inset 4px 0 0 var(--amz-orange); }
+/* the search box looks like the store's: white field, orange ring when you type */
+.look-new .qs { background: var(--amz-nav2); border-bottom: 0; }
+.look-new .qs input { border: 0; border-radius: 6px; background: #fff; color: #0f1111; height: 40px; }
+.look-new .qs input:focus { box-shadow: 0 0 0 3px var(--amz-orange); }
+.look-new .qs > svg { color: #565959; z-index: 1; }
+.look-new .qs-item[aria-selected="true"], .look-new .qs-item:hover { background: #fff4e0; }
+/* pop-ups: rounded white cards */
+.look-new .modal-card { border-radius: 12px; border-color: var(--line); box-shadow: 0 12px 40px rgb(0 0 0 / .25); }
+.look-new .modal-card h2 { font-size: 22px; font-weight: 700; }
+.look-new .labelbar { background: var(--panel); }
+.look-new .labelbar .btn.primary { border-radius: 100px; }
+.look-new .totals b, .look-new .cnt-n { color: #0f1111; }
+@media (prefers-color-scheme: dark) {
+  .look-new .btn { box-shadow: none; }
+  .look-new .btn:hover { background: var(--bg); }
+  .look-new .btn[aria-pressed="true"], .look-new .cnt-main[aria-pressed="true"], .look-new .dev[aria-pressed="true"], .look-new .thumb[aria-current="true"] { background: #3a2a12; color: var(--fg); }
+  .look-new .totals b, .look-new .cnt-n { color: var(--fg); }
+}
+.look-btn { font-size: 12px; }
+
 /* quick search */
 .qs { position: sticky; top: -12px; z-index: 6; margin: -12px -12px 0; padding: 10px 12px; background: var(--panel); border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 6px; }
 .qs > svg { position: absolute; left: 22px; width: 16px; height: 16px; color: var(--muted); pointer-events: none; }
@@ -605,7 +669,8 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v108</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v109</small></div>
+    <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
@@ -4650,6 +4715,15 @@ function openTakeoff(view) {
   renderTakeoff();
   $("takeoffModal").hidden = false; tsTop(); $("tsCloseTop").focus({ preventScroll: true });
 }
+/* New look / Classic look switch (Jonathan 2026-10-29): nothing but the colors and fonts change */
+function setLook(classic) {
+  document.documentElement.classList.toggle("look-new", !classic);
+  try { localStorage.setItem("aj-look", classic ? "classic" : "new"); } catch (e) {}
+  $("lookBtn").textContent = classic ? "New look" : "Classic look";
+  $("lookBtn").title = classic ? "Try the new look. You can switch back any time." : "Go back to the classic look. You can switch any time.";
+}
+setLook(!document.documentElement.classList.contains("look-new"));
+$("lookBtn").onclick = () => { setLook(document.documentElement.classList.contains("look-new")); toast(document.documentElement.classList.contains("look-new") ? "New look on. Click Classic look to go back." : "Classic look on. Click New look to try it again."); };
 $("takeoffBtn").onclick = () => openTakeoff("count");
 $("bidBtn").onclick = () => openTakeoff("bid");
 $("tsCountTab").onclick = () => { tsView = "count"; renderTakeoff(); };
