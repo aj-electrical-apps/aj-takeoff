@@ -283,10 +283,6 @@ button { cursor: pointer; }
 .job-fields input { height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 15px; color: var(--fg); }
 @media (max-width: 480px) { .job-fields { grid-template-columns: 1fr; } }
 
-.selinfo { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 520px; padding: 4px 12px; border: 1px solid var(--accent); border-radius: 6px; background: var(--accent-soft); font-size: 14px; }
-.selinfo[hidden] { display: none; }
-.selinfo .k { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); flex: none; }
-.selinfo .v { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .drive { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); max-width: 300px; }
 .drive .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex: none; }
 .drive.ok .dot { background: var(--ok); }
@@ -423,6 +419,19 @@ td .bid-ln[data-q], td .bid-ln[data-s] { width: calc(100% - 80px); }
 .sched-tbl input[type=text], .sched-tbl select { width: 100%; min-width: 70px; font: inherit; font-size: 12px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 3px 4px; }
 .sched-tbl td.k input { width: 64px; min-width: 0; font-weight: 600; }
 .sched-tbl tr.off td { opacity: .45; }
+.imp-src { display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; margin: 6px 0; }
+.imp-src textarea { flex: 1 1 260px; min-height: 36px; font: inherit; font-size: 12px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 6px; }
+.imp-cols { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
+.imp-cols label { display: flex; flex-direction: column; font-size: 12px; gap: 2px; }
+.imp-cols select { font: inherit; font-size: 12px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 3px 4px; max-width: 170px; }
+.imp-tbl td.q { white-space: nowrap; text-align: right; }
+.imp-tbl td small { color: var(--muted); display: block; }
+.imp-tbl td.to { min-width: 230px; }
+#impPast { font-size: 12px; margin-top: 8px; }
+#impForm > * { min-width: 0; }
+@media (max-width: 600px) { .imp-tbl td.to { min-width: 0; } .imp-tbl select { min-width: 0; max-width: 46vw; } }
+#impPast .imp-row { display: flex; gap: 8px; align-items: center; padding: 3px 0; border-top: 1px solid var(--line); }
+#impPast .imp-row span { flex: 1; }
 .sched-tbl select.sched-unsure { background: #fff3bf; color: #5c3c00; border-color: #f59f00; }
 .sched-why { display: block; font-size: 10px; color: var(--muted, #888); margin-top: 2px; }
 .sched-src { width: 100%; border: 1px solid var(--line); border-radius: 6px; background: #fff; max-height: 180px; object-fit: contain; }
@@ -554,7 +563,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v106</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v105</small></div>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
@@ -624,7 +633,6 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     </div>
 
     <div class="spacer"></div>
-    <div class="selinfo" id="selInfo" role="status" hidden></div>
     <div class="drive" id="driveStatus" role="status"><span class="dot"></span><span class="t" id="driveText">Saved in this browser</span>
       <button class="btn sm" id="driveRetry" type="button" hidden>Try again</button></div>
     <div class="group" id="clearGroup">
@@ -717,6 +725,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <h2>Counts</h2>
         <span style="display:flex;gap:6px"><button class="btn sm" id="cntFoldAll" type="button" hidden>Close all</button>
+        <button class="btn sm" id="impBtn" type="button" title="Bring in counts from another takeoff app: an Excel or CSV export, or rows you copied">Import</button>
         <button class="btn sm primary" id="addCountBtn" type="button">+ Add type</button></span>
       </div>
       <ul class="cnt-list" id="cntList"></ul>
@@ -1062,6 +1071,29 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <span class="spacer"></span>
       <button class="btn" type="button" id="schedCancel">Cancel</button>
       <button class="btn primary" type="submit" id="schedSave">Add to my toolbox</button>
+    </div>
+  </form>
+</div>
+
+<div class="modal" id="impModal" hidden role="dialog" aria-modal="true" aria-labelledby="impTitle">
+  <form class="modal-card wide" id="impForm" autocomplete="off">
+    <h2 id="impTitle">Import counts from another takeoff app</h2>
+    <p class="hint">In the other app, export the counts to Excel or CSV. Load that file here, or copy the rows (with their header row) and paste them in the box. Each line goes into one of your counts, so it shows on the count sheet, bid and proposal like counts you placed.</p>
+    <div class="imp-src">
+      <button class="btn primary" type="button" id="impFileBtn">Load a file</button><input type="file" id="impFile" accept=".xlsx,.xls,.csv,.txt" hidden>
+      <textarea id="impPaste" rows="2" placeholder="Or paste rows here"></textarea>
+      <button class="btn" type="button" id="impPasteBtn">Use pasted rows</button>
+    </div>
+    <div id="impBody" hidden>
+      <div class="imp-cols" id="impCols"></div>
+      <p class="hint" id="impMsg"></p>
+      <div class="sched-wrap"><table class="sched-tbl imp-tbl" id="impTbl"></table></div>
+    </div>
+    <div id="impPast"></div>
+    <div class="actions">
+      <span class="spacer"></span>
+      <button class="btn" type="button" id="impCancel">Cancel</button>
+      <button class="btn primary" type="submit" id="impSave" disabled>Add to my counts</button>
     </div>
   </form>
 </div>
@@ -1819,7 +1851,7 @@ const CATS = [
   { key: "fans", fam: "lights", shape: "circle", name: "Fans", mount: true, types: ["Wall exhaust fan", "Standard ceiling fan", "Big Ass Fan", "Bathroom exhaust fan", "Louvers"] },
   { key: "sw", fam: "switching", shape: "triangle", name: "Switches", types: ["Single-pole", "Double-pole", "3-way", "4-way", "Dimmer", "Keyed switch", "Timer switch"] },
   { key: "ctl", fam: "switching", shape: "triangle", name: "Lighting controls", amps: ["Lighting contactor"], types: ["Wall occupancy sensor", "Ceiling occupancy sensor", "Vacancy sensor", "Photocell", "Low-voltage wall station", "Power pack/relay", "Lighting control panel", "Lighting contactor"] },
-  { key: "rcp", fam: "recept", shape: "square", name: "Standard receptacles", types: ["Duplex", "Quad", "GFCI", "WR GFCI", "Dedicated receptacle", "Dedicated GFCI", "Hospital-grade duplex", "Hospital-grade GFCI", "Isolated-ground duplex", "USB receptacle", "Ceiling receptacle", "Floor receptacle", "Poke-through receptacle", "Countertop receptacle", "Countertop GFCI"] },
+  { key: "rcp", fam: "recept", shape: "square", name: "Standard receptacles", types: ["Duplex", "Quad", "GFCI", "WR GFCI", "Dedicated receptacle", "Dedicated GFCI", "Hospital-grade duplex", "Hospital-grade GFCI", "Isolated-ground duplex", "USB receptacle"] },
   { key: "spec", fam: "recept", shape: "square", name: "Specialty receptacles", amps: "all", types: ["Twist-lock", "Equipment receptacle", "Welder", "Range", "Dryer", "Washer", "RV", "EV charging outlet", "Water heater", "Plasma cutter", "Forklift charger", "Dedicated drop"] },
   { key: "rmt", fam: "recept", shape: "square", name: "Receptacle mounting", types: ["Wall box", "Floor box", "Poke-through", "Surface box", "Ceiling box", "Junction box"] },
   { key: "lv", fam: "lowv", shape: "diamond", name: "Low-voltage / communications", types: ["Data outlet", "Telephone outlet", "Coax outlet", "Wireless access point", "Camera", "Card reader", "Door contact", "Request-to-exit device", "Speaker", "Intercom"] },
@@ -2018,7 +2050,7 @@ function renderCounts() {
     const sk = secKey(d), isClosed = closed.includes(sk);
     if (sk !== lastSec) {
       lastSec = sk;
-      const tot = all.filter(x => secKey(x) === sk).reduce((t, x) => t + pages.reduce((a, pg) => a + qtyOn(pg, x.id), 0), 0);
+      const tot = all.filter(x => secKey(x) === sk).reduce((t, x) => t + pages.reduce((a, pg) => a + qtyOn(pg, x.id), 0) + impQty(x.id), 0);
       const h = document.createElement("li"); h.className = "cnt-sec";
       const hb = document.createElement("button"); hb.type = "button"; hb.setAttribute("aria-expanded", !isClosed);
       hb.innerHTML = `<span class="chev">▾</span>${esc(secName(sk))}<span class="sn">${tot}</span>`;
@@ -2034,8 +2066,8 @@ function renderCounts() {
       on.onclick = () => { if (only) hideSecs.clear(); else { hideSecs.clear(); others.forEach(x => hideSecs.add(x)); } drawOverlay(); renderCounts(); };
       h.append(hb, eye, on); ul.appendChild(h);
     }
-    if (isClosed) { const nS = p ? qtyOn(p, d.id) : 0, nA = pages.reduce((t, pg) => t + qtyOn(pg, d.id), 0); sheetTot += nS; allTot += nA; return; }
-    const nS = p ? qtyOn(p, d.id) : 0, nA = pages.reduce((t, pg) => t + qtyOn(pg, d.id), 0);
+    if (isClosed) { const nS = p ? qtyOn(p, d.id) : 0, nA = pages.reduce((t, pg) => t + qtyOn(pg, d.id), 0) + impQty(d.id); sheetTot += nS; allTot += nA; return; }
+    const nS = p ? qtyOn(p, d.id) : 0, nA = pages.reduce((t, pg) => t + qtyOn(pg, d.id), 0) + impQty(d.id);
     sheetTot += nS; allTot += nA;
     const li = document.createElement("li"); li.className = "cnt";
     const b = document.createElement("button"); b.type = "button"; b.className = "cnt-main";
@@ -2943,14 +2975,18 @@ let tsView = "count";
 const esc = t => String(t).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
 const sheetName = (pg, i) => pg.name || `Sheet ${String(i + 1).padStart(3, "0")}`;
 function takeoffRows() {
-  const counts = [], foot = [];
+  const counts = [], foot = [], impRuns = [];
   const items = countsList().map(c => devInfo(c.id));
   const legacy = Object.values(DEVICES).filter(d => pages.some(pg => countOn(pg, d.id)));
   [...items, ...legacy].forEach(d => {
     const by = pages.map((pg, i) => [sheetName(pg, i), qtyOn(pg, d.id)]).filter(x => x[1]);
     const per = d.group === "misc" ? Math.max(0, +d.miscQty || 1) : 1;
     if (per !== 1) by.forEach(x => { x[1] = Math.round(x[1] * per * 100) / 100; });
-    let qty = by.reduce((t, x) => t + x[1], 0);
+    impBy(d.id).forEach(x => by.push(x));
+    let qty = Math.round(by.reduce((t, x) => t + x[1], 0) * 100) / 100;
+    // imported conduit, wire or MC footage goes on the conduit & wire list, priced like drawn runs
+    const ci = d.custom && countsList().find(c => c.id === d.id);
+    if (ci && ci.impRun) { if (qty) impRuns.push({ id: d.id, sup: ci.impRun, label: ci.label || ci.impRun, qty, color: d.color }); return; }
     // a panel read from its schedule shows on the sheets even before it's placed on the plan
     if (!qty) { const c0 = countsList().find(c => c.id === d.id); if (c0 && c0.brk && c0.brk.length) { by.push(["Not placed on the plan yet", 1]); qty = 1; } }
     if (!qty) return;
@@ -2959,6 +2995,7 @@ function takeoffRows() {
   });
   const lfOf = id => pages.reduce((t, pg) => t + (pg.ftPerPx ? pg.runs.filter(r => (r.typeId || null) === id && inScope(r)).reduce((a, r) => a + runPx(pg, r) * pg.ftPerPx, 0) : 0), 0);
   const ex = extraOf();
+  impRuns.forEach(r => foot.push({ key: "imp:" + r.id, label: r.label, sub: "Imported from another takeoff app", base: r.qty, pct: +ex["imp:" + r.id] || 0, sup: r.sup, color: r.color }));
   wiresList().forEach(w => {
     const lf = lfOf(w.id);
     if (!lf) return;
@@ -3005,7 +3042,7 @@ function takeoffRows() {
   const drops = new Map();
   countsList().forEach(c => {
     if (!c.drop) return;
-    const n = pages.reduce((t, pg) => t + qtyOn(pg, c.id), 0); if (!n) return;
+    const n = pages.reduce((t, pg) => t + qtyOn(pg, c.id), 0) + impQty(c.id); if (!n) return;
     const what = c.kindName && c.kindName !== "Conduit drop" ? c.kindName.toLowerCase() : "fire alarm drops";
     const key = `drop:${c.drop.size}|${c.drop.conduit}|${what}`, cur = drops.get(key) || { size: c.drop.size, conduit: c.drop.conduit, what, n: 0, lf: 0, parts: [] };
     cur.n += n; cur.lf += n * c.drop.len; cur.parts.push(`${n} × ${c.drop.len}'`); drops.set(key, cur);
@@ -3071,7 +3108,7 @@ const bySection = counts => CATS.map(c => ({ k: c.key, title: c.name, rows: coun
   .concat([{ title: "Other", rows: counts.filter(c => c.group !== "dbo" && !GROUPS.some(g => g.key === c.group) && !catOf(c.group)) },
     { k: "dbo", title: "Breakers (design build options)", rows: counts.filter(c => c.group === "dbo") }]).filter(sec => sec.rows.length);
 // Jonathan's installation material assemblies (AJ v29 sheet): parts per item, 0 = quantity by layout
-const ASSEMBLIES = {"rcp|Ceiling receptacle":[[1,"Ceiling box"],[1,"Duplex cover plate"],[1,"Support bracket"],[1,"Ground stinger"],[2,"Cable/conduit connector"]],"rcp|Floor receptacle":[[1,"Floor box"],[1,"Floor-box cover"],[1,"Device mounting plate"],[1,"Ground stinger"],[2,"Conduit connector"]],"rcp|Poke-through receptacle":[[1,"Poke-through"],[1,"Cover"],[1,"Device mounting plate"],[1,"Grounding kit"],[2,"Conduit connector"]],"rcp|Countertop receptacle":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Duplex cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"rcp|Countertop GFCI":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Decorator cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"wall|Vanity light":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"wall|Wall sconce":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"wall|Bed / reading light":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"wall|Wall wash":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"wall|Linear wall bracket":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"wall|Step / stair light":[[1,"Step light back box"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"wall|Night / path light":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"wall|Picture light":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"wall|Interior wall pack":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"spec|Washer":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Decorator cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"rcp|Dedicated receptacle":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Duplex cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"rcp|Dedicated GFCI":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Decorator cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"ceil|2x4 lay-in":[[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"],[2,"Support wire"],[4,"Fixture clip"]],"ceil|2x2 lay-in":[[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"],[2,"Support wire"],[4,"Fixture clip"]],"ceil|1x4 lay-in":[[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"],[2,"Support wire"],[4,"Fixture clip"]],"ceil|Recessed downlight":[[1,"Mounting frame"],[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"]],"ceil|Surface-mount light":[[1,"4x4 box"],[1,"Blank cover"],[1,"Ground stinger"],[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"],[1,"Mounting kit"]],"ceil|Strip light":[[1,"4x4 box"],[1,"Blank cover"],[1,"Ground stinger"],[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"],[1,"Mounting kit"]],"ceil|Wraparound light":[[1,"4x4 box"],[1,"Blank cover"],[1,"Ground stinger"],[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"],[1,"Mounting kit"]],"ceil|Vapor-tight light":[[1,"4x4 box"],[1,"Blank cover"],[1,"Ground stinger"],[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"],[1,"Mounting kit"]],"open|High bay":[[1,"4x4 box"],[1,"Blank cover"],[1,"Ground stinger"],[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"],[1,"Mounting kit"],[0,"Hanging chain/cable"]],"open|Linear pendant":[[1,"4x4 box"],[1,"Blank cover"],[1,"Ground stinger"],[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"],[1,"Mounting kit"],[0,"Hanging chain/cable"]],"open|Decorative pendant":[[1,"4x4 box"],[1,"Blank cover"],[1,"Ground stinger"],[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"],[1,"Mounting kit"],[0,"Hanging chain/cable"]],"open|Chandelier":[[1,"Fixture-rated box"],[1,"Fixture support"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"open|Track light":[[0,"Track"],[0,"Track heads"],[1,"Feed connector"],[0,"End caps"],[0,"Track connectors"],[0,"Mounting screws"]],"ext|Wall pack":[[1,"Weatherproof box"],[1,"Gasket"],[2,"Weatherproof connector"],[1,"Ground stinger"],[0,"Mounting screws"]],"ext|Floodlight":[[1,"Weatherproof box"],[1,"Gasket"],[2,"Weatherproof connector"],[1,"Ground stinger"],[0,"Mounting screws"]],"ext|Canopy light":[[1,"Weatherproof box"],[1,"Gasket"],[2,"Weatherproof connector"],[1,"Ground stinger"],[0,"Mounting screws"]],"ext|Soffit light":[[1,"Weatherproof box"],[1,"Gasket"],[2,"Weatherproof connector"],[1,"Ground stinger"],[0,"Mounting screws"]],"ext|Gooseneck":[[1,"Weatherproof box"],[1,"Gasket"],[2,"Weatherproof connector"],[1,"Ground stinger"],[0,"Mounting screws"]],"ext|Pole light":[[1,"Pole"],[1,"Anchor bolt kit"],[1,"Mounting arm"],[0,"Wire connectors"],[0,"Grounding lug"]],"ext|Bollard":[[1,"Anchor bolt kit"],[0,"Wire connectors"],[0,"Grounding lug"]],"emer|Exit sign":[[1,"4x4 box"],[1,"Mounting plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"emer|Emergency battery light":[[1,"4x4 box"],[1,"Mounting plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"emer|Exit/emergency combo":[[1,"4x4 box"],[1,"Mounting plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"emer|Remote emergency head":[[1,"4x4 box"],[1,"Mounting plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"fans|Wall exhaust fan":[[1,"Mounting bracket"],[1,"Connection box"],[1,"Cover"],[1,"Ground stinger"],[1,"Flex whip"]],"fans|Bathroom exhaust fan":[[1,"Mounting bracket"],[1,"Connection box"],[1,"Cover"],[1,"Ground stinger"],[1,"Flex whip"]],"fans|Standard ceiling fan":[[1,"Fan-rated box"],[1,"Fan brace"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"fans|Big Ass Fan":[[1,"Mounting kit"],[1,"Safety cable"],[1,"Controller"],[0,"Control cable"],[1,"Disconnect"],[1,"Flex whip"]],"fans|Louvers":[[1,"Actuator connection box"],[1,"Cover"],[1,"Ground stinger"],[1,"Flex whip"]],"sw|Single-pole":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Switch cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"sw|Double-pole":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Switch cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"sw|3-way":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Switch cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"sw|4-way":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Switch cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"sw|Dimmer":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Switch cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"sw|Keyed switch":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Switch cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"sw|Timer switch":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Switch cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"ctl|Wall occupancy sensor":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Control cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"ctl|Vacancy sensor":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Control cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"ctl|Low-voltage wall station":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Control cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"ctl|Ceiling occupancy sensor":[[1,"4x4 box"],[1,"Sensor cover"],[1,"Box bracket"],[2,"MC pop-in connector"],[2,"MC strap"]],"ctl|Photocell":[[1,"Weatherproof box"],[1,"Cover"],[1,"Gasket"],[2,"Weatherproof connector"],[1,"Ground stinger"]],"ctl|Power pack/relay":[[1,"4x4 box"],[1,"Blank cover"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"ctl|Lighting control panel":[[0,"Mounting hardware"],[0,"Conduit connectors"],[0,"Bushings"],[0,"Wire connectors"]],"ctl|Lighting contactor":[[0,"Mounting hardware"],[0,"Conduit connectors"],[0,"Bushings"],[0,"Wire connectors"]],"rcp|Duplex":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Duplex cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"rcp|Quad":[[1,"4x4 box"],[1,"Two-gang mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Quad cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"rcp|GFCI":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Decorator cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"rcp|WR GFCI":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Decorator cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"rcp|Hospital-grade duplex":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Duplex cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"rcp|Hospital-grade GFCI":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Decorator cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"rcp|Isolated-ground duplex":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Duplex cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"rcp|USB receptacle":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Decorator cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"spec|Twist-lock":[[1,"Matching box"],[1,"Matching cover"],[1,"Box bracket"],[1,"Ground stinger"],[2,"Cable/conduit connector"],[2,"Strap"]],"spec|Equipment receptacle":[[1,"Matching box"],[1,"Matching cover"],[1,"Box bracket"],[1,"Ground stinger"],[2,"Cable/conduit connector"],[2,"Strap"]],"spec|Welder":[[1,"Matching box"],[1,"Matching cover"],[1,"Box bracket"],[1,"Ground stinger"],[2,"Cable/conduit connector"],[2,"Strap"]],"spec|Range":[[1,"Matching box"],[1,"Matching cover"],[1,"Box bracket"],[1,"Ground stinger"],[2,"Cable/conduit connector"],[2,"Strap"]],"spec|Dryer":[[1,"Matching box"],[1,"Matching cover"],[1,"Box bracket"],[1,"Ground stinger"],[2,"Cable/conduit connector"],[2,"Strap"]],"spec|RV":[[1,"Matching box"],[1,"Matching cover"],[1,"Box bracket"],[1,"Ground stinger"],[2,"Cable/conduit connector"],[2,"Strap"]],"spec|EV charging outlet":[[1,"Matching box"],[1,"Matching cover"],[1,"Box bracket"],[1,"Ground stinger"],[2,"Cable/conduit connector"],[2,"Strap"]],"spec|Water heater":[[1,"Connection box"],[1,"Blank cover"],[1,"Ground stinger"],[1,"Flex whip"],[0,"Wire connectors"]],"spec|Plasma cutter":[[1,"Matching box"],[1,"Matching cover"],[1,"Box bracket"],[1,"Ground stinger"],[2,"Cable/conduit connector"],[2,"Strap"]],"spec|Forklift charger":[[1,"Matching box"],[1,"Matching cover"],[1,"Box bracket"],[1,"Ground stinger"],[2,"Cable/conduit connector"],[2,"Strap"]],"spec|Dedicated drop":[[1,"Junction box"],[1,"Cover"],[1,"Ground stinger"],[1,"Cord connector"],[0,"Cord"],[1,"Cord cap/receptacle"],[0,"Support hardware"]],"rmt|Wall box":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"]],"rmt|Floor box":[[1,"Floor box"],[1,"Floor-box cover"],[1,"Device mounting plate"],[1,"Ground stinger"],[2,"Conduit connector"]],"rmt|Poke-through":[[1,"Poke-through"],[1,"Cover"],[1,"Device mounting plate"],[1,"Grounding kit"],[2,"Conduit connector"]],"rmt|Surface box":[[1,"Surface box"],[1,"Raised device cover"],[1,"Ground stinger"],[2,"Conduit connector"],[0,"Mounting screws"]],"rmt|Ceiling box":[[1,"Ceiling box"],[1,"Cover"],[1,"Support bracket"],[1,"Ground stinger"],[2,"Cable/conduit connector"]],"rmt|Junction box":[[1,"Junction box"],[1,"Blank cover"],[1,"Ground stinger"],[2,"Cable/conduit connector"],[0,"Mounting screws"]],"lv|Data outlet":[[1,"Low-voltage ring"],[1,"Cover plate"],[0,"Data jacks"]],"lv|Telephone outlet":[[1,"Low-voltage ring"],[1,"Cover plate"],[0,"Telephone jack"]],"lv|Coax outlet":[[1,"Low-voltage ring"],[1,"Cover plate"],[0,"Coax insert"]],"lv|Wireless access point":[[1,"Mounting bracket/backbox"],[0,"Mounting screws"],[0,"Cable connectors"]],"lv|Camera":[[1,"Mounting bracket/backbox"],[0,"Mounting screws"],[0,"Cable connectors"]],"lv|Card reader":[[1,"Mounting bracket/backbox"],[0,"Mounting screws"],[0,"Cable connectors"]],"lv|Door contact":[[0,"Mounting screws"],[0,"Wire connectors"]],"lv|Request-to-exit device":[[1,"Mounting bracket/backbox"],[0,"Mounting screws"],[0,"Cable connectors"]],"lv|Speaker":[[1,"Mounting bracket/backbox"],[0,"Mounting screws"],[0,"Cable connectors"]],"lv|Intercom":[[1,"Mounting bracket/backbox"],[0,"Mounting screws"],[0,"Cable connectors"]],"lvp|Empty conduit stub-up":[[1,"Conduit connector"],[0,"Couplings"],[0,"Straps"],[1,"End bushing"]],"lvp|Conduit with pull string":[[0,"Conduit connectors"],[0,"Couplings"],[0,"Straps"],[0,"End bushings"],[0,"Pull string"]],"lvp|Sleeve":[[0,"Sleeve"],[2,"End bushing"],[0,"Mounting hardware"],[0,"Firestop where needed"]],"lvp|Cable tray":[[0,"Cable tray"],[0,"Splice plates"],[0,"Support brackets"],[0,"Mounting hardware"],[0,"Bonding jumpers"]],"jhook|J-hook run":[[1,"Beam clamp or mounting screw"]],"fa|Pull station":[[1,"Device box"],[1,"Box bracket"],[0,"Cable/conduit connectors"],[0,"Mounting screws"]],"fa|Horn/strobe":[[1,"Device box"],[1,"Box bracket"],[0,"Cable/conduit connectors"],[0,"Mounting screws"]],"fa|Strobe":[[1,"Device box"],[1,"Box bracket"],[0,"Cable/conduit connectors"],[0,"Mounting screws"]],"fa|Smoke detector":[[1,"Detector base"],[1,"Box"],[1,"Box bracket"],[0,"Cable/conduit connectors"]],"fa|Heat detector":[[1,"Detector base"],[1,"Box"],[1,"Box bracket"],[0,"Cable/conduit connectors"]],"fa|Duct detector":[[1,"Sampling tube"],[1,"Connection box"],[0,"Cable/conduit connectors"],[0,"Mounting screws"]],"fa|Monitor module":[[1,"Device box"],[1,"Box bracket"],[0,"Cable/conduit connectors"],[0,"Mounting screws"]],"fa|Control module":[[1,"Device box"],[1,"Box bracket"],[0,"Cable/conduit connectors"],[0,"Mounting screws"]],"fa|Fire alarm panel":[[0,"Batteries"],[0,"Mounting hardware"],[0,"Conduit connectors"],[0,"Bushings"]],"fa|Conduit drop":[[2,"EMT connector"],[2,"EMT strap"],[2,"Mounting screw"]],"gr|Panel":[[0,"Breakers"],[0,"Mounting hardware"],[0,"Conduit connectors"],[0,"Bushings"],[0,"Grounding bar"]],"gr|Service entrance":[[0,"Mounting hardware"],[0,"Conduit hubs/connectors"],[0,"Bonding bushings"],[0,"Grounding parts"]],"gr|Disconnect":[[0,"Fuses if fused"],[0,"Mounting hardware"],[0,"Conduit connectors"],[0,"Bushings"],[0,"Grounding lug"]],"gr|Meter base":[[0,"Mounting hardware"],[0,"Hubs"],[0,"Conduit connectors"],[0,"Bushings"],[0,"Grounding parts"]],"gr|Transformer":[[0,"Mounting hardware"],[0,"Flex connectors"],[0,"Bushings"],[0,"Grounding lugs"],[0,"Bonding jumper"]],"emer|Wall-mount exit sign":[[1,"4x4 box"],[1,"Mounting plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"emer|Bug-eye emergency light":[[1,"4x4 box"],[1,"Mounting plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]]};
+const ASSEMBLIES = {"wall|Vanity light":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"wall|Wall sconce":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"wall|Bed / reading light":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"wall|Wall wash":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"wall|Linear wall bracket":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"wall|Step / stair light":[[1,"Step light back box"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"wall|Night / path light":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"wall|Picture light":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"wall|Interior wall pack":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"spec|Washer":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Decorator cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"rcp|Dedicated receptacle":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Duplex cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"rcp|Dedicated GFCI":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Decorator cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"ceil|2x4 lay-in":[[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"],[2,"Support wire"],[4,"Fixture clip"]],"ceil|2x2 lay-in":[[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"],[2,"Support wire"],[4,"Fixture clip"]],"ceil|1x4 lay-in":[[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"],[2,"Support wire"],[4,"Fixture clip"]],"ceil|Recessed downlight":[[1,"Mounting frame"],[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"]],"ceil|Surface-mount light":[[1,"4x4 box"],[1,"Blank cover"],[1,"Ground stinger"],[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"],[1,"Mounting kit"]],"ceil|Strip light":[[1,"4x4 box"],[1,"Blank cover"],[1,"Ground stinger"],[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"],[1,"Mounting kit"]],"ceil|Wraparound light":[[1,"4x4 box"],[1,"Blank cover"],[1,"Ground stinger"],[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"],[1,"Mounting kit"]],"ceil|Vapor-tight light":[[1,"4x4 box"],[1,"Blank cover"],[1,"Ground stinger"],[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"],[1,"Mounting kit"]],"open|High bay":[[1,"4x4 box"],[1,"Blank cover"],[1,"Ground stinger"],[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"],[1,"Mounting kit"],[0,"Hanging chain/cable"]],"open|Linear pendant":[[1,"4x4 box"],[1,"Blank cover"],[1,"Ground stinger"],[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"],[1,"Mounting kit"],[0,"Hanging chain/cable"]],"open|Decorative pendant":[[1,"4x4 box"],[1,"Blank cover"],[1,"Ground stinger"],[1,"Fixture whip (with 2 MC pop-in connectors)"],[2,"MC strap"],[1,"Mounting kit"],[0,"Hanging chain/cable"]],"open|Chandelier":[[1,"Fixture-rated box"],[1,"Fixture support"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"open|Track light":[[0,"Track"],[0,"Track heads"],[1,"Feed connector"],[0,"End caps"],[0,"Track connectors"],[0,"Mounting screws"]],"ext|Wall pack":[[1,"Weatherproof box"],[1,"Gasket"],[2,"Weatherproof connector"],[1,"Ground stinger"],[0,"Mounting screws"]],"ext|Floodlight":[[1,"Weatherproof box"],[1,"Gasket"],[2,"Weatherproof connector"],[1,"Ground stinger"],[0,"Mounting screws"]],"ext|Canopy light":[[1,"Weatherproof box"],[1,"Gasket"],[2,"Weatherproof connector"],[1,"Ground stinger"],[0,"Mounting screws"]],"ext|Soffit light":[[1,"Weatherproof box"],[1,"Gasket"],[2,"Weatherproof connector"],[1,"Ground stinger"],[0,"Mounting screws"]],"ext|Gooseneck":[[1,"Weatherproof box"],[1,"Gasket"],[2,"Weatherproof connector"],[1,"Ground stinger"],[0,"Mounting screws"]],"ext|Pole light":[[1,"Pole"],[1,"Anchor bolt kit"],[1,"Mounting arm"],[0,"Wire connectors"],[0,"Grounding lug"]],"ext|Bollard":[[1,"Anchor bolt kit"],[0,"Wire connectors"],[0,"Grounding lug"]],"emer|Exit sign":[[1,"4x4 box"],[1,"Mounting plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"emer|Emergency battery light":[[1,"4x4 box"],[1,"Mounting plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"emer|Exit/emergency combo":[[1,"4x4 box"],[1,"Mounting plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"emer|Remote emergency head":[[1,"4x4 box"],[1,"Mounting plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"fans|Wall exhaust fan":[[1,"Mounting bracket"],[1,"Connection box"],[1,"Cover"],[1,"Ground stinger"],[1,"Flex whip"]],"fans|Bathroom exhaust fan":[[1,"Mounting bracket"],[1,"Connection box"],[1,"Cover"],[1,"Ground stinger"],[1,"Flex whip"]],"fans|Standard ceiling fan":[[1,"Fan-rated box"],[1,"Fan brace"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"fans|Big Ass Fan":[[1,"Mounting kit"],[1,"Safety cable"],[1,"Controller"],[0,"Control cable"],[1,"Disconnect"],[1,"Flex whip"]],"fans|Louvers":[[1,"Actuator connection box"],[1,"Cover"],[1,"Ground stinger"],[1,"Flex whip"]],"sw|Single-pole":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Switch cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"sw|Double-pole":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Switch cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"sw|3-way":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Switch cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"sw|4-way":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Switch cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"sw|Dimmer":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Switch cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"sw|Keyed switch":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Switch cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"sw|Timer switch":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Switch cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"ctl|Wall occupancy sensor":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Control cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"ctl|Vacancy sensor":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Control cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"ctl|Low-voltage wall station":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Control cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"ctl|Ceiling occupancy sensor":[[1,"4x4 box"],[1,"Sensor cover"],[1,"Box bracket"],[2,"MC pop-in connector"],[2,"MC strap"]],"ctl|Photocell":[[1,"Weatherproof box"],[1,"Cover"],[1,"Gasket"],[2,"Weatherproof connector"],[1,"Ground stinger"]],"ctl|Power pack/relay":[[1,"4x4 box"],[1,"Blank cover"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"ctl|Lighting control panel":[[0,"Mounting hardware"],[0,"Conduit connectors"],[0,"Bushings"],[0,"Wire connectors"]],"ctl|Lighting contactor":[[0,"Mounting hardware"],[0,"Conduit connectors"],[0,"Bushings"],[0,"Wire connectors"]],"rcp|Duplex":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Duplex cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"rcp|Quad":[[1,"4x4 box"],[1,"Two-gang mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Quad cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"rcp|GFCI":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Decorator cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"rcp|WR GFCI":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Decorator cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"rcp|Hospital-grade duplex":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Duplex cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"rcp|Hospital-grade GFCI":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Decorator cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"rcp|Isolated-ground duplex":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Duplex cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"rcp|USB receptacle":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"],[1,"Decorator cover plate"],[2,"MC pop-in connector"],[2,"MC strap"]],"spec|Twist-lock":[[1,"Matching box"],[1,"Matching cover"],[1,"Box bracket"],[1,"Ground stinger"],[2,"Cable/conduit connector"],[2,"Strap"]],"spec|Equipment receptacle":[[1,"Matching box"],[1,"Matching cover"],[1,"Box bracket"],[1,"Ground stinger"],[2,"Cable/conduit connector"],[2,"Strap"]],"spec|Welder":[[1,"Matching box"],[1,"Matching cover"],[1,"Box bracket"],[1,"Ground stinger"],[2,"Cable/conduit connector"],[2,"Strap"]],"spec|Range":[[1,"Matching box"],[1,"Matching cover"],[1,"Box bracket"],[1,"Ground stinger"],[2,"Cable/conduit connector"],[2,"Strap"]],"spec|Dryer":[[1,"Matching box"],[1,"Matching cover"],[1,"Box bracket"],[1,"Ground stinger"],[2,"Cable/conduit connector"],[2,"Strap"]],"spec|RV":[[1,"Matching box"],[1,"Matching cover"],[1,"Box bracket"],[1,"Ground stinger"],[2,"Cable/conduit connector"],[2,"Strap"]],"spec|EV charging outlet":[[1,"Matching box"],[1,"Matching cover"],[1,"Box bracket"],[1,"Ground stinger"],[2,"Cable/conduit connector"],[2,"Strap"]],"spec|Water heater":[[1,"Connection box"],[1,"Blank cover"],[1,"Ground stinger"],[1,"Flex whip"],[0,"Wire connectors"]],"spec|Plasma cutter":[[1,"Matching box"],[1,"Matching cover"],[1,"Box bracket"],[1,"Ground stinger"],[2,"Cable/conduit connector"],[2,"Strap"]],"spec|Forklift charger":[[1,"Matching box"],[1,"Matching cover"],[1,"Box bracket"],[1,"Ground stinger"],[2,"Cable/conduit connector"],[2,"Strap"]],"spec|Dedicated drop":[[1,"Junction box"],[1,"Cover"],[1,"Ground stinger"],[1,"Cord connector"],[0,"Cord"],[1,"Cord cap/receptacle"],[0,"Support hardware"]],"rmt|Wall box":[[1,"4x4 box"],[1,"Mud plate"],[1,"Box bracket"],[1,"Ground stinger"]],"rmt|Floor box":[[1,"Floor box"],[1,"Floor-box cover"],[1,"Device mounting plate"],[1,"Ground stinger"],[2,"Conduit connector"]],"rmt|Poke-through":[[1,"Poke-through"],[1,"Cover"],[1,"Device mounting plate"],[1,"Grounding kit"],[2,"Conduit connector"]],"rmt|Surface box":[[1,"Surface box"],[1,"Raised device cover"],[1,"Ground stinger"],[2,"Conduit connector"],[0,"Mounting screws"]],"rmt|Ceiling box":[[1,"Ceiling box"],[1,"Cover"],[1,"Support bracket"],[1,"Ground stinger"],[2,"Cable/conduit connector"]],"rmt|Junction box":[[1,"Junction box"],[1,"Blank cover"],[1,"Ground stinger"],[2,"Cable/conduit connector"],[0,"Mounting screws"]],"lv|Data outlet":[[1,"Low-voltage ring"],[1,"Cover plate"],[0,"Data jacks"]],"lv|Telephone outlet":[[1,"Low-voltage ring"],[1,"Cover plate"],[0,"Telephone jack"]],"lv|Coax outlet":[[1,"Low-voltage ring"],[1,"Cover plate"],[0,"Coax insert"]],"lv|Wireless access point":[[1,"Mounting bracket/backbox"],[0,"Mounting screws"],[0,"Cable connectors"]],"lv|Camera":[[1,"Mounting bracket/backbox"],[0,"Mounting screws"],[0,"Cable connectors"]],"lv|Card reader":[[1,"Mounting bracket/backbox"],[0,"Mounting screws"],[0,"Cable connectors"]],"lv|Door contact":[[0,"Mounting screws"],[0,"Wire connectors"]],"lv|Request-to-exit device":[[1,"Mounting bracket/backbox"],[0,"Mounting screws"],[0,"Cable connectors"]],"lv|Speaker":[[1,"Mounting bracket/backbox"],[0,"Mounting screws"],[0,"Cable connectors"]],"lv|Intercom":[[1,"Mounting bracket/backbox"],[0,"Mounting screws"],[0,"Cable connectors"]],"lvp|Empty conduit stub-up":[[1,"Conduit connector"],[0,"Couplings"],[0,"Straps"],[1,"End bushing"]],"lvp|Conduit with pull string":[[0,"Conduit connectors"],[0,"Couplings"],[0,"Straps"],[0,"End bushings"],[0,"Pull string"]],"lvp|Sleeve":[[0,"Sleeve"],[2,"End bushing"],[0,"Mounting hardware"],[0,"Firestop where needed"]],"lvp|Cable tray":[[0,"Cable tray"],[0,"Splice plates"],[0,"Support brackets"],[0,"Mounting hardware"],[0,"Bonding jumpers"]],"jhook|J-hook run":[[1,"Beam clamp or mounting screw"]],"fa|Pull station":[[1,"Device box"],[1,"Box bracket"],[0,"Cable/conduit connectors"],[0,"Mounting screws"]],"fa|Horn/strobe":[[1,"Device box"],[1,"Box bracket"],[0,"Cable/conduit connectors"],[0,"Mounting screws"]],"fa|Strobe":[[1,"Device box"],[1,"Box bracket"],[0,"Cable/conduit connectors"],[0,"Mounting screws"]],"fa|Smoke detector":[[1,"Detector base"],[1,"Box"],[1,"Box bracket"],[0,"Cable/conduit connectors"]],"fa|Heat detector":[[1,"Detector base"],[1,"Box"],[1,"Box bracket"],[0,"Cable/conduit connectors"]],"fa|Duct detector":[[1,"Sampling tube"],[1,"Connection box"],[0,"Cable/conduit connectors"],[0,"Mounting screws"]],"fa|Monitor module":[[1,"Device box"],[1,"Box bracket"],[0,"Cable/conduit connectors"],[0,"Mounting screws"]],"fa|Control module":[[1,"Device box"],[1,"Box bracket"],[0,"Cable/conduit connectors"],[0,"Mounting screws"]],"fa|Fire alarm panel":[[0,"Batteries"],[0,"Mounting hardware"],[0,"Conduit connectors"],[0,"Bushings"]],"fa|Conduit drop":[[2,"EMT connector"],[2,"EMT strap"],[2,"Mounting screw"]],"gr|Panel":[[0,"Breakers"],[0,"Mounting hardware"],[0,"Conduit connectors"],[0,"Bushings"],[0,"Grounding bar"]],"gr|Service entrance":[[0,"Mounting hardware"],[0,"Conduit hubs/connectors"],[0,"Bonding bushings"],[0,"Grounding parts"]],"gr|Disconnect":[[0,"Fuses if fused"],[0,"Mounting hardware"],[0,"Conduit connectors"],[0,"Bushings"],[0,"Grounding lug"]],"gr|Meter base":[[0,"Mounting hardware"],[0,"Hubs"],[0,"Conduit connectors"],[0,"Bushings"],[0,"Grounding parts"]],"gr|Transformer":[[0,"Mounting hardware"],[0,"Flex connectors"],[0,"Bushings"],[0,"Grounding lugs"],[0,"Bonding jumper"]],"emer|Wall-mount exit sign":[[1,"4x4 box"],[1,"Mounting plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]],"emer|Bug-eye emergency light":[[1,"4x4 box"],[1,"Mounting plate"],[1,"Box bracket"],[1,"Ground stinger"],[2,"MC pop-in connector"],[2,"MC strap"]]};
 // Jonathan's own changes to the parts lists, kept on this device for every job
 let asmEditsCache = null;
 function asmEdits() {
@@ -3080,7 +3117,7 @@ function asmEdits() {
 }
 function saveAsmEdits() { try { localStorage.setItem("aj-asm-edits", JSON.stringify(asmEdits())); } catch (e) {} }
 const asmFor = key => asmEdits()[key] || ASSEMBLIES[key] || [];
-const PRICE_BY_DESC = ["rmt|Floor box", "rmt|Poke-through", "rmt|Ceiling box", "rcp|Floor receptacle", "rcp|Poke-through receptacle"];
+const PRICE_BY_DESC = ["rmt|Floor box", "rmt|Poke-through", "rmt|Ceiling box"];
 function supplierRows() {
   const { counts, foot } = takeoffRows(), mat = new Map(), parts = new Map(), need = new Map(), fit = new Map();
   foot.filter(f => f.sup).forEach(f => mat.set(f.sup, (mat.get(f.sup) || 0) + f.total));
@@ -3142,7 +3179,6 @@ const DEV_LABOR = {
   "sw|Single-pole": "sw", "sw|Double-pole": "sw", "sw|3-way": "sw3", "sw|4-way": "sw4", "sw|Dimmer": "dim", "sw|Keyed switch": "sw", "sw|Timer switch": "sw",
   "ctl|Wall occupancy sensor": "occ", "ctl|Ceiling occupancy sensor": "occc", "ctl|Vacancy sensor": "vac", "ctl|Power pack/relay": "pp", "ctl|Lighting contactor": "contactor",
   "rcp|Duplex": "dup", "rcp|Dedicated receptacle": "ded", "rcp|Dedicated GFCI": "dedgfci", "rcp|Quad": "quad", "rcp|GFCI": "gfci", "rcp|WR GFCI": "gfci", "rcp|Hospital-grade duplex": "dupmed", "rcp|Hospital-grade GFCI": "dupmed", "rcp|Isolated-ground duplex": "dup", "rcp|USB receptacle": "dup",
-  "rcp|Ceiling receptacle": "dup", "rcp|Floor receptacle": "floor1", "rcp|Poke-through receptacle": "floor1", "rcp|Countertop receptacle": "dup", "rcp|Countertop GFCI": "gfci",
   "spec|Dryer": "dryer", "spec|Range": "oven", "rmt|Junction box": "jbox", "rmt|Floor box": "floor1",
   "lv|Data outlet": "data", "lv|Card reader": "card", "fa|Fire alarm panel": "facp", "fa|Monitor module": "famod", "fa|Control module": "famod"
 };
@@ -4204,6 +4240,207 @@ function renderTakeoff() {
     });
   }
 }
+/* Import counts (Jonathan 2026-10-29): counts made in another takeoff app, exported to Excel or CSV or copied and pasted,
+   come in as this job's counts so they go on the count sheet, bid and proposal like counts placed here.
+   job.imports = [{ id, name, at, co, made: [count ids it created], rows: [{ cid, qty, sheet }] }]. Removing an import takes its quantities back out. */
+let exampleImports = [], impState = null;
+const impList = () => job ? (job.imports || (job.imports = [])) : exampleImports;
+const impBy = id => {
+  const m = new Map();
+  impList().forEach(im => { if ((im.co || null) !== (coScope || null)) return; im.rows.forEach(r => { if (r.cid !== id || !r.qty) return; const k = r.sheet ? `${r.sheet} (imported)` : `Imported · ${im.name}`; m.set(k, (m.get(k) || 0) + r.qty); }); });
+  return [...m].map(([k, q]) => [k, Math.round(q * 100) / 100]);
+};
+const impQty = id => impBy(id).reduce((t, x) => t + x[1], 0);
+const impNum = v => { if (typeof v === "number") return v; const m = String(v || "").replace(/,/g, "").trim().match(/^-?\d*\.?\d+/); return m ? +m[0] : NaN; };
+const impTxt = v => String(v == null ? "" : v).replace(/\s+/g, " ").trim();
+const impUnit = u => /^(lf|ft|feet|foot|lin\.?\s*ft|'|l\.f\.|m)$/i.test(impTxt(u)) ? "LF" : "ea";
+// what kind of count a line is, from its words. Lights fall through to the schedule reader's rules.
+const IMP_RULES = [
+  [/fire alarm (control )?panel|\bfacp\b|annunciator/i, "fa", "Fire alarm panel"], [/pull station|manual station/i, "fa", "Pull station"], [/horn.?strobe|\bh\/s\b/i, "fa", "Horn/strobe"], [/strobe/i, "fa", "Strobe"],
+  [/duct (smoke )?det/i, "fa", "Duct detector"], [/smoke/i, "fa", "Smoke detector"], [/heat det/i, "fa", "Heat detector"], [/monitor module/i, "fa", "Monitor module"], [/control module|relay module/i, "fa", "Control module"],
+  [/lighting control panel/i, "ctl", "Lighting control panel"], [/contactor/i, "ctl", "Lighting contactor"], [/vacancy/i, "ctl", "Vacancy sensor"], [/ceiling.*(occ|motion)|(occ|motion).*ceiling/i, "ctl", "Ceiling occupancy sensor"],
+  [/occupancy|occ\.? sensor|motion sensor/i, "ctl", "Wall occupancy sensor"], [/photo ?cell|photo ?sensor/i, "ctl", "Photocell"], [/power pack|\brelay\b/i, "ctl", "Power pack/relay"], [/low.?voltage (wall )?station|lv station|keypad/i, "ctl", "Low-voltage wall station"],
+  [/disconnect|safety switch|\bdisc\b/i, "gr", "Disconnect"], [/transformer|xfmr/i, "gr", "Transformer"], [/meter (base|socket)|\bmeter\b/i, "gr", "Meter base"], [/service entrance/i, "gr", "Service entrance"], [/panel|panelboard|load ?center|switchboard|\bmdp\b/i, "gr", "Panel"],
+  [/ev charg|evse|electric vehicle/i, "spec", "EV charging outlet"], [/welder/i, "spec", "Welder"], [/\brange\b/i, "spec", "Range"], [/dryer/i, "spec", "Dryer"], [/washer/i, "spec", "Washer"], [/water heater/i, "spec", "Water heater"],
+  [/twist.?lock|\bl\d{1,2}-\d{2}/i, "spec", "Twist-lock"], [/\brv\b/i, "spec", "RV"], [/forklift/i, "spec", "Forklift charger"], [/plasma/i, "spec", "Plasma cutter"],
+  [/request.?to.?exit|\brex\b/i, "lv", "Request-to-exit device"], [/\bdata\b|cat ?[56]|network|\brj-?45/i, "lv", "Data outlet"], [/phone|\btel\b|voice/i, "lv", "Telephone outlet"], [/coax|catv|\btv\b/i, "lv", "Coax outlet"],
+  [/access point|\bwap\b|wireless|wi-?fi/i, "lv", "Wireless access point"], [/camera|cctv/i, "lv", "Camera"], [/card reader/i, "lv", "Card reader"], [/door contact/i, "lv", "Door contact"], [/speaker/i, "lv", "Speaker"], [/intercom/i, "lv", "Intercom"],
+  [/floor box/i, "rmt", "Floor box"], [/poke.?thr/i, "rmt", "Poke-through"], [/junction|j-?box/i, "rmt", "Junction box"], [/cable tray/i, "lvp", "Cable tray"], [/sleeve/i, "lvp", "Sleeve"], [/stub/i, "lvp", "Empty conduit stub-up"],
+  [/big ass|hvls/i, "fans", "Big Ass Fan"], [/ceiling fan/i, "fans", "Standard ceiling fan"], [/exhaust fan|(bath|toilet).*fan|\bef-?\d/i, "fans", "Bathroom exhaust fan"], [/louver/i, "fans", "Louvers"],
+  [/(gfci|gfi).*(wp|weather|\bwr\b)|(wp|weather|\bwr\b).*(gfci|gfi)/i, "rcp", "WR GFCI"], [/hospital.*(gfci|gfi)/i, "rcp", "Hospital-grade GFCI"], [/hospital/i, "rcp", "Hospital-grade duplex"], [/isolated|\big\b/i, "rcp", "Isolated-ground duplex"],
+  [/usb/i, "rcp", "USB receptacle"], [/dedicated.*(gfci|gfi)/i, "rcp", "Dedicated GFCI"], [/gfci|gfi/i, "rcp", "GFCI"], [/quad|fourplex|double duplex/i, "rcp", "Quad"], [/dedicated/i, "rcp", "Dedicated receptacle"],
+  [/duplex|recep|outlet|convenience|\brecpt?\b/i, "rcp", "Duplex"],
+  [/dimmer/i, "sw", "Dimmer"], [/3.?way|three.?way/i, "sw", "3-way"], [/4.?way|four.?way/i, "sw", "4-way"], [/key(ed)? switch/i, "sw", "Keyed switch"], [/timer/i, "sw", "Timer switch"], [/double.?pole|2.?pole switch/i, "sw", "Double-pole"],
+  [/switch|\bsw\b|toggle|single.?pole/i, "sw", "Single-pole"]];
+const IMP_LIGHT = /light|lite\b|fixture|luminaire|lamp|\bled\b|troffer|downlight|\bcan\b|exit|emergency|high ?bay|wall ?pack|flood|sconce|pendant|bollard|strip|wrap|lay-?in|[12]\s*x\s*[24]/i;
+const IMP_RUN = /wire|cable|thhn|thwn|xhhw|\bmc\b|romex|nm-?b|conduit|\bemt\b|\bpvc\b|rigid|\brmc\b|\bimc\b|flex|seal ?tite|liquid ?tight|#\d+\s*(awg|cu|al)?\b/i;
+// a footage line as the supplier/labor name drawn runs use: 3/4" EMT conduit, 12/2 MC cable, #12 THHN copper wire
+function impRunSup(t) {
+  t = impTxt(t); let m;
+  if ((m = t.match(/(\d+(?:[- ]\d\/\d)?|\d\/\d)\s*(?:"|''|in\b\.?|inch)?\s*(emt|pvc(?:\s*(?:sch(?:edule)?\.?\s*)?(40|80))?|rigid|rmc|grc|imc)\b/i))) {
+    const ty = /emt/i.test(m[2]) ? "EMT" : /pvc/i.test(m[2]) ? (m[3] === "80" ? "PVC Sch 80" : "PVC Sch 40") : /imc/i.test(m[2]) ? "IMC" : "Rigid (RMC)";
+    return `${m[1].replace("-", " ")}" ${ty} conduit`;
+  }
+  if ((m = t.match(/#?(\d{1,2})\s*\/\s*(\d)\b[^,]*\bmc\b|\bmc\b[^,]*?#?(\d{1,2})\s*\/\s*(\d)\b/i))) return `${m[1] || m[3]}/${m[2] || m[4]} MC cable`;
+  if ((m = t.match(/#?\s*(\d{1,2}|[1-4]\/0)\s*(?:awg|ga)?\s*(thhn|thwn|xhhw|bare)|(thhn|thwn|xhhw|bare)[^#\d]*#?\s*(\d{1,2}|[1-4]\/0)/i))) {
+    const g = m[1] || m[4], ins = (m[2] || m[3]).toUpperCase(), al = /\b(al|alum|aluminum)\b/i.test(t);
+    return ins === "BARE" ? `#${g} bare copper wire` : `#${g} ${ins === "THWN" ? "THHN" : ins} ${al ? "aluminum" : "copper"} wire`;
+  }
+  return null;
+}
+const impLow = t => impTxt(t).toLowerCase().replace(/^type\s+/, "");
+function impGuess(it) {
+  const list = countsList(), tag = impLow(it.tag), txt = `${it.desc} ${it.tag}`;
+  // one of this job's counts already: same type letter, or the same name
+  const had = list.find(c => tag && [c.label, c.tag].some(x => impLow(x) === tag)) || list.find(c => { const n = impLow(it.desc); return n && [nameOf(devInfo(c.id)), c.label, c.desc].some(x => impLow(x) === n); });
+  if (had) return { to: "c:" + had.id, sure: true };
+  if (it.unit === "LF" || (IMP_RUN.test(txt) && !IMP_LIGHT.test(txt) && !IMP_RULES.some(r => r[0].test(txt)))) return { to: "m:One-off wire or cable", sure: it.unit === "LF" || IMP_RUN.test(txt) };
+  for (const [re, cat, t] of IMP_RULES) if (re.test(txt)) return { to: `n:${cat}|${t}`, sure: true };
+  if (IMP_LIGHT.test(txt) || (tag && /^[a-z]{1,3}-?\d{0,3}[a-z]?$/i.test(tag) && !it.desc)) { const g = guessKind(txt); return { to: "n:" + g.kind, sure: !!g.why }; }
+  return { to: "m:Misc item", sure: false };
+}
+// which column is which, from the header row
+function impHeader(rows) {
+  const isNum = v => impTxt(v) !== "" && !isNaN(impNum(v)) && /^[-\d.,\s]+[a-z'"]{0,4}$/i.test(impTxt(v));
+  for (let i = 0; i < Math.min(25, rows.length); i++) {
+    const r = rows[i] || [], txt = r.filter(v => impTxt(v) && !isNum(v)).length;
+    if (txt >= 2 && rows.slice(i + 1, i + 4).some(n => (n || []).some(isNum))) return i;
+  }
+  return -1;
+}
+function impGuessCols(rows, h) {
+  const heads = (rows[h] || []).map(impTxt), n = Math.max(...rows.map(r => (r || []).length), 0), data = rows.slice(h + 1, h + 60);
+  const find = (re, not = []) => { for (let c = 0; c < n; c++) if (!not.includes(c) && re.test(heads[c] || "")) return c; return -1; };
+  const numShare = c => data.filter(r => impTxt(r[c]) && !isNaN(impNum(r[c]))).length / Math.max(1, data.filter(r => impTxt(r[c])).length);
+  const avgLen = c => { const v = data.map(r => impTxt(r[c])).filter(Boolean); return v.length ? v.reduce((t, x) => t + x.length, 0) / v.length : 0; };
+  let qty = find(/^(qty\.?|quantity|count|total( qty| quantity| count)?|amount|measurement|takeoff qty|#|ea)$/i);
+  if (qty < 0) qty = find(/qty|quant|count|total/i);
+  if (qty < 0) { let best = -1, bs = .6; for (let c = 0; c < n; c++) { const s = numShare(c); if (s > bs) { bs = s; best = c; } } qty = best; }
+  const unit = find(/^(unit|units|uom|u\/m|um|measurement unit|unit of measure)$/i, [qty]);
+  const sheet = find(/sheet|page|drawing|dwg|^plan/i, [qty, unit]);
+  let tag = find(/^(tag|mark|symbol|type|fixture type|type mark|label|code|fixture)$/i, [qty, unit, sheet]);
+  if (tag >= 0 && avgLen(tag) > 8) tag = -1;
+  let desc = find(/desc|item|name|subject|material|product|condition|assembly|part|device|fixture|label/i, [qty, unit, sheet, tag]);
+  if (desc < 0) { let bl = 0; for (let c = 0; c < n; c++) if (![qty, unit, sheet, tag].includes(c) && numShare(c) < .5 && avgLen(c) > bl) { bl = avgLen(c); desc = c; } }
+  return { desc, qty, unit, tag, sheet };
+}
+function impItems() {
+  const { rows, h, cols } = impState, by = new Map(), get = (r, c) => c >= 0 ? impTxt(r[c]) : "";
+  rows.slice(h + 1).forEach(r => {
+    if (!r) return;
+    const desc = get(r, cols.desc), tag = get(r, cols.tag), qty = cols.qty >= 0 ? impNum(r[cols.qty]) : NaN;
+    if ((!desc && !tag) || !(qty > 0) || /^(sub|grand )?total\b/i.test(desc)) return;
+    const unitRaw = get(r, cols.unit) || (cols.qty >= 0 ? String(r[cols.qty]).replace(/^[-\d.,\s]+/, "") : "");
+    const unit = impUnit(unitRaw), key = [desc, tag, unit].join("|").toLowerCase();
+    const it = by.get(key) || { desc, tag, unit, qty: 0, sheets: new Map(), use: true };
+    const sh = get(r, cols.sheet); it.qty += qty; it.sheets.set(sh, (it.sheets.get(sh) || 0) + qty); by.set(key, it);
+  });
+  impState.items = [...by.values()].map(it => ({ ...it, qty: Math.round(it.qty * 100) / 100, ...impGuess(it) }));
+}
+function impLoad(rows, name) {
+  rows = (rows || []).map(r => (r || []).map(v => v == null ? "" : v)).filter(r => r.some(v => impTxt(v)));
+  if (!rows.length) return toast("That had no rows in it.");
+  let h = impHeader(rows);
+  if (h < 0) { rows.unshift(rows[0].map((v, i) => `Column ${String.fromCharCode(65 + i)}`)); h = 0; }
+  impState = { rows, h, name, cols: impGuessCols(rows, h) };
+  impItems(); impRender();
+}
+function impOptions() {
+  const fam = Object.fromEntries(FAMILIES);
+  let o = countsList().length ? `<optgroup label="This job's counts">${countsList().map(c => `<option value="c:${c.id}">${esc(nameOf(devInfo(c.id)))}</option>`).join("")}</optgroup>` : "";
+  o += `<optgroup label="Not in the toolbox"><option value="m:Misc item">Misc item (keeps the name from the file)</option><option value="m:One-off wire or cable">Wire, cable or conduit by the foot</option></optgroup>`;
+  CATS.filter(c => !c.misc).forEach(c => { o += `<optgroup label="New · ${esc(fam[c.fam] || "")}: ${esc(c.name)}">${c.types.map(t => `<option value="n:${c.key}|${esc(t)}">${esc(t)}</option>`).join("")}</optgroup>`; });
+  return o;
+}
+function impRender() {
+  const st = impState; $("impBody").hidden = !st; impPast();
+  if (!st) { $("impSave").disabled = true; return; }
+  const heads = st.rows[st.h].map(impTxt), colSel = (f, lab) => `<label>${lab}<select data-col="${f}"><option value="-1">(none)</option>${heads.map((x, i) => `<option value="${i}"${st.cols[f] === i ? " selected" : ""}>${esc(x || "Column " + String.fromCharCode(65 + i))}</option>`).join("")}</select></label>`;
+  $("impCols").innerHTML = colSel("desc", "Description") + colSel("qty", "Quantity") + colSel("unit", "Unit") + colSel("tag", "Type / tag") + colSel("sheet", "Sheet");
+  $("impCols").querySelectorAll("select").forEach(el => el.onchange = () => { st.cols[el.dataset.col] = +el.value; impItems(); impRender(); });
+  const opts = impOptions(), unsure = st.items.filter(it => it.use && !it.sure).length;
+  $("impMsg").innerHTML = !st.items.length ? "No lines with a quantity were found. Pick the right Description and Quantity columns above."
+    : `<b>${st.items.length}</b> line${st.items.length === 1 ? "" : "s"} from ${esc(st.name)}. Check where each one goes${unsure ? `. The <b>${unsure}</b> in yellow were a guess` : ""}. Uncheck any you don't want.`;
+  $("impTbl").innerHTML = `<tr><th>Use</th><th>From the file</th><th>Qty</th><th>Goes into this count</th></tr>` + st.items.map((it, i) => {
+    const sh = [...it.sheets.keys()].filter(Boolean);
+    return `<tr class="${it.use ? "" : "off"}"><td><input type="checkbox" data-i="${i}" data-f="use"${it.use ? " checked" : ""}></td>
+      <td><b>${esc(it.desc || it.tag)}</b>${it.tag && it.desc ? `<small>Type ${esc(it.tag)}</small>` : ""}${sh.length ? `<small>${esc(sh.slice(0, 4).join(", "))}${sh.length > 4 ? "…" : ""}</small>` : ""}${it.unit === "LF" && impRunSup(`${it.desc} ${it.tag}`) ? `<small>Priced as ${esc(impRunSup(`${it.desc} ${it.tag}`))}</small>` : ""}</td>
+      <td class="q">${it.qty.toLocaleString()} ${it.unit === "LF" ? "ft" : ""}</td>
+      <td class="to"><select data-i="${i}" data-f="to" class="${it.sure ? "" : "sched-unsure"}">${opts}</select></td></tr>`;
+  }).join("");
+  $("impTbl").querySelectorAll('select[data-f="to"]').forEach(el => { el.value = st.items[el.dataset.i].to; el.onchange = () => { const it = st.items[el.dataset.i]; it.to = el.value; it.sure = true; el.classList.remove("sched-unsure"); }; });
+  $("impTbl").querySelectorAll('[data-f="use"]').forEach(el => el.onchange = () => { st.items[el.dataset.i].use = el.checked; el.closest("tr").className = el.checked ? "" : "off"; impCount(); });
+  impCount();
+}
+function impCount() { const n = impState ? impState.items.filter(it => it.use).length : 0; $("impSave").disabled = !n; $("impSave").textContent = n ? `Add ${n} line${n === 1 ? "" : "s"} to my counts` : "Add to my counts"; }
+function impPast() {
+  const list = impList().filter(im => (im.co || null) === (coScope || null));
+  $("impPast").innerHTML = list.length ? `<b>Already imported into this ${coScope ? "change order" : "job"}</b>` + list.map(im => `<div class="imp-row"><span>${esc(im.name)} · ${new Date(im.at).toLocaleDateString()} · ${im.rows.length} line${im.rows.length === 1 ? "" : "s"}</span><button class="btn sm" type="button" data-rm="${im.id}">Remove</button></div>`).join("") : "";
+  $("impPast").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => {
+    if (b.dataset.armed !== "1") { b.dataset.armed = "1"; b.textContent = "Click again to remove its counts"; return; }
+    impRemove(b.dataset.rm);
+  });
+}
+function impRemove(id) {
+  const all = impList(), im = all.find(x => x.id === id); if (!im) return;
+  const rest = all.filter(x => x !== im);
+  if (job) job.imports = rest; else exampleImports = rest;
+  // counts this import made go too, unless they were placed on a sheet or another import uses them
+  const gone = new Set(im.made.filter(cid => !pages.some(pg => countOn(pg, cid)) && !rest.some(x => x.rows.some(r => r.cid === cid))));
+  if (gone.size) { if (job) job.counts = countsList().filter(c => !gone.has(c.id)); else exampleCounts = exampleCounts.filter(c => !gone.has(c.id)); }
+  if (job) { job.updated = new Date().toISOString(); saveJob(job); }
+  renderCounts(); drawOverlay(); impRender();
+  toast(`Removed ${im.name} from the counts.`);
+}
+async function impFile(f) {
+  let rows;
+  try { const X = await loadXlsx(), wb = X.read(await f.arrayBuffer(), { type: "array" }); rows = X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: true }); }
+  catch (e) { return toast("Couldn't read that file. Save it as Excel (.xlsx) or CSV and try again."); }
+  impLoad(rows, f.name);
+}
+function impText(t) {
+  t = String(t || "").replace(/\r/g, "").trim(); if (!t) return toast("Paste the rows in the box first.");
+  const lines = t.split("\n"), tab = lines.some(l => l.includes("\t"));
+  const csv = l => { const out = []; let cur = "", q = false; for (let i = 0; i < l.length; i++) { const ch = l[i]; if (q) { if (ch === '"' && l[i + 1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; } else if (ch === '"') q = true; else if (ch === ",") { out.push(cur); cur = ""; } else cur += ch; } out.push(cur); return out; };
+  impLoad(lines.map(l => tab ? l.split("\t") : csv(l)), "Pasted rows");
+}
+$("impBtn").onclick = () => { if (tool) setTool(null); impState = null; $("impPaste").value = ""; impRender(); $("impModal").hidden = false; };
+$("impFileBtn").onclick = () => $("impFile").click();
+$("impFile").onchange = () => { const f = $("impFile").files[0]; $("impFile").value = ""; if (f) impFile(f); };
+$("impPasteBtn").onclick = () => impText($("impPaste").value);
+$("impCancel").onclick = () => { $("impModal").hidden = true; };
+$("impModal").addEventListener("keydown", e => { if (e.key === "Escape") $("impModal").hidden = true; });
+$("impForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const st = impState; if (!st) return;
+  const use = st.items.filter(it => it.use && it.qty > 0); if (!use.length) return;
+  const list = countsList(), im = { id: uid(), name: st.name, at: new Date().toISOString(), co: coScope || null, made: [], rows: [] };
+  let made = 0;
+  use.forEach(it => {
+    let c = null;
+    if (it.to.startsWith("c:")) c = list.find(x => x.id === it.to.slice(2));
+    else if (it.to.startsWith("n:")) {
+      const [cat, kindName] = it.to.slice(2).split("|"), base = "C-" + cat, cdef = catOf(cat), label = it.tag || "";
+      const em = !!cdef && catEm(cdef, kindName) && /\bem\b|emergency|battery/i.test(it.desc);
+      c = list.find(x => x.base === base && x.kindName === kindName && impLow(x.label) === impLow(label) && !!x.em === em && !x.amps && !x.brk && !x.drop);
+      if (!c) {
+        c = { id: uid(), base, tag: "", desc: impLow(it.desc) === kindName.toLowerCase() ? "" : it.desc, color: PALETTE[list.length % PALETTE.length], maker: "", model: "", watts: isLightCat(cdef) ? String(LIGHT_W[kindName] || "") : "", mount: "", amps: "", kindName, label, em, ...(label && isLightCat(cdef) ? { sched: true } : {}) };
+        list.push(c); im.made.push(c.id); made++;
+      }
+    } else {
+      const kindName = it.to.slice(2), unit = kindName === "One-off wire or cable" ? "LF" : it.unit, label = (it.desc || it.tag).slice(0, 60);
+      c = list.find(x => x.base === "C-misc" && x.kindName === kindName && impLow(x.label) === impLow(label) && (x.miscUnit || "ea") === unit);
+      const run = unit === "LF" ? impRunSup(`${it.desc} ${it.tag}`) : null;
+      if (!c) { c = { id: uid(), base: "C-misc", tag: "", desc: "", color: PALETTE[list.length % PALETTE.length], amps: "", kindName, label, miscQty: 1, miscUnit: unit, sup: true, ...(run ? { impRun: run } : {}) }; list.push(c); im.made.push(c.id); made++; }
+    }
+    if (!c) return;
+    it.sheets.forEach((q, sh) => im.rows.push({ cid: c.id, qty: Math.round(q * 100) / 100, sheet: sh }));
+  });
+  impList().push(im);
+  if (job) { job.updated = new Date().toISOString(); saveJob(job); }
+  $("impModal").hidden = true; renderCounts(); drawOverlay();
+  toast(`Imported ${use.length} line${use.length === 1 ? "" : "s"}${made ? ` (${made} new count${made === 1 ? "" : "s"})` : ""}. They're in your counts and on the count sheet. To take them back out, click Import and Remove.`);
+});
 /* Typical rooms on the count sheet: what's marked in one room first, then that times the number of rooms */
 function roomBreak() {
   const devs = [...countsList().map(c => devInfo(c.id)), ...Object.values(DEVICES).filter(d => pages.some(pg => countOn(pg, d.id)))];
@@ -4482,7 +4719,6 @@ function label(g, x, y, text, cls) {
 function drawOverlay() {
   const svg = $("overlay"), p = pages[current];
   svg.replaceChildren();
-  renderSelInfo();
   if (!p) return;
   if (cmp) return drawCmpHandles(svg);
   const ns = { "vector-effect": "non-scaling-stroke" };
@@ -4702,31 +4938,10 @@ function renderSel() {
   if (p) [...sel].forEach(x => { if (!p.devices.includes(x) && !p.runs.includes(x) && !(x === lastMeasure && x.pageId === p.id)) sel.delete(x); });
   const n = sel.size;
   $("selBar").hidden = !n || !!tool || !!cmp;
-  renderSelInfo();
   if (!n) return;
   let d = 0, r = 0, m = 0; sel.forEach(x => x === lastMeasure ? m++ : "t" in x ? d++ : r++);
   $("selText").textContent = [d && `${d} symbol${d > 1 ? "s" : ""}`, r && `${r} run${r > 1 ? "s" : ""}`, m && "the measurement"].filter(Boolean).join(" and ") + " highlighted";
   $("selDelete").textContent = n > 1 ? `Delete all ${n}` : "Delete";
-}
-// the top bar spells out what's highlighted: a run's name, wire and length, or a symbol's name
-function renderSelInfo() {
-  const p = pages[current], box = $("selInfo"), n = sel.size;
-  box.hidden = !n || !p || !!tool || !!cmp;
-  if (box.hidden) return;
-  const runs = [...sel].filter(x => p.runs.includes(x)), devs = [...sel].filter(x => p.devices.includes(x));
-  const len = r => p.ftPerPx ? fmtLF(runPx(p, r) * p.ftPerPx) : "";
-  let txt;
-  if (n === 1 && runs.length) { const r = runs[0], w = wireOf(r.typeId); txt = [r.name, w && wireLabel(w), len(r)].filter(Boolean).join(" · "); }
-  else if (n === 1 && devs.length) { const d = devInfo(devs[0].t); txt = d ? (d.custom ? [nameOf(d), specOf(d)].filter(Boolean).join(" · ") : `${d.id} · ${d.maker} ${d.model}`) : "1 symbol"; }
-  else if (n === 1 && sel.has(lastMeasure)) txt = p.ftPerPx ? `Measurement · ${fmtFt(dist(...lastMeasure.pts) * p.ftPerPx)}` : "Measurement";
-  else if (n === 1) { box.hidden = true; return; }
-  else {
-    const parts = [devs.length && `${devs.length} symbol${devs.length > 1 ? "s" : ""}`, runs.length && `${runs.length} run${runs.length > 1 ? "s" : ""}${p.ftPerPx ? ` (${fmtLF(runs.reduce((t, r) => t + runPx(p, r) * p.ftPerPx, 0))})` : ""}`, sel.has(lastMeasure) && "the measurement"].filter(Boolean);
-    txt = parts.join(", ");
-  }
-  box.innerHTML = `<span class="k">Highlighted</span><span class="v"></span>`;
-  box.querySelector(".v").textContent = txt;
-  box.title = txt;
 }
 function deleteSel() {
   const p = pages[current]; if (!p || !sel.size) return;
@@ -5773,7 +5988,7 @@ async function runSync() {
     if (todo.length) { setDrive("busy", `Saving sheets to Drive… 0 of ${todo.length}`); await Promise.all([worker(), worker(), worker()]); }
     if (job !== j) return;
     setDrive("busy", "Saving to Drive…");
-    const data = { app: "aj-takeoff", v: 1, savedAt: new Date().toISOString(), job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, driveSheetsId: j.driveSheetsId, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [], extra: j.extra || {}, feed: j.feed || {}, supOver: j.supOver || {}, bid: j.bid || null, prop: j.prop || null, cos: j.cos || [] },
+    const data = { app: "aj-takeoff", v: 1, savedAt: new Date().toISOString(), job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, driveSheetsId: j.driveSheetsId, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [], extra: j.extra || {}, feed: j.feed || {}, supOver: j.supOver || {}, bid: j.bid || null, prop: j.prop || null, cos: j.cos || [], imports: j.imports || [] },
       pages: list.map(p => ({ id: p.id, fileId: p.fileId, ...meta(p) })) };
     const made = await drv("create_file", { title: `${safeName(j.name)} · ajjob ${j.id}.json`, parentId: root, textContent: JSON.stringify(data), contentMimeType: "application/json", disableConversionToGoogleType: true });
     const old = j.driveJsonId;
@@ -5887,7 +6102,7 @@ const APP_HOME = "https://aj-commercial-takeoff.vercel.app/";
 async function projectBlob() {
   const j = job, list = pages.filter(p => !p.example);
   const head = { app: "aj-takeoff", kind: "job-file", v: 1, savedAt: new Date().toISOString(),
-    job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [], extra: j.extra || {}, feed: j.feed || {}, supOver: j.supOver || {}, bid: j.bid || null, prop: j.prop || null, cos: j.cos || [] }, pages: [] };
+    job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [], extra: j.extra || {}, feed: j.feed || {}, supOver: j.supOver || {}, bid: j.bid || null, prop: j.prop || null, cos: j.cos || [], imports: j.imports || [] }, pages: [] };
   let at = 0;
   for (const p of list) {
     const { fileId, ...m } = meta(p);
