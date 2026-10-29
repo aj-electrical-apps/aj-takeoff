@@ -207,6 +207,8 @@ button { cursor: pointer; }
 #pnlModal .opt { min-width: 0; } #pnlModal .opt select, #pnlModal .opt input { width: 100%; min-width: 0; box-sizing: border-box; }
 #pnlModal .actions { flex-wrap: wrap; } #pnlTbl input { width: 70px; }
 .pnl-steps { margin: 0 0 8px; padding-left: 20px; }
+.pnl-rev { border: 1px solid #f08c00; background: rgb(255 244 230 / .6); border-radius: 8px; padding: 8px 10px; font-size: 13px; display: grid; gap: 4px; }
+.pnl-rev .ri { display: flex; gap: 8px; align-items: center; } .pnl-rev .ri span { flex: 1; }
 .pnl-tbl-wrap { overflow-x: auto; margin-top: 6px; }
 .ask-brk { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 6px 0; min-width: 0; max-width: 100%; overflow: hidden; }
 .brk-wrap { overflow-x: auto; }
@@ -548,7 +550,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v103</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v104</small></div>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
@@ -895,11 +897,13 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <div class="opt"><label for="pnlVolts">Voltage</label><select id="pnlVolts"></select></div>
       <div class="opt"><label for="pnlName">Panel name</label><input id="pnlName" placeholder="e.g. LS"></div>
     </div>
-    <div class="sched two">
+    <div class="sched three">
       <div class="opt"><label for="pnlFt">Avg feet per circuit</label><input type="number" id="pnlFt" min="0" max="2000" step="5" value="50"></div>
       <div class="opt"><label for="pnlHow">Wired with</label><select id="pnlHow"><option value="mc">MC cable</option><option value="conduit">EMT and wire</option></select></div>
+      <div class="opt"><label for="pnlMain">Main breaker</label><select id="pnlMain"></select></div>
     </div>
     <div class="pnl-tbl-wrap"><table class="brk-tbl" id="pnlTbl"></table></div>
+    <div class="pnl-rev" id="pnlRev" hidden></div>
     <p class="hint" id="pnlMsg"></p>
     <div class="actions">
       <button class="btn" type="button" id="pnlCancel">Cancel</button>
@@ -1097,7 +1101,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <div class="ask-brk">
       <b>Breakers in this panel</b>
       <p class="hint" style="margin:2px 0 6px">Pick each breaker size and how many. Wire and conduit fill in from the NEC (marked NEC) as a placeholder, with EMT for conduit. Change any of them. Each one adds its circuit parts times the average feet. Leave it empty if the items you place already carry their wiring.</p>
-      <div class="brk-wrap"><table class="brk-tbl"><thead><tr><th>Breaker</th><th>Poles</th><th>How many</th><th>Avg feet each</th><th>Wired with</th><th>Wire</th><th>Conduit size</th><th>Conduit type</th><th></th></tr></thead><tbody id="brkBody"></tbody></table></div>
+      <div class="brk-wrap"><table class="brk-tbl"><thead><tr><th>Breaker</th><th>Poles</th><th>How many</th><th>Avg feet each</th><th>Wired with</th><th>Wire</th><th>Conduit size</th><th>Conduit type</th><th>Status</th><th></th></tr></thead><tbody id="brkBody"></tbody></table></div>
       <button class="btn sm" type="button" id="brkAdd">+ Add breakers</button> <span class="hint" id="brkSum"></span>
     </div>
     <div class="sched three ask-misc">
@@ -2115,6 +2119,8 @@ const BRK_AMPS = [15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 80, 90, 100, 110, 125,
 let brkRows = [];
 const brkGauge = a => { const g = sizeForAmps("CU", a).gauge; return g === "14" ? "12" : g; };
 const brkSets = a => sizeForAmps("CU", a).sets; // parallel sets past 500 kcmil, each in its own conduit
+const brkSt = r => r.st || (r.spare ? "spare" : "new"); // new, spare (breaker, no wire), existing (not priced), space (nothing)
+const BRK_ST = { new: "New", spare: "Spare", existing: "Existing", space: "Space" };
 const brkNeu = r => r.neu != null ? !!r.neu : r.p === 1 || (r.p === 3 && r.a >= 100); // 3-pole 100A and up is likely a panel feeder: carry a neutral // NEC 310.16 75°C copper with 240.4(D), #12 smallest
 const brkWires = r => r.how === "mc" ? r.p + (brkNeu(r) ? 1 : 0) : r.p + (brkNeu(r) ? 1 : 0) + 1; // MC has its own ground; conduit counts a ground wire
 const BRK_GAUGES = ["12", "10", "8", "6", "4", "3", "2", "1", "1/0", "2/0", "3/0", "4/0", "250", "300", "350", "400", "500", "600"];
@@ -2128,7 +2134,7 @@ function brkSpec(r) {
 }
 // one circuit's parts: [qty, name, unit]. Conduit fittings match the supplier sheet (coupling every 10', strap every 3', 2 connectors per circuit)
 function brkParts(r) {
-  const sp = brkSpec(r), ft = (+r.ft || 0) * sp.sets; if (!ft) return [];
+  const sp = brkSpec(r), ft = brkSt(r) === "new" && !r.main ? (+r.ft || 0) * sp.sets : 0; if (!ft) return [];
   if (r.how === "mc") return [[ft, mcName({ method: "mc", gauge: sp.g, wires: brkWires(r) }), "ft"], [2, "MC connector", ""], [Math.ceil(ft / 6), "MC strap", ""]];
   const nm = `${sp.cs} ${sp.ct}`;
   return [[ft, `${nm} conduit`, "ft"], [ft * sp.hots, `${gaugeTxt(sp.g)} THHN copper wire`, "ft"], [ft, `${gaugeTxt(sp.egc)} THHN copper ground wire`, "ft"],
@@ -2147,21 +2153,27 @@ function renderBrk() {
     <td><input type="number" data-f="n" min="0" max="200" step="1" value="${r.n}"></td><td><input type="number" data-f="ft" min="0" max="2000" step="5" value="${r.ft}"></td>
     <td><select data-f="how"><option value="mc"${mc ? " selected" : ""}>MC</option><option value="conduit"${!mc ? " selected" : ""}>Conduit</option></select></td>
     <td><select data-f="g">${gOpts}</select></td><td><select data-f="cs"${mc ? " disabled" : ""}>${csOpts}</select></td><td><select data-f="ct"${mc ? " disabled" : ""}>${ctOpts}</select></td>
-    <td>${r.spare ? `<small class="hint">spare</small>` : ""}<button type="button" class="x" data-del="${i}" title="Remove" aria-label="Remove">×</button></td></tr>
-    <tr class="brk-parts" data-i="${i}"><td colspan="9">${r.spare ? "Spare: breaker only, no wire." : `<label class="brk-neu"><input type="checkbox" data-neu="${i}"${brkNeu(r) ? " checked" : ""}> Neutral</label> ${sp.sets > 1 ? `<b>${sp.sets} parallel sets.</b> ` : ""}` + (list ? `<b>Parts for ${n}:</b> ${list}` : "No wire (0 feet).")}</td></tr>`;
+    <td><select data-f="st" title="New is priced and wired. Spare is a breaker with no wire. Existing and Space aren't priced.">${Object.entries(BRK_ST).map(([k, v]) => `<option value="${k}"${brkSt(r) === k ? " selected" : ""}>${v}</option>`).join("")}</select></td><td><button type="button" class="x" data-del="${i}" title="Remove" aria-label="Remove">×</button></td></tr>
+    <tr class="brk-parts" data-i="${i}"><td colspan="10"><label class="brk-neu"><input type="checkbox" data-main="${i}"${r.main ? " checked" : ""}> Main breaker</label> ${r.main ? "The panel's main: counted once, no circuit wire." : brkSt(r) === "existing" ? "Existing: not priced." : brkSt(r) === "space" ? "Space: nothing to buy." : brkSt(r) === "spare" ? "Spare: breaker only, no wire." : `<label class="brk-neu"><input type="checkbox" data-neu="${i}"${brkNeu(r) ? " checked" : ""}> Neutral</label> ${sp.sets > 1 ? `<b>${sp.sets} parallel sets.</b> ` : ""}` + (list ? `<b>Parts for ${n}:</b> ${list}` : "No wire (0 feet).")}</td></tr>`;
   }).join("") || `<tr><td colspan="9" class="hint">No breakers yet.</td></tr>`;
   tb.querySelectorAll("[data-f]").forEach(el => el.onchange = () => {
     const r = brkRows[+el.closest("tr").dataset.i], f = el.dataset.f;
-    if (["how", "g", "cs", "ct"].includes(f)) { if (el.value) r[f] = el.value; else delete r[f]; } else r[f] = Math.max(0, +el.value || 0);
+    if (f === "st") { r.st = el.value; r.spare = el.value === "spare"; }
+    else if (["how", "g", "cs", "ct"].includes(f)) { if (el.value) r[f] = el.value; else delete r[f]; } else r[f] = Math.max(0, +el.value || 0);
     if (f === "p" && !r.p) r.p = 1;
     if (f === "a") { delete r.g; delete r.cs; } // new amps: back to the NEC sizes
     renderBrk();
   });
   tb.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { brkRows.splice(+b.dataset.del, 1); renderBrk(); });
+  tb.querySelectorAll("[data-main]").forEach(b => b.onchange = () => { brkRows[+b.dataset.main].main = b.checked; renderBrk(); });
   tb.querySelectorAll("[data-neu]").forEach(b => b.onchange = () => { brkRows[+b.dataset.neu].neu = b.checked; renderBrk(); });
   brkSum();
 }
-function brkSum() { const n = brkRows.reduce((t, r) => t + (+r.n || 0), 0), ft = brkRows.reduce((t, r) => t + (+r.n || 0) * (+r.ft || 0), 0); $("brkSum").textContent = n ? `${n} breakers · ${ft.toLocaleString()} ft of circuits` : ""; }
+function brkSum() {
+  const by = st => brkRows.filter(r => brkSt(r) === st && !r.main).reduce((t, r) => t + (+r.n || 0), 0), ft = brkRows.filter(r => brkSt(r) === "new" && !r.main).reduce((t, r) => t + (+r.n || 0) * (+r.ft || 0), 0);
+  const parts = [by("new") && `${by("new")} new`, by("spare") && `${by("spare")} spare`, by("existing") && `${by("existing")} existing (not priced)`, brkRows.some(r => r.main) && "main breaker"].filter(Boolean);
+  $("brkSum").textContent = parts.length ? `${parts.join(" · ")} · ${ft.toLocaleString()} ft of circuits` : "";
+}
 $("brkAdd").onclick = () => { const l = brkRows[brkRows.length - 1]; brkRows.push(l ? { ...l, n: 1 } : { a: 20, p: 1, n: 1, ft: 50, how: "mc" }); renderBrk(); const ins = $("brkBody").querySelectorAll('input[data-f="n"]'); if (ins.length) ins[ins.length - 1].select(); };
 /* Read panel (Jonathan 2026-10-28): pick the size, box the panel name, then box each TRIP / POLES column.
    Each "20A/1" style entry counts one breaker; a row whose description says SPARE counts as a spare (breaker, no wire).
@@ -2172,9 +2184,10 @@ const pnlBucket = () => [...pnl.tally.values()].sort((a, b) => a.p - b.p || a.a 
 function pnlOpen() {
   if (!pages.length) return;
   if (tool) setTool(null);
-  pnl = { name: "", tally: new Map(), cols: 0, step: null, pend: { p: [], a: [] }, ampBoxes: [] };
+  pnl = { name: "", tally: new Map(), cols: 0, step: null, pend: { p: [], a: [] }, ampBoxes: [], review: [], spaces: 0 };
   $("pnlAmps").innerHTML = ASK_AMPS.filter(a => a >= 60).map(a => `<option value="${a}">${a} A</option>`).join(""); $("pnlAmps").value = "200";
   $("pnlVolts").innerHTML = ASK_VOLTS.map(v => `<option>${v}</option>`).join(""); $("pnlVolts").value = ASK_VOLTS.includes("120/208V 3-phase") ? "120/208V 3-phase" : "120/240V";
+  $("pnlMain").innerHTML = `<option value="">No main (lugs only)</option>` + BRK_AMPS.filter(a => a >= 60).map(a => `<option value="${a}">${a}A main</option>`).join("");
   $("pnlName").value = ""; $("pnlMsg").textContent = ""; pnlRender(); $("pnlModal").hidden = false;
 }
 function pnlStep(step) {
@@ -2204,12 +2217,19 @@ async function pnlBox(pg, r) {
   } else {
     // Branch panels: "20A/1" in one TRIP / POLES column. Distribution panels: poles and trip in their own columns,
     // read in one box across both, or one box each (paired by row). "--" trip rows are spaces: no breaker.
-    let found = 0, spares = 0, spaces = 0, half = 0, ampBox = false;
-    const isSpare = cy => (pg.words || []).some(w => /spare/i.test(w[0]) && Math.abs(w[2] + w[4] / 2 - cy) < 8 && Math.abs(w[1] + w[3] / 2 - (r.x + r.w / 2)) < Math.max(r.w * 8, 600));
-    const add = (a, p, cy) => {
-      if (a < 10 || a > 1200 || p < 1 || p > 3) return;
-      const spare = isSpare(cy), k = `${a}|${p}`, b = pnl.tally.get(k) || { a, p, n: 0, sp: 0 };
-      b.n++; if (spare) { b.sp++; spares++; } pnl.tally.set(k, b); found++;
+    // each row's status (Jonathan's panel code 2026-10-29): new, spare (breaker, no wire), existing (not priced), space (nothing).
+    // Rows that don't read cleanly go on the Needs a look list instead of being guessed.
+    let found = 0, spares = 0, exist = 0, spaces = 0, half = 0, ampBox = false;
+    const onLine = (cy, re) => (pg.words || []).some(w => re.test(w[0]) && Math.abs(w[2] + w[4] / 2 - cy) < 8 && Math.abs(w[1] + w[3] / 2 - (r.x + r.w / 2)) < Math.max(r.w * 8, 600));
+    const add = (a, p, cy, frame) => {
+      if (!(p >= 1 && p <= 3)) return pnl.review.push({ why: `A row read ${p} poles, which isn't 1, 2 or 3.`, a, p: 0 });
+      if (frame && a > frame) return pnl.review.push({ why: `${a}A trip is bigger than its ${frame}A frame. Probably misread.`, a, p });
+      if (!BRK_AMPS.includes(a)) return pnl.review.push({ why: `${a}A isn't a standard breaker size. Probably misread.`, a, p });
+      const k = `${a}|${p}`, b = pnl.tally.get(k) || { a, p, n: 0, sp: 0, ex: 0 };
+      b.n++; found++;
+      if (onLine(cy, /^\(?(E|EX|EXIST|EXISTING|EXIST\.)\)?$/i)) { b.ex++; exist++; }
+      else if (onLine(cy, /spare/i)) { b.sp++; spares++; }
+      pnl.tally.set(k, b);
     };
     pnlLines(words).forEach(L => {
       const txt = L.w.map(w => w[0]).join(" "), m = txt.match(PNL_RX);
@@ -2217,7 +2237,7 @@ async function pnlBox(pg, r) {
       const amps = [...txt.matchAll(/(\d{2,4})\s*A(?![a-z])/gi)].map(x => +x[1]);
       if (amps.length) ampBox = true;
       const pm = txt.replace(/(\d{2,4})\s*A(?![a-z])/gi, " ").match(/(?:^|\s)([123])(?:\s*P)?(?=\s|$)/i), p = pm ? +pm[1] : 0;
-      if (amps.length && p) return add(amps[amps.length - 1], p, L.cy); // trip is the last amps on the line (frame size comes first)
+      if (amps.length && p) return add(amps[amps.length - 1], p, L.cy, amps.length > 1 ? amps[0] : 0); // trip is the last amps on the line (frame size comes first)
       if (p && /(^|\s)(-{1,3}|–|—)(\s|$)|space/i.test(txt)) { spaces++; return; }
       if (p) { pnl.pend.p.push({ cy: L.cy, h: L.h, v: p }); half++; return; }
       if (amps.length) { pnl.pend.a.push({ cy: L.cy, h: L.h, v: amps[amps.length - 1] }); half++; }
@@ -2231,27 +2251,42 @@ async function pnlBox(pg, r) {
     // poles with no trip inside a trip box already read ("--" rows) are spaces
     pnl.pend.p = pnl.pend.p.filter(P => { const sp = pnl.ampBoxes.some(B => P.cy >= B.y && P.cy <= B.y + B.h); if (sp) spaces++; return !sp; });
     const waitP = pnl.pend.a.length, waitA = pnl.pend.p.length;
-    pnl.cols++;
-    $("pnlMsg").textContent = found ? `Read ${found} breaker${found > 1 ? "s" : ""}${spares ? `, ${spares} marked spare` : ""}${spaces ? `, skipped ${spaces} space${spaces > 1 ? "s" : ""}` : ""}. ` + (waitA ? `Now box the TRIP column for ${waitA} more.` : waitP ? `Now box the POLES column for ${waitP} more.` : "Do the other side too, or Save panel.")
+    pnl.cols++; pnl.spaces += spaces;
+    $("pnlMsg").textContent = found ? `Read ${found} breaker${found > 1 ? "s" : ""}${spares ? `, ${spares} marked spare` : ""}${exist ? `, ${exist} marked existing` : ""}${spaces ? `, skipped ${spaces} space${spaces > 1 ? "s" : ""}` : ""}. ` + (waitA ? `Now box the TRIP column for ${waitA} more.` : waitP ? `Now box the POLES column for ${waitP} more.` : "Do the other side too, or Save panel.")
       : waitA ? `Read ${waitA} pole counts. Now click Read a breaker column and box the TRIP column.` : waitP ? `Read ${waitP} trip sizes. Now click Read a breaker column and box the POLES column.`
       : spaces ? `Only spaces in that box (${spaces}).` : "Didn't find any breakers in that box. Box the TRIP / POLES column, or the # OF POLES and TRIP columns.";
   }
   pnl.step = null; pnlRender(); $("pnlModal").hidden = false;
 }
 function pnlRender() {
-  const rows = pnl ? pnlBucket() : [], tot = rows.reduce((t, b) => t + b.n, 0);
-  $("pnlTbl").innerHTML = rows.length ? `<thead><tr><th>Breaker</th><th>Poles</th><th>How many</th><th>Spares (no wire)</th><th></th></tr></thead><tbody>` + rows.map(b => `<tr data-k="${b.a}|${b.p}"><td>${b.a}A</td><td>${b.p}-pole</td>
-    <td><input type="number" data-f="n" min="0" max="200" value="${b.n}"></td><td><input type="number" data-f="sp" min="0" max="200" value="${b.sp}"></td><td><button type="button" class="x" data-del="1" title="Remove">×</button></td></tr>`).join("") + `<tr><td colspan="2"><b>Total</b></td><td><b>${tot}</b></td><td></td><td></td></tr></tbody>`
+  const rows = pnl ? pnlBucket() : [], sum = f => rows.reduce((t, b) => t + (f(b) || 0), 0), nw = b => b.n - b.sp - b.ex;
+  $("pnlTbl").innerHTML = rows.length ? `<thead><tr><th>Breaker</th><th>Poles</th><th>Read</th><th>Spare (no wire)</th><th>Existing (not priced)</th><th>New (priced, wired)</th><th></th></tr></thead><tbody>` + rows.map(b => `<tr data-k="${b.a}|${b.p}"><td>${b.a}A</td><td>${b.p}-pole</td>
+    <td><input type="number" data-f="n" min="0" max="200" value="${b.n}"></td><td><input type="number" data-f="sp" min="0" max="200" value="${b.sp}"></td><td><input type="number" data-f="ex" min="0" max="200" value="${b.ex}"></td><td><b>${nw(b)}</b></td><td><button type="button" class="x" data-del="1" title="Remove">×</button></td></tr>`).join("")
+    + `<tr><td colspan="2"><b>Total</b></td><td><b>${sum(b => b.n)}</b></td><td>${sum(b => b.sp)}</td><td>${sum(b => b.ex)}</td><td><b>${sum(nw)}</b></td><td></td></tr>`
+    + (pnl.spaces ? `<tr><td colspan="7" class="hint">${pnl.spaces} space${pnl.spaces > 1 ? "s" : ""} skipped (nothing to buy).</td></tr>` : "") + `</tbody>`
     : `<tbody><tr><td class="hint">No breakers read yet.</td></tr></tbody>`;
-  $("pnlTbl").querySelectorAll("[data-f]").forEach(el => el.onchange = () => { const b = pnl.tally.get(el.closest("tr").dataset.k); b[el.dataset.f] = Math.max(0, parseInt(el.value, 10) || 0); if (b.sp > b.n) b.sp = b.n; pnlRender(); });
+  $("pnlTbl").querySelectorAll("[data-f]").forEach(el => el.onchange = () => { const b = pnl.tally.get(el.closest("tr").dataset.k); b[el.dataset.f] = Math.max(0, parseInt(el.value, 10) || 0); if (b.sp + b.ex > b.n) b.n = b.sp + b.ex; pnlRender(); });
   $("pnlTbl").querySelectorAll("[data-del]").forEach(el => el.onclick = () => { pnl.tally.delete(el.closest("tr").dataset.k); pnlRender(); });
+  // Needs a look: rows that didn't read cleanly, never counted until you say so
+  const rv = pnl ? pnl.review : [], lp = pnl ? pnl.pend.p.length : 0, la = pnl ? pnl.pend.a.length : 0;
+  $("pnlRev").hidden = !(rv.length || lp || la);
+  $("pnlRev").innerHTML = `<b>Needs a look (not counted)</b>` + rv.map((x, i) => `<div class="ri"><span>${esc(x.why)}</span>${x.a && x.p && BRK_AMPS.includes(x.a) ? `<button type="button" class="btn sm" data-ok="${i}">Count it as ${x.a}A ${x.p}-pole</button>` : ""}<button type="button" class="btn sm" data-no="${i}">Ignore</button></div>`).join("")
+    + (lp ? `<div class="ri"><span>${lp} row${lp > 1 ? "s" : ""} had poles but no trip read. Box the TRIP column, or add them by hand after saving.</span></div>` : "")
+    + (la ? `<div class="ri"><span>${la} row${la > 1 ? "s" : ""} had a trip but no poles read. Box the POLES column, or add them by hand after saving.</span></div>` : "");
+  $("pnlRev").querySelectorAll("[data-ok]").forEach(el => el.onclick = () => { const x = rv.splice(+el.dataset.ok, 1)[0], k = `${x.a}|${x.p}`, b = pnl.tally.get(k) || { a: x.a, p: x.p, n: 0, sp: 0, ex: 0 }; b.n++; pnl.tally.set(k, b); pnlRender(); });
+  $("pnlRev").querySelectorAll("[data-no]").forEach(el => el.onclick = () => { rv.splice(+el.dataset.no, 1); pnlRender(); });
 }
 function pnlSave() {
-  const name = $("pnlName").value.trim(), rows = pnlBucket().filter(b => b.n > 0);
+  const name = $("pnlName").value.trim(), rows = pnlBucket().filter(b => b.n > 0), main = +$("pnlMain").value || 0;
   if (!name) return toast("Type the panel name, or click Read the name.");
-  if (!rows.length) return toast("Read a breaker column first, or close this and add breakers by hand.");
+  if (!rows.length && !main) return toast("Read a breaker column first, or close this and add breakers by hand.");
   const ft = Math.max(0, +$("pnlFt").value || 0), how = $("pnlHow").value, brk = [];
-  rows.forEach(b => { if (b.n - b.sp > 0) brk.push({ a: b.a, p: b.p, n: b.n - b.sp, ft, how: b.a > 100 ? "conduit" : how }); if (b.sp) brk.push({ a: b.a, p: b.p, n: b.sp, ft: 0, how, spare: true }); }); // feeders past 100A go in conduit
+  if (main) brk.push({ a: main, p: /3-phase/.test($("pnlVolts").value) ? 3 : 2, n: 1, ft: 0, how, st: "new", main: true });
+  rows.forEach(b => { const nw = b.n - b.sp - b.ex; // feeders past 100A go in conduit
+    if (nw > 0) brk.push({ a: b.a, p: b.p, n: nw, ft, how: b.a > 100 ? "conduit" : how, st: "new" });
+    if (b.sp) brk.push({ a: b.a, p: b.p, n: b.sp, ft: 0, how, st: "spare", spare: true });
+    if (b.ex) brk.push({ a: b.a, p: b.p, n: b.ex, ft: 0, how, st: "existing" }); });
+  const left = pnl.review.length + pnl.pend.p.length + pnl.pend.a.length;
   const base = Object.keys(DEVICES).find(k => DEVICES[k].cat === "gr"), list = countsList();
   remember([]);
   let c = list.find(x => x.base === base && x.kindName === "Panel" && (x.label || "").toLowerCase() === name.toLowerCase());
@@ -2261,8 +2296,9 @@ function pnlSave() {
   if (job) { job.updated = new Date().toISOString(); saveJob(job); }
   $("pnlModal").hidden = true; pnl = null; setHl(null); hlMode = null; renderCounts(); drawOverlay();
   const n = brk.reduce((t, r) => t + r.n, 0), placed = pages.some(pg => countOn(pg, c.id));
-  if (placed) toast(`Panel ${name} updated with ${n} breakers.`);
-  else { setTool("place", c.id); toast(`Panel ${name} saved with ${n} breakers. Click where it is on the plan to place it.`); }
+  const warn = left ? ` ${left} row${left > 1 ? "s" : ""} on Needs a look weren't counted.` : "";
+  if (placed) toast(`Panel ${name} updated with ${n} breakers.${warn}`);
+  else { setTool("place", c.id); toast(`Panel ${name} saved with ${n} breakers. Click where it is on the plan to place it.${warn}`); }
 }
 /* Find symbol (Jonathan 2026-10-28): pick the item (and its label) like for placing, click Find symbol, box one symbol,
    and every look-alike on the sheet gets a circle to check before the dots are added. Matching runs on this computer:
@@ -2978,8 +3014,10 @@ function takeoffRows() {
     const pn = c.label || c.kindName || "panel";
     c.brk.forEach((r, i) => {
       const n = (+r.n || 0) * q; if (!n) return;
-      counts.push({ id: `brk:${c.id}:${i}`, brk: true, asm: "", feed: null, label: "", name: `${r.a}A ${r.p}-pole breaker${r.spare ? " (spare)" : ""}`, what: `In ${pn}${q > 1 ? ` (${r.n} each × ${q} panels)` : ""}`, qty: n, by: [], color: c.color, group: "gr", code: `bkr|${r.p}` });
-      if (!r.ft) return;
+      const st = brkSt(r); if (st === "existing" || st === "space") return; // only new breakers (and spares) are priced
+      if (r.main) { counts.push({ id: `brk:${c.id}:${i}`, brk: true, asm: "", feed: null, label: "", name: `${r.a}A ${r.p}-pole main breaker`, what: `Main of ${pn}${q > 1 ? ` (× ${q} panels)` : ""}`, qty: n, by: [], color: c.color, group: "gr", code: "" }); return; }
+      counts.push({ id: `brk:${c.id}:${i}`, brk: true, asm: "", feed: null, label: "", name: `${r.a}A ${r.p}-pole breaker${st === "spare" ? " (spare)" : ""}`, what: `In ${pn}${q > 1 ? ` (${r.n} each × ${q} panels)` : ""}`, qty: n, by: [], color: c.color, group: "gr", code: `bkr|${r.p}` });
+      if (!r.ft || st !== "new") return;
       const sp = brkSpec(r), w = brkWires(r), base = n * r.ft * sp.sets, sub = `${n} × ${r.ft}'${sp.sets > 1 ? ` × ${sp.sets} sets` : ""} for ${r.a}A ${r.p}-pole in ${pn}`, k = `brk:${c.id}:${i}`;
       if (r.how === "mc") { const f = { method: "mc", gauge: sp.g, wires: w }; foot.push({ key: `${k}:m`, label: mcName(f), sub, base, pct: +ex[`${k}:m`] || 0, sup: mcName(f), color: c.color }); counts[counts.length - 1].parts = [[2, "MC connector"], [Math.ceil(r.ft / 6), "MC strap"]]; }
       else {
