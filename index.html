@@ -99,6 +99,8 @@ button { cursor: pointer; }
 .thumb { position: relative; }
 .thumb .pop { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 5px; background: var(--panel); border: 1px solid var(--line); font-size: 13px; line-height: 1; opacity: .6; cursor: pointer; }
 .thumb:hover .pop, .thumb:focus-within .pop { opacity: 1; }
+.thumb .pin { position: absolute; top: 4px; right: 32px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 5px; background: var(--panel); border: 1px solid var(--line); font-size: 12px; line-height: 1; opacity: 0; cursor: pointer; filter: grayscale(1); }
+.thumb:hover .pin, .thumb:focus-within .pin { opacity: .7; } .thumb .pin.on { opacity: 1; filter: none; }
 .ref-dock { display: flex; gap: 4px; flex-wrap: wrap; }
 .ref-dock:empty { display: none; }
 .ref-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #1c7ed6; background: #e7f5ff; color: #1864ab; font-size: 12px; cursor: pointer; }
@@ -546,7 +548,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v102</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v103</small></div>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
@@ -629,7 +631,8 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <div class="tabs" id="tabs">
       <button class="btn sm railbtn" id="railBtn" type="button" title="Show or hide the full list of sheets" aria-pressed="true">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 3.5h12M2 8h12M2 12.5h12"/></svg>All sheets</button>
-      <div class="tab-list" id="tabList" role="tablist" aria-label="Open sheets"></div>
+      <div class="tab-list" id="tabList" role="tablist" aria-label="Pinned sheets"></div>
+      <button class="btn sm" id="tabPin" type="button" title="Put this sheet on the top bar so you can jump back to it">+ Pin this sheet</button>
       <button class="btn sm" id="rsBtn" type="button" title="Open one window with several sheets side by side that you can put on your other screen">⧉ Reference screen</button>
     </div>
     <section class="viewer" id="viewer">
@@ -1555,10 +1558,12 @@ function renderRail() {
       const b = document.createElement("button");
       b.className = "thumb"; b.type = "button"; b.dataset.id = p.id;
       b.innerHTML = `<span class="num">${String(i + 1).padStart(3, "0")}</span><span class="pic"><img alt="" loading="lazy" decoding="async"><span class="q" hidden></span></span><span class="name"></span><span class="pop no-print" role="button" tabindex="0" title="Open this sheet as a floating reference you can keep on top, or pop out to another screen">⧉</span>`;
-      b.onclick = e => { if (e.target.closest(".pop")) { e.stopPropagation(); return refOpen(p); } go(i); };
+      const pin = document.createElement("span"); pin.className = "pin no-print"; pin.setAttribute("role", "button"); pin.tabIndex = 0; pin.textContent = "📌"; b.appendChild(pin);
+      b.onclick = e => { if (e.target.closest(".pin")) { e.stopPropagation(); return togglePin(p); } if (e.target.closest(".pop")) { e.stopPropagation(); return refOpen(p); } go(i); };
       rail.appendChild(b);
     });
   }
+  [...rail.children].forEach(b => { const on = tabs.includes(b.dataset.id), pin = b.querySelector(".pin"); if (!pin) return; pin.classList.toggle("on", on); pin.title = on ? "Unpin: take it off the top bar" : "Pin it to the top bar"; });
   pages.forEach((p, i) => {
     const b = rail.children[i], im = b.querySelector("img"), q = b.querySelector(".q"), nm = b.querySelector(".name");
     b.setAttribute("aria-current", i === current ? "true" : "false");
@@ -1601,7 +1606,7 @@ function renderSheet() {
   $("progress").innerHTML = `<b>${named}</b> of ${pages.length} named`;
   $("nextBtn").firstChild.textContent = current === pages.length - 1 ? "Save " : "Next ";
 }
-function renderAll(noTab) { if (!noTab) addTab(pages[current]); renderTabs(); renderRail(); renderSheet(); renderRuns(); renderWires(); renderCounts(); renderSel(); renderCmpBar(); }
+function renderAll() { renderTabs(); renderRail(); renderSheet(); renderRuns(); renderWires(); renderCounts(); renderSel(); renderCmpBar(); }
 
 /* Corner zoom: the sheet (image + markup layer) is sized to fit the view, then scaled 2x and
    anchored on the chosen corner, so exactly that quarter of the sheet (50% wide x 50% tall) fills the view. */
@@ -3701,7 +3706,7 @@ function coChip() {
 }
 function coSet(id) {
   coScope = id || null; coChip();
-  renderAll(true);
+  renderAll();
   if (!$("takeoffModal").hidden) renderTakeoff();
 }
 // a change order's price, worked out the same way as the proposal
@@ -3808,7 +3813,7 @@ $("replForm").addEventListener("submit", async e => {
     p.add = label; if (label && !new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(p.name)) p.name = `${p.name || sheetName(p, current)} (${label})`;
     showOld = false;
     savePage(p, current); touchJob();
-    busy(null, null); renderAll(true);
+    busy(null, null); renderAll();
     toast(`New drawing is in, with your markups. If they sit off, click Line up under Tools. Show old flips back to the old drawing.`);
   } catch (er) { busy(null, null); toast("Couldn't use that drawing. Try the PDF again, or a picture of the sheet."); }
 });
@@ -3942,7 +3947,7 @@ $("lblModal").addEventListener("keydown", e => { if (e.key === "Escape") $("lblC
 $("lblOk").onclick = () => {
   let n = 0;
   lblState.filter(x => x.use && x.name.trim()).forEach(x => { x.p.name = x.name.trim(); saveMeta(x.p); n++; });
-  $("lblModal").hidden = true; lblState = null; touchJob(); renderAll(true);
+  $("lblModal").hidden = true; lblState = null; touchJob(); renderAll();
   toast(`${n} sheet${n === 1 ? "" : "s"} named.`);
 };
 let asmKey = null;
@@ -4791,9 +4796,9 @@ function updHist() { $("histUndo").disabled = !undoStack.length; $("histRedo").d
 $("histUndo").onclick = undo;
 $("histRedo").onclick = redo;
 
-/* Sheet tabs: every sheet you open gets a tab at the top, up to 8; the oldest drops off. */
+/* Sheet tabs (Jonathan 2026-10-29): only sheets you pin go on the top bar (+ Pin this sheet, or the pin on a sheet in the list), up to 12. */
 let tabs = [];
-const TAB_MAX = 8;
+const TAB_MAX = 12;
 const tabKey = () => "aj-tabs-" + (job ? job.id : "example");
 function loadTabs() {
   let t = []; try { t = JSON.parse(lsGet(tabKey()) || "[]"); } catch (e) {}
@@ -4807,10 +4812,10 @@ function addTab(pg) {
 }
 function closeTab(id) {
   const i = tabs.indexOf(id); if (i < 0) return;
-  tabs.splice(i, 1); lsSet(tabKey(), JSON.stringify(tabs));
-  if (pages[current] && pages[current].id === id && tabs.length) go(pages.findIndex(pg => pg.id === tabs[Math.min(i, tabs.length - 1)]));
-  else renderTabs();
+  tabs.splice(i, 1); lsSet(tabKey(), JSON.stringify(tabs)); renderTabs(); renderRail();
 }
+const togglePin = pg => { if (tabs.includes(pg.id)) closeTab(pg.id); else { addTab(pg); renderTabs(); renderRail(); } };
+$("tabPin").onclick = () => pages[current] && togglePin(pages[current]);
 function renderTabs() {
   const bar = $("tabList"); bar.replaceChildren();
   tabs.forEach(id => {
@@ -4824,15 +4829,16 @@ function renderTabs() {
     b.title = pg.name || `Sheet ${i + 1}`;
     b.onclick = () => go(i);
     t.appendChild(b);
-    if (tabs.length > 1) {
+    {
       const x = document.createElement("button"); x.type = "button"; x.className = "tab-x"; x.textContent = "×";
-      x.title = "Close this tab"; x.setAttribute("aria-label", `Close ${pg.name || "sheet " + (i + 1)} tab`);
+      x.title = "Unpin: take it off the top bar"; x.setAttribute("aria-label", `Close ${pg.name || "sheet " + (i + 1)} tab`);
       x.onclick = () => closeTab(id);
       t.appendChild(x);
     }
     bar.appendChild(t);
   });
   bar.querySelector('[aria-current="true"]')?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  $("tabPin").hidden = !pages[current] || tabs.includes(pages[current].id);
 }
 function setRail(show) {
   document.querySelector(".desk").classList.toggle("no-rail", !show);
@@ -5542,7 +5548,7 @@ $("labelForm").addEventListener("submit", e => {
     for (let i = current + 1; i < pages.length; i++) if (!pages[i].name) { next = i; break; }
     current = next; dropCmp(); sel.clear();
     if (tool) setTool(null);
-    renderAll(true); // naming sheets with Next doesn't open tabs; only sheets you open yourself get one
+    renderAll();
     $("nameInput").focus(); $("nameInput").select();
   } else {
     renderAll();
