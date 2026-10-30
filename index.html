@@ -268,6 +268,8 @@ html.look-new body { font-family: var(--font-ui); }
   .look-new .totals b, .look-new .cnt-n { color: var(--fg); }
 }
 .look-btn { font-size: 12px; }
+.team-files #fileSave, .team-files #fileOpen, .team-files #jobFolderBox, .team-files #driveTip { display: none !important; }
+.file-more-btn { justify-self: start; }
 .adm-card { width: min(720px, 100%); }
 .adm-card h3 { margin: 6px 0 0; font-size: 16px; }
 .adm-me { margin: 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -708,7 +710,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v116</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v117</small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
@@ -1025,6 +1027,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <p class="hint">Link a folder in your Google Drive to this job. Every Save then goes straight into that folder with the date in the file name, and opening the job loads the newest copy from it.</p>
       <div class="jf-acts"><button class="btn sm" type="button" id="jobFolderPick">Link a folder…</button><button class="btn sm" type="button" id="jobFolderCheck" hidden>Open the newest copy</button><button class="btn sm" type="button" id="jobFolderDrop" hidden>Unlink</button></div>
     </div>
+    <button class="btn sm file-more-btn" type="button" id="fileMoreBtn" hidden>Save a copy as a file, or open one…</button>
     <p class="hint" id="driveTip">Don't see Google Drive in the Save window? Install <a href="https://www.google.com/drive/download/" target="_blank" rel="noopener">Google Drive for desktop</a> once, and it shows up there as Google Drive.</p>
     <p class="hint" id="fileWhere" hidden></p>
     <div class="actions"><button class="btn" type="button" id="fileClose">Close</button></div>
@@ -6315,7 +6318,7 @@ document.addEventListener("keydown", e => {
     const key = e.key.toLowerCase();
     if (key === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
     if (key === "y") { e.preventDefault(); redo(); return; }
-    if (key === "s") { e.preventDefault(); saveProject(true); return; }
+    if (key === "s") { e.preventDefault(); if (teamOn) { if (!fieldMode) { syncWanted = true; runSync(); } toast("Jobs save online by themselves. Nothing else to do."); } else saveProject(true); return; }
   }
   if (!typing && !tool && sel.size) {
     if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteSel(); return; }
@@ -6940,16 +6943,21 @@ async function openSharedJob(raw) {
   }
 }
 function showFiles(sent) {
-  $("fileTitle").textContent = sent ? "Someone sent you a job" : "Save, open or send a job";
+  $("fileTitle").textContent = sent ? "Someone sent you a job" : teamOn ? "Open, print or send a job" : "Save, open or send a job";
   $("fileIntro").textContent = sent
     ? "Download the .ajtakeoff file attached to the email, then tap Open a job file and pick it. Its drawings, counts and runs open right here."
+    : teamOn ? "Jobs save online by themselves, so there's nothing to save here. Click a job to open it, or print or send the one you're in."
     : "Click a job to open it, or save, open or send the one you're in.";
+  // online saving does the saving; the file and Drive folder options are only a click away for a backup copy or an outside job file
+  $("fileModal").classList.toggle("team-files", teamOn && !sent);
+  $("fileMoreBtn").hidden = !teamOn || sent;
   const none = !job || !pages.some(p => !p.example);
   $("fileSave").disabled = $("fileEmail").disabled = none;
   $("fileModal").hidden = false; showFolder(); showRecent();
   (sent ? $("fileOpen") : $("fileFind")).focus();
 }
 $("fileBtn").onclick = () => showFiles(false);
+$("fileMoreBtn").onclick = () => { $("fileModal").classList.remove("team-files"); $("fileMoreBtn").hidden = true; $("fileSave").focus(); };
 $("fileClose").onclick = () => { $("fileModal").hidden = true; };
 $("fileModal").addEventListener("keydown", e => { if (e.key === "Escape") $("fileModal").hidden = true; });
 $("fileSave").onclick = () => saveProject(false);
@@ -7150,7 +7158,7 @@ $("jobForm").addEventListener("submit", async e => {
   } else {
     const j = newJobRecord(fields);
     await saveJob(j); await openJob(j);
-    if (folderOk()) {
+    if (folderOk() && !teamOn) {
       $("jfName").textContent = j.name; $("jfDate").textContent = stampDate(j.created);
       $("jfModal").hidden = false; $("jfLink").focus();
     } else toast(`Job started ${stampDate(j.created)}. Upload its plans to begin.`);
@@ -7232,6 +7240,7 @@ const teamReady = (async () => {
   teamOn = true; teamIndex = {}; teamJobs.forEach(f => teamIndex[f.id] = f);
   lsSet("aj-team", "1");
   $("tsOrderTab").hidden = false;
+  { const b = $("fileBtn"), t = [...b.childNodes].filter(n => n.nodeType === 3 && n.textContent.trim()).pop(); if (t) t.textContent = " Open / Send "; b.title = "Open a job, save drawings as a PDF, or email a job. Jobs save online by themselves."; }
   await roleCheck();
   $("jobsWhere").textContent = "Jobs save online by themselves, so everyone using the app sees them on any computer.";
   $("teamWhoBox").hidden = signedIn; $("teamWho").value = teamWho;
