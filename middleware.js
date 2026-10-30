@@ -1,13 +1,31 @@
-// Asks for a password before anything on the site loads.
-// APP_PASSWORD (Vercel environment variable) is the office password: everything works.
-// FIELD_PASSWORD is the field password (PM, super): the app opens in field mode, and the bid tracker and
-// changes to the team's jobs are refused here too, not just hidden on screen.
-// The user name can be anything, and the password works in either box; spaces and capital letters don't matter.
-// If APP_PASSWORD is not set, the site stays open.
-const norm = s => String(s || "").trim().toLowerCase();
-const same = (a, b) => { if (!a || a.length !== b.length) return false; let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i); return !d; };
-const FIELD_BLOCKED = [/^\/api\/bids/, /^\/api\/team-upload/, /^\/api\/share-upload/];
-export default function middleware(request) {
+import { secret, readSession, basicWho, norm, same } from "./lib/session.js";
+
+// Who can open AJ Takeoff.
+// With SESSION_SECRET set (Vercel environment variable, any long random text): everyone signs in on /login.html
+// with their own name and password, set up on the app's Admin page. Field people can look but not change the estimate.
+// APP_PASSWORD (any name, admin) and FIELD_PASSWORD (any name, field) still work as shared ways in, and the Drive
+// backup script signs in with the backup key shown on the Admin page.
+// Without SESSION_SECRET it works the old way: a browser password box for APP_PASSWORD / FIELD_PASSWORD,
+// and if APP_PASSWORD isn't set either, the site stays open.
+const FIELD_BLOCKED = [/^\/api\/bids/, /^\/api\/team-upload/, /^\/api\/share-upload/, /^\/api\/admin/];
+const OPEN = [/^\/login\.html$/, /^\/sw\.js$/, /^\/api\/login$/, /^\/api\/logout$/, /^\/favicon/];
+const json = (o, status) => new Response(JSON.stringify(o), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+const fieldBlocked = (path, method) => FIELD_BLOCKED.some(r => r.test(path)) || (["/api/jobs", "/api/settings"].includes(path) && method !== "GET");
+
+export default async function middleware(request) {
+  const key = secret(), url = new URL(request.url), path = url.pathname;
+  if (!key) return oldGate(request, path);
+  if (OPEN.some(r => r.test(path))) return;
+  const who = await readSession(key, request.headers.get("cookie")) || await basicWho(request, key);
+  if (!who) {
+    if (path.startsWith("/api/")) return json({ error: "Please sign in again.", signin: true }, 401);
+    return Response.redirect(new URL("/login.html" + (path.length > 1 ? "?next=" + encodeURIComponent(path + url.search) : ""), url), 302);
+  }
+  if (who.r === "field" && fieldBlocked(path, request.method)) return json({ error: "The field login can't change the estimate." }, 403);
+  if (who.id === "backup" && request.method !== "GET") return json({ error: "The backup key can only read." }, 403);
+}
+
+function oldGate(request, path) {
   const office = norm(process.env.APP_PASSWORD), field = norm(process.env.FIELD_PASSWORD);
   if (!office) return;
   const auth = request.headers.get("authorization") || "";
@@ -18,9 +36,7 @@ export default function middleware(request) {
     const is = want => same(norm(pass), want) || same(norm(user), want) || same(norm(raw), want);
     if (is(office)) return;
     if (field && is(field)) {
-      const path = new URL(request.url).pathname;
-      if (FIELD_BLOCKED.some(r => r.test(path)) || (path === "/api/jobs" && request.method !== "GET"))
-        return new Response(JSON.stringify({ error: "The field login can't change the estimate." }), { status: 403, headers: { "Content-Type": "application/json" } });
+      if (fieldBlocked(path, request.method)) return json({ error: "The field login can't change the estimate." }, 403);
       return;
     }
   }

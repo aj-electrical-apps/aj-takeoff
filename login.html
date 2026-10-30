@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in · AJ Takeoff</title>
+<style>
+:root { --bg: #eef1f4; --panel: #fff; --fg: #1d2733; --mut: #5b6876; --line: #cfd6de; --acc: #f0a020; --head: #16212c; --bad: #b3261e; }
+@media (prefers-color-scheme: dark) { :root { --bg: #11171d; --panel: #1b232c; --fg: #e6ebf0; --mut: #9aa7b4; --line: #33404c; --head: #0b1015; --bad: #ff8a80; } }
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--fg); font: 16px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; display: grid; grid-template-rows: auto 1fr; }
+header { background: var(--head); color: #fff; padding: 12px 16px; font-weight: 700; font-size: 18px; }
+header small { color: var(--acc); font-weight: 600; margin-left: 6px; }
+main { display: grid; place-items: center; padding: 24px 16px; }
+form { width: min(380px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 24px; display: grid; gap: 14px; box-shadow: 0 8px 30px rgb(0 0 0 / .12); }
+h1 { margin: 0; font-size: 22px; }
+p { margin: 0; color: var(--mut); font-size: 14px; }
+label { display: grid; gap: 4px; font-size: 14px; font-weight: 600; }
+input { height: 44px; padding: 0 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); font-size: 16px; }
+input:focus { outline: 2px solid var(--acc); outline-offset: 1px; }
+button { height: 46px; border: 0; border-radius: 8px; background: var(--acc); color: #1d1d1d; font-size: 16px; font-weight: 700; cursor: pointer; }
+button:disabled { opacity: .6; cursor: default; }
+.err { color: var(--bad); font-weight: 600; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>AJ Takeoff <small>Commercial</small></header>
+<main>
+  <form id="f" autocomplete="on">
+    <h1 id="title">Sign in</h1>
+    <p id="intro">Use the name and password the office gave you.</p>
+    <label>Your name<input id="name" name="username" autocomplete="username" required maxlength="30" autocapitalize="words"></label>
+    <label>Password<input id="pw" name="password" type="password" autocomplete="current-password" required></label>
+    <label id="pw2Box" hidden>Type the password again<input id="pw2" type="password" autocomplete="new-password"></label>
+    <label id="appBox" hidden>The app's current password (APP_PASSWORD)<input id="app" type="password" autocomplete="off"></label>
+    <p class="err" id="err" role="alert" hidden></p>
+    <button id="go" type="submit">Sign in</button>
+  </form>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let setup = false;
+const next = (() => { const n = new URLSearchParams(location.search).get("next") || "/"; return /^\/(?!\/)/.test(n) ? n : "/"; })();
+fetch("/api/login", { cache: "no-store" }).then(r => r.json()).then(s => {
+  if (!s.signin) { location.replace("/"); return; }
+  if (s.setup) {
+    setup = true;
+    $("title").textContent = "Set up the first admin";
+    $("intro").textContent = "Nobody has been added yet. Pick your name and a password. You'll be the admin, and you can add everyone else on the Admin page.";
+    $("pw").autocomplete = "new-password"; $("pw2Box").hidden = false; $("pw2").required = true;
+    $("appBox").hidden = !s.appPw; $("app").required = !!s.appPw;
+    $("go").textContent = "Set up and sign in";
+  }
+}).catch(() => {});
+$("f").addEventListener("submit", async e => {
+  e.preventDefault();
+  $("err").hidden = true;
+  if (setup && $("pw").value !== $("pw2").value) { $("err").textContent = "The two passwords don't match."; $("err").hidden = false; return; }
+  $("go").disabled = true;
+  try {
+    const r = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ setup, name: $("name").value, password: $("pw").value, appPassword: $("app").value }) });
+    const o = await r.json().catch(() => ({}));
+    if (r.ok) { try { localStorage.setItem("aj-who", o.name || $("name").value.trim()); } catch (x) {} location.replace(next); return; }
+    $("err").textContent = o.error || "That didn't work. Try again.";
+  } catch (x) { $("err").textContent = "No internet right now. Sign in once you have WiFi; after that the app also opens without it."; }
+  $("err").hidden = false; $("go").disabled = false;
+});
+</script>
+</body>
+</html>

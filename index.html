@@ -268,6 +268,25 @@ html.look-new body { font-family: var(--font-ui); }
   .look-new .totals b, .look-new .cnt-n { color: var(--fg); }
 }
 .look-btn { font-size: 12px; }
+.adm-card { width: min(720px, 100%); }
+.adm-card h3 { margin: 6px 0 0; font-size: 16px; }
+.adm-me { margin: 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.adm-warn { margin: 0; padding: 10px 12px; border-radius: 8px; background: #fff4d6; color: #5a4300; border: 1px solid #e8c766; }
+.adm-people { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.adm-people li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.adm-people li.off { opacity: .6; }
+.adm-people .nm { font-weight: 600; flex: 1 1 140px; }
+.adm-people .nm small { display: block; font-weight: 400; color: var(--muted, #667); font-size: 12px; }
+.adm-people select, .adm-add select { height: 34px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); }
+.adm-people input, .adm-add input, .adm-co input { height: 34px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); font-size: 15px; }
+.adm-add { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.adm-add label, .adm-co label { display: grid; gap: 3px; font-size: 13px; }
+.adm-co { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+.adm-co label { min-width: 0; }
+.adm-co input { width: 100%; }
+.adm-msg { margin: 0; min-height: 1.2em; font-weight: 600; }
+.adm-msg.bad { color: #b3261e; }
+.adm-key { font-family: ui-monospace, monospace; user-select: all; background: var(--bg); padding: 2px 6px; border-radius: 4px; }
 
 /* quick search */
 .qs { position: sticky; top: -12px; z-index: 6; margin: -12px -12px 0; padding: 10px 12px; background: var(--panel); border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 6px; }
@@ -689,8 +708,9 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v115</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v116</small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
+    <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
@@ -1050,6 +1070,43 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <button class="btn" type="button" id="teamMine">Keep mine</button>
       <button class="btn primary" type="button" id="teamTheirs">Open their copy</button>
     </div>
+  </div>
+</div>
+
+<div class="modal" id="adminModal" hidden role="dialog" aria-modal="true" aria-labelledby="admTitle">
+  <div class="modal-card adm-card">
+    <h2 id="admTitle">Admin</h2>
+    <p class="adm-me"><span id="admMe"></span> <a class="btn sm" id="admOut" href="/api/logout">Sign out</a></p>
+    <div id="admBody">
+      <p class="adm-warn" id="admSignin" hidden></p>
+      <h3>People</h3>
+      <p class="hint">Each person signs in with their own name and password. <b>Admin</b>: everything, plus this page. <b>Office</b>: everything except this page. <b>Field</b>: looks, measures, field marks and the Order page; no prices and no changes to the estimate.</p>
+      <ul class="adm-people" id="admPeople"></ul>
+      <form class="adm-add" id="admAdd" autocomplete="off">
+        <label>Name<input id="admName" maxlength="30" required placeholder="e.g. Mike R"></label>
+        <label>Access<select id="admRole"><option value="field">Field</option><option value="office">Office</option><option value="admin">Admin</option></select></label>
+        <label>Password<input id="admPw" required minlength="6" autocomplete="new-password"></label>
+        <button class="btn" type="button" id="admMake" title="Make up an easy password">Make one up</button>
+        <button class="btn primary" type="submit">Add person</button>
+      </form>
+      <p class="adm-msg" id="admMsg" role="status"></p>
+      <h3>Company</h3>
+      <div class="adm-co" id="admCo"></div>
+      <h3>Shared settings</h3>
+      <p class="hint" id="admSetNote"></p>
+      <div class="actions" style="justify-content:flex-start"><button class="btn" type="button" id="admSetPush">Send this computer's settings to everyone</button></div>
+      <h3>Drive backup</h3>
+      <p class="hint" id="admBackup"></p>
+    </div>
+    <div class="actions"><button class="btn primary" type="button" id="admClose">Close</button></div>
+  </div>
+</div>
+
+<div class="modal" id="onlineModal" hidden role="dialog" aria-modal="true" aria-labelledby="onTitle">
+  <div class="modal-card" style="max-width:440px">
+    <h2 id="onTitle">You're back online</h2>
+    <p>You made changes while this device had no internet. Save them online now so everyone sees them?</p>
+    <div class="actions"><button class="btn" type="button" id="onLater">Later</button><button class="btn primary" type="button" id="onSave">Save my changes</button></div>
   </div>
 </div>
 
@@ -3330,7 +3387,7 @@ function asmEdits() {
   if (!asmEditsCache) { try { asmEditsCache = JSON.parse(localStorage.getItem("aj-asm-edits") || "{}") || {}; } catch (e) { asmEditsCache = {}; } }
   return asmEditsCache;
 }
-function saveAsmEdits() { try { localStorage.setItem("aj-asm-edits", JSON.stringify(asmEdits())); } catch (e) {} }
+function saveAsmEdits() { try { localStorage.setItem("aj-asm-edits", JSON.stringify(asmEdits())); } catch (e) {} settingsTouch("aj-asm-edits"); }
 const asmFor = key => asmEdits()[key] || ASSEMBLIES[key] || [];
 const PRICE_BY_DESC = ["rmt|Floor box", "rmt|Poke-through", "rmt|Ceiling box"];
 function supplierRows() {
@@ -3380,7 +3437,7 @@ function laborEdits() {
   if (!laborEditsCache) { try { laborEditsCache = JSON.parse(localStorage.getItem("aj-labor-edits") || "{}") || {}; } catch (e) { laborEditsCache = {}; } }
   return laborEditsCache;
 }
-function saveLaborEdits() { try { localStorage.setItem("aj-labor-edits", JSON.stringify(laborEdits())); } catch (e) {} }
+function saveLaborEdits() { try { localStorage.setItem("aj-labor-edits", JSON.stringify(laborEdits())); } catch (e) {} settingsTouch("aj-labor-edits"); }
 const laborRow = k => { const r = LABOR.find(x => x.k === k); if (!r) return null; const e = laborEdits()[k] || {}, m = { ...r, ...e }; if (e.a != null && e.h === undefined) m.h = e.a; m.a = null; return m; }; // older edits to the Adjusted column count as the hours
 const bidOf = () => { const o = coCur() || job || (window.exampleBid = window.exampleBid || {}); return o.bid || (o.bid = { rate: (coCur() && job.bid && job.bid.rate) || 100, over: coCur() && job.bid ? { ...job.bid.over } : {}, lines: [] }); };
 // hours per unit for a labor row (the Adjusted hours from Jonathan's sheet became the standard hours in v53)
@@ -3597,7 +3654,7 @@ const EXCL_DEF = ["Utility company fees, charges and back charges", "Permit and 
   "Arc flash, short circuit and coordination studies", "Removal or disposal of hazardous materials (asbestos, PCB ballasts, lamps)", "Overtime, shift and weekend work",
   "Repair of damage caused by other trades", "Work not shown on the drawings or listed in this proposal"];
 const exclStd = () => { try { const v = JSON.parse(localStorage.getItem("aj-excl-std") || "null"); if (Array.isArray(v)) return v; } catch (e) {} return EXCL_DEF.slice(); };
-const setExclStd = l => { try { localStorage.setItem("aj-excl-std", JSON.stringify(l.map(x => String(x).trim()).filter(Boolean))); } catch (e) {} };
+const setExclStd = l => { try { localStorage.setItem("aj-excl-std", JSON.stringify(l.map(x => String(x).trim()).filter(Boolean))); } catch (e) {} settingsTouch("aj-excl-std"); };
 const exclPrinted = p => [...exclStd().filter(x => !(p.exclOff || []).includes(x)), ...p.excl];
 let exclEditing = false;
 // supplier and sub names, kept on this device for every job; typing a new one adds it to the list
@@ -3621,7 +3678,7 @@ const setVendors = (k, l) => {
   const seen = new Set(), out = [];
   l.map(x => String(x).trim()).filter(Boolean).forEach(x => { if (!seen.has(x.toLowerCase())) { seen.add(x.toLowerCase()); out.push(x); } });
   out.sort((a, b) => a.localeCompare(b));
-  try { localStorage.setItem("aj-list-" + k, JSON.stringify(out)); } catch (e) {}
+  try { const v = JSON.stringify(out), was = localStorage.getItem("aj-list-" + k); localStorage.setItem("aj-list-" + k, v); if (was != null && was !== v) settingsTouch("aj-list-" + k); } catch (e) {}
   return out;
 };
 const addVendor = (k, v) => { if (!k || !v) return; const l = vendors(k); if (!l.some(x => x.toLowerCase() === v.toLowerCase())) setVendors(k, l.concat(v)); };
@@ -3630,7 +3687,7 @@ const subList = name => /lightning/i.test(name) ? "lp" : /fire|low ?volt|\blv\b|
 let prShowLists = false;
 let companyCache = null;
 const company = () => { if (!companyCache) { try { companyCache = JSON.parse(localStorage.getItem("aj-company") || "null"); } catch (e) {} companyCache = companyCache || { name: "AJ Electrical", phone: "", email: "", address: "", license: "" }; } return companyCache; };
-const saveCompany = () => { try { localStorage.setItem("aj-company", JSON.stringify(company())); } catch (e) {} };
+const saveCompany = () => { try { localStorage.setItem("aj-company", JSON.stringify(company())); } catch (e) {} settingsTouch("aj-company"); };
 const qAmt = q => +(q.useVe && +q.ve ? q.ve : q.base) || 0;
 function propTotals() {
   const p = propOf(), bt = bidTotals(bidRows());
@@ -6371,6 +6428,7 @@ let syncTimer = null, syncing = false, syncWanted = false;
 function scheduleSync() {
   if (!job) return;
   syncWanted = true;
+  try { if (teamOn && !fieldMode) lsSet("aj-unsent-" + job.id, "1"); } catch (e) {}
   clearTimeout(syncTimer);
   syncTimer = setTimeout(runSync, 4000);
 }
@@ -7004,7 +7062,7 @@ async function openJob(j) {
   renderAll();
   folderCheck(true);
   if (teamOn) { fieldUrl = null; fieldDirty = false; clearTimeout(fieldTimer); fieldLoad(); }
-  if (teamOn && !j.teamUrl) { syncWanted = true; scheduleSync(); } // a job that isn't online yet goes up
+  if (teamOn && (!j.teamUrl || lsGet("aj-unsent-" + j.id))) { syncWanted = true; scheduleSync(); } // a job that isn't online yet, or was changed without internet, goes up
   else if (teamOn) teamCheck();
 }
 function newJobRecord(fields) {
@@ -7116,9 +7174,19 @@ let fieldMode = false;
 const FIELD_NO_TABS = ["bid", "rate", "prop", "asm"];
 const fieldNo = () => toast("The field login can look, measure and print. Changes to the estimate are made in the office.");
 async function roleCheck() {
-  let role = window.AJ_ROLE || "office";
-  try { const r = await fetch("/api/role", { cache: "no-store" }); if (r.ok) role = window.AJ_ROLE || (await r.json()).role; } catch (e) {}
-  if (role === "field") enterField();
+  let role = window.AJ_ROLE || lsGet("aj-role") || "office";
+  try {
+    const r = await fetch("/api/role", { cache: "no-store" });
+    if (r.status === 401) { location.href = "/login.html"; return; }
+    if (r.ok) {
+      const o = await r.json();
+      role = window.AJ_ROLE || o.role; isAdmin = !!o.admin && role !== "field"; signedIn = !!o.signin;
+      if (signedIn && o.name) { teamWho = o.name.slice(0, 30); lsSet("aj-who", teamWho); }
+      lsSet("aj-role", role); lsSet("aj-admin", isAdmin ? "1" : null); lsSet("aj-signed", signedIn ? "1" : null);
+    }
+  } catch (e) { isAdmin = lsGet("aj-admin") === "1"; signedIn = lsGet("aj-signed") === "1"; }
+  meBtnShow();
+  if (role === "field" && !fieldMode) enterField();
 }
 function enterField() {
   fieldMode = true;
@@ -7151,17 +7219,25 @@ const clockTime = t => new Date(t).toLocaleTimeString([], { hour: "numeric", min
 const whenSaved = t => { const d = new Date(t); return d.toDateString() === new Date().toDateString() ? clockTime(d) : d.toLocaleDateString([], { month: "short", day: "numeric" }) + " " + clockTime(d); };
 const teamReady = (async () => {
   if (!onOwnSite() && !window.AJ_TEAM_TEST) return false;
+  if (onOwnSite() && "serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {}); // lets the app open without internet
   try {
     const r = await fetch("/api/jobs", { cache: "no-store" });
+    if (r.status === 401) { location.href = "/login.html"; return false; }
     if (!r.ok) return false;
     teamJobs = (await r.json()).jobs || [];
-  } catch (e) { return false; }
+  } catch (e) {
+    if (lsGet("aj-team") !== "1") return false;
+    teamOffline = true; // no internet: work on this device's copies and save them when WiFi is back
+  }
   teamOn = true; teamIndex = {}; teamJobs.forEach(f => teamIndex[f.id] = f);
+  lsSet("aj-team", "1");
   $("tsOrderTab").hidden = false;
   await roleCheck();
   $("jobsWhere").textContent = "Jobs save online by themselves, so everyone using the app sees them on any computer.";
-  $("teamWhoBox").hidden = false; $("teamWho").value = teamWho;
+  $("teamWhoBox").hidden = signedIn; $("teamWho").value = teamWho;
+  if (teamOffline) { setDrive("bad", "No internet. Changes are kept on this device until WiFi is back"); return true; }
   if (job && !syncing) setDrive(job.teamUrl ? "ok" : "idle", job.teamUrl ? "Saved online" : "Saved on this computer");
+  settingsPull();
   setTimeout(teamMoveUp, 2500);
   return true;
 })();
@@ -7208,6 +7284,7 @@ async function teamPush(j, list, { force, progress } = {}) {
   const url = await teamPut(`team/data/${tid}/m${details}.json`, new Blob([JSON.stringify(data)], { type: "application/json" }), "application/json");
   j.teamUrl = url; delete j.teamForce;
   await putJobLocal(j);
+  if (!(job === j && syncWanted)) lsSet("aj-unsent-" + j.id, null);
   teamIndex[tid] = { ...(teamIndex[tid] || {}), id: tid, name: j.name, customer: j.customer, bidDate: j.bidDate, updated: j.updated, sheets: list.length, by: teamWho, url, saved: data.savedAt };
   fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "tidy", id: tid }) }).catch(() => {});
   return { url };
@@ -7225,7 +7302,8 @@ async function runTeamSync() {
     if (job === j) setDrive("ok", `Saved online ${clockTime(Date.now())}`);
   } catch (e) {
     syncWanted = true;
-    setDrive("bad", "Couldn't save online. Check the internet");
+    if (!navigator.onLine || e instanceof TypeError) { teamOffline = true; setDrive("bad", "No internet. Changes are kept on this device until WiFi is back"); }
+    else { setDrive("bad", "Couldn't save online. Check the internet"); roleCheck(); } // signed out goes to the sign-in page
   } finally {
     syncing = false;
     if (syncWanted && !held && $("driveStatus").className.indexOf("bad") < 0) scheduleSync();
@@ -7349,7 +7427,7 @@ $("teamLoad").onclick = () => { if (teamNewer) pullTeam(teamNewer); };
 // The first time this version opens: put every job saved in this browser online
 async function teamMoveUp() {
   if (!teamOn || fieldMode) return;
-  const todo = jobs.filter(j => !j.teamUrl && !teamIndex[segId(j.id)]);
+  const todo = jobs.filter(j => (!j.teamUrl && !teamIndex[segId(j.id)]) || (j.teamUrl && lsGet("aj-unsent-" + j.id)));
   let n = 0;
   for (const j of todo) {
     n++;
@@ -7362,8 +7440,219 @@ async function teamMoveUp() {
     list.forEach(p => { URL.revokeObjectURL(p.url); p.thumbUrl && URL.revokeObjectURL(p.thumbUrl); });
   }
   if (todo.length && !syncing && !syncWanted && job) setDrive(job.teamUrl ? "ok" : "idle", job.teamUrl ? "Saved online" : "Saved on this computer");
-  if (todo.length) toast(`Your ${todo.length === 1 ? "job is" : todo.length + " jobs are"} online now, so everyone can open ${todo.length === 1 ? "it" : "them"}.`);
+  if (todo.length) toast(`Your ${todo.length === 1 ? "job is" : todo.length + " jobs are"} saved online now, so everyone can open ${todo.length === 1 ? "it" : "them"}.`);
 }
+
+/* ---------- Sign-in, the Admin page, shared settings, and working without internet (Jonathan 2026-10-30) ----------
+   "an admin page for all the settings in this app and to reset passwords and give access instead of having to do it
+   all in Vercel" and "each field guy and estimator their own log in", "work without service but prompt an update when
+   the tablet had WiFi again". People sign in on login.html (api/login); the Admin page (api/admin, admins only) adds
+   them, sets Admin / Office / Field, resets passwords and turns people off. Company details, labor hours, parts lists,
+   standard exclusions and vendor lists are shared through api/settings. sw.js keeps the app itself on the device so it
+   opens without internet; changes made then stay on the device (aj-unsent-<job>, aj-fieldq-<job>) and go up when
+   WiFi is back, after asking. */
+var teamOffline = false, isAdmin = false, signedIn = false;
+function meBtnShow() {
+  const b = $("meBtn");
+  b.hidden = !teamOn || (!isAdmin && !signedIn);
+  b.textContent = isAdmin ? "Admin" : (teamWho || "Signed in");
+}
+$("meBtn").onclick = () => showAdmin();
+$("admClose").onclick = () => { $("adminModal").hidden = true; };
+$("adminModal").addEventListener("keydown", e => { if (e.key === "Escape") $("adminModal").hidden = true; });
+let admInfo = null;
+const roleName = r => ({ admin: "Admin", office: "Office", field: "Field" })[r] || r;
+function admSay(t, bad) { $("admMsg").textContent = t || ""; $("admMsg").className = "adm-msg" + (bad ? " bad" : ""); }
+async function admCall(body) {
+  const r = await fetch("/api/admin", body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : { cache: "no-store" });
+  const o = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(o.error || "That didn't work. Check the internet and try again.");
+  return o;
+}
+async function showAdmin() {
+  $("admMe").textContent = signedIn ? `Signed in as ${teamWho || "you"} (${isAdmin ? "Admin" : fieldMode ? "Field" : "Office"}).` : "Everyone uses the shared app password for now.";
+  $("admOut").hidden = !signedIn;
+  $("admBody").hidden = !isAdmin;
+  $("admTitle").textContent = isAdmin ? "Admin" : "Signed in";
+  admSay("");
+  $("adminModal").hidden = false;
+  if (!isAdmin) return;
+  drawCompanyBox(); drawSetNote();
+  if (teamOffline) return admSay("No internet right now. People and passwords can be changed once WiFi is back.", true);
+  try { admInfo = await admCall(); drawAdmin(); } catch (e) { admSay(e.message, true); }
+  settingsPull().then(drawSetNote);
+}
+function drawAdmin() {
+  const o = admInfo, ul = $("admPeople"), w = $("admSignin");
+  if (!o) return;
+  w.hidden = o.signin;
+  if (!o.signin) w.innerHTML = "One step left: everyone's own sign-in turns on once <b>SESSION_SECRET</b> is added in Vercel and the app is redeployed. Add the people now, yourself first as an Admin, so they can sign in right away.";
+  ul.replaceChildren();
+  if (!o.users.length) { const li = document.createElement("li"); li.textContent = "Nobody yet. Add yourself first; the first person is always an Admin."; ul.appendChild(li); }
+  o.users.forEach(u => {
+    const li = document.createElement("li"); if (u.off) li.className = "off";
+    li.innerHTML = `<span class="nm"></span><select aria-label="Access"><option value="admin">Admin</option><option value="office">Office</option><option value="field">Field</option></select><button class="btn sm" type="button" data-a="pw">New password</button><button class="btn sm" type="button" data-a="off"></button><button class="btn sm" type="button" data-a="rm">Remove</button>`;
+    const nm = li.querySelector(".nm"); nm.textContent = u.name;
+    const sm = document.createElement("small"); sm.textContent = [u.off ? "Turned off" : "", u.added && "Added " + stampDate(u.added) + (u.by && u.by !== u.name ? " by " + u.by : "")].filter(Boolean).join(" · "); nm.appendChild(sm);
+    const sel = li.querySelector("select"); sel.value = u.role;
+    sel.onchange = () => admDo({ op: "role", id: u.id, role: sel.value }, `${u.name} is now ${roleName(sel.value)}. It takes effect the next time they open the app.`);
+    const off = li.querySelector('[data-a="off"]');
+    off.textContent = u.off ? "Turn on" : "Turn off";
+    off.onclick = () => admDo({ op: "off", id: u.id, off: !u.off }, u.off ? `${u.name} can sign in again.` : `${u.name} is turned off and gets signed out the next time the app checks (within 10 minutes).`);
+    li.querySelector('[data-a="rm"]').onclick = () => { if (confirm(`Remove ${u.name}? They won't be able to sign in. Jobs they saved stay.`)) admDo({ op: "remove", id: u.id }, `${u.name} was removed.`); };
+    li.querySelector('[data-a="pw"]').onclick = e => {
+      const inp = document.createElement("input"), ok = document.createElement("button");
+      inp.value = makePw(); inp.setAttribute("aria-label", "New password for " + u.name);
+      ok.className = "btn sm primary"; ok.type = "button"; ok.textContent = "Save password";
+      e.currentTarget.replaceWith(inp, ok); inp.focus(); inp.select();
+      ok.onclick = () => { const pw = inp.value.trim(); admDo({ op: "reset", id: u.id, password: pw }, `${u.name}'s new password is “${pw}”. Tell them; their old one stops working now.`); };
+    };
+    ul.appendChild(li);
+  });
+  const bk = $("admBackup");
+  if (o.backupKey) {
+    bk.innerHTML = `Daily Drive backup: at script.google.com open the backup project, then <b>Project Settings</b> (gear) → <b>Script properties</b>. Set <b>APP_PASSWORD</b> to <span class="adm-key"></span> and click Save.`;
+    bk.querySelector(".adm-key").textContent = o.backupKey;
+  } else bk.textContent = "The key for the daily Drive backup shows here once sign-in is turned on.";
+}
+async function admDo(body, done) {
+  admSay("Saving…");
+  try { admInfo = await admCall(body); drawAdmin(); admSay(done); return true; } catch (e) { admSay(e.message, true); drawAdmin(); return false; }
+}
+const PW_WORDS = ["volt", "amps", "wire", "panel", "conduit", "breaker", "switch", "lamp", "copper", "fuse", "relay", "ground", "feeder", "strut", "ladder", "meter"];
+const pick = n => crypto.getRandomValues(new Uint32Array(1))[0] % n;
+const makePw = () => `${PW_WORDS[pick(PW_WORDS.length)]}-${PW_WORDS[pick(PW_WORDS.length)]}-${10 + pick(90)}`;
+$("admMake").onclick = () => { $("admPw").value = makePw(); };
+$("admAdd").addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = $("admName").value.trim(), pw = $("admPw").value.trim();
+  if (await admDo({ op: "add", name, role: $("admRole").value, password: pw }, `${name} was added. Their password is “${pw}”. Send them the app link and that password.`)) { $("admName").value = ""; $("admPw").value = ""; }
+});
+const CO_FIELDS = [["name", "Company name"], ["phone", "Phone"], ["email", "Email"], ["address", "Address"], ["license", "License #"]];
+function drawCompanyBox() {
+  const c = company(), box = $("admCo");
+  box.replaceChildren();
+  CO_FIELDS.forEach(([k, l]) => {
+    const lab = document.createElement("label"), inp = document.createElement("input");
+    lab.textContent = l; inp.value = c[k] || ""; inp.onchange = () => { company()[k] = inp.value.trim(); saveCompany(); };
+    lab.appendChild(inp); box.appendChild(lab);
+  });
+}
+
+/* Shared settings: the same localStorage values as always, copied to and from api/settings */
+const SET_KEYS = ["aj-company", "aj-labor-edits", "aj-asm-edits", "aj-excl-std", "aj-list-sup", "aj-list-natl", "aj-list-falv", "aj-list-lp"];
+var setInfo = null, setTimer = null, setDirty = new Set((lsGet("aj-set-dirty") || "").split(",").filter(Boolean));
+const setSnap = () => { const o = {}; SET_KEYS.forEach(k => { const v = lsGet(k); if (v != null) o[k] = v; }); return o; };
+function setApply(data, skip) {
+  SET_KEYS.forEach(k => { if (k in data && !(skip && skip.has(k))) lsSet(k, data[k]); });
+  companyCache = null; laborEditsCache = null; asmEditsCache = null;
+}
+// the first time a device syncs: whatever only this device had is kept and shared too
+function setMerge(team, local) {
+  const out = { ...team };
+  Object.entries(local).forEach(([k, v]) => {
+    if (!(k in team)) { out[k] = v; return; }
+    try {
+      const a = JSON.parse(team[k]), b = JSON.parse(v);
+      if (Array.isArray(a) && Array.isArray(b)) out[k] = JSON.stringify([...a, ...b.filter(x => !a.includes(x))]);
+      else if (k !== "aj-company" && a && b && typeof a === "object") out[k] = JSON.stringify({ ...b, ...a });
+    } catch (e) {}
+  });
+  return out;
+}
+const setSaveDirty = () => lsSet("aj-set-dirty", setDirty.size ? [...setDirty].join(",") : null);
+async function settingsPull() {
+  if (!teamOn || teamOffline) return;
+  try {
+    const r = await fetch("/api/settings", { cache: "no-store" });
+    if (!r.ok) return;
+    const o = await r.json(), stamp = lsGet("aj-set-stamp");
+    setInfo = o;
+    if (!o.url || o.url === stamp) return;
+    if (!stamp) {
+      const local = setSnap(), m = setMerge(o.data, local);
+      lsSet("aj-set-backup", JSON.stringify(local));
+      setApply(m); lsSet("aj-set-stamp", o.url);
+      if (!fieldMode) { SET_KEYS.forEach(k => { if (m[k] !== o.data[k]) setDirty.add(k); }); if (setDirty.size) { setSaveDirty(); settingsPush(); } }
+    } else { setApply(o.data, setDirty); lsSet("aj-set-stamp", o.url); }
+  } catch (e) {}
+}
+async function settingsPush(replace) {
+  if (!teamOn || fieldMode || teamOffline) return false;
+  try {
+    if (!replace) { // someone else's newer settings first, keeping what changed here
+      const r = await fetch("/api/settings", { cache: "no-store" });
+      if (r.ok) { const o = await r.json(); if (o.url && o.url !== lsGet("aj-set-stamp")) setApply(o.data, setDirty); }
+    }
+    const sent = new Set(setDirty);
+    const r = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: setSnap(), by: teamWho }) });
+    if (!r.ok) return false;
+    const o = await r.json();
+    lsSet("aj-set-stamp", o.url); sent.forEach(k => setDirty.delete(k)); setSaveDirty();
+    setInfo = { ...(setInfo || {}), url: o.url, saved: o.saved, by: teamWho };
+    return true;
+  } catch (e) { return false; }
+}
+function settingsTouch(k) {
+  try { if (!teamOn || fieldMode) return; } catch (e) { return; } // too early in startup: nothing to share yet
+  setDirty.add(k); setSaveDirty();
+  clearTimeout(setTimer); setTimer = setTimeout(() => settingsPush(), 3000);
+}
+function drawSetNote() {
+  const o = setInfo;
+  $("admSetNote").textContent = "Company details, labor hours, parts lists, standard exclusions and vendor lists are shared. A change on any office computer reaches everyone the next time they open the app. "
+    + (o && o.url ? `Last shared ${whenSaved(o.saved)}${o.by ? " by " + o.by : ""}.` : "Nothing is shared yet: click the button below on the computer that has your settings.");
+}
+$("admSetPush").onclick = async () => {
+  if (setInfo && setInfo.url && !confirm("Replace everyone's company details, labor hours, parts lists, exclusions and vendor lists with this computer's?")) return;
+  SET_KEYS.forEach(k => setDirty.add(k));
+  toast(await settingsPush(true) ? "Everyone has this computer's settings now." : "Couldn't share the settings. Check the internet.");
+  drawSetNote();
+};
+
+/* Working without internet */
+function fieldKeep() {
+  if (!job) return;
+  const out = { base: fieldUrl, order: fieldLayer.order, gone: fieldLayer.gone, pages: {} };
+  pages.forEach(p => { if (p.ghost && (p.ghost.devices.length || p.ghost.runs.length)) out.pages[p.id] = p.ghost; });
+  lsSet("aj-fieldq-" + job.id, JSON.stringify(out));
+}
+function fieldQueued(j) {
+  const q = lsGet("aj-fieldq-" + j.id);
+  if (!q) return false;
+  try {
+    const o = JSON.parse(q);
+    fieldApply(o, o.base || null); fieldDirty = true; ghostBtnShow();
+    if (!teamOffline) { clearTimeout(fieldTimer); fieldTimer = setTimeout(fieldPush, 1500); }
+    return true;
+  } catch (e) { lsSet("aj-fieldq-" + j.id, null); return false; }
+}
+const unsentAny = () => syncWanted || fieldDirty || setDirty.size > 0 || Object.keys(localStorage).some(k => /^aj-(unsent|fieldq)-/.test(k));
+async function backOnline(ask) {
+  if (!teamOn || !teamOffline) return;
+  try {
+    const r = await fetch("/api/jobs", { cache: "no-store" });
+    if (r.status === 401) { location.href = "/login.html"; return; } // changes wait on this device until they sign in
+    if (!r.ok) return;
+    teamJobs = (await r.json()).jobs || []; teamIndex = {}; teamJobs.forEach(f => teamIndex[f.id] = f);
+  } catch (e) { return; }
+  teamOffline = false;
+  if (job && !syncing) setDrive(lsGet("aj-unsent-" + job.id) || fieldDirty ? "idle" : "ok", lsGet("aj-unsent-" + job.id) || fieldDirty ? "Changes not saved online yet" : "Saved online");
+  if (ask && unsentAny()) { $("onlineModal").hidden = false; $("onSave").focus(); return; }
+  sendUnsent();
+}
+function sendUnsent() {
+  roleCheck(); settingsPull().then(() => { if (setDirty.size) settingsPush(); });
+  if (job && (syncWanted || lsGet("aj-unsent-" + job.id))) { syncWanted = true; runSync(); }
+  if (job && fieldDirty) { clearTimeout(fieldTimer); fieldPush(); } else if (job) fieldLoad();
+  setTimeout(teamMoveUp, 1500);
+}
+$("onSave").onclick = () => { $("onlineModal").hidden = true; sendUnsent(); };
+$("onLater").onclick = () => { $("onlineModal").hidden = true; toast("Your changes stay on this device. They save online with your next change, or click Try again."); };
+window.addEventListener("online", () => setTimeout(() => backOnline(true), 1500));
+window.addEventListener("offline", () => { if (teamOn) { teamOffline = true; setDrive("bad", "No internet. Changes are kept on this device until WiFi is back"); } });
+setInterval(() => { if (teamOffline && navigator.onLine !== false) backOnline(true); }, 30000);
+setInterval(() => { if (teamOn && !teamOffline && !document.hidden) roleCheck(); }, 600000); // someone turned off or changed on the Admin page
 
 /* Ghost lines and the Order page (Jonathan 2026-10-30): the field login places its own marks and draws its own runs,
    faded and dashed over the office markups. They live in the job's field layer online (api/field), never in the
@@ -7395,6 +7684,7 @@ async function fieldNewest(j) {
 }
 async function fieldLoad() {
   if (!teamOn || !job || fieldDirty || fieldSaving) return;
+  if (fieldQueued(job)) return; // marks made without internet go up first
   const j = job;
   try {
     const cur = await fieldNewest(j);
@@ -7407,7 +7697,7 @@ async function fieldLoad() {
 }
 // something in the field layer changed: save it online in a few seconds
 function fieldTouch() {
-  fieldDirty = true; ghostBtnShow();
+  fieldDirty = true; ghostBtnShow(); fieldKeep();
   clearTimeout(fieldTimer); fieldTimer = setTimeout(fieldPush, 2500);
 }
 const byId = list => new Map(list.map(x => [x.id, x]));
@@ -7442,9 +7732,11 @@ async function fieldPush() {
     try { const now = await fieldNewest(j); if (now && now.url !== url && job === j) fieldDirty = true; } catch (e) {}
     fetch("/api/field", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "tidy", id: segId(j.id) }) }).catch(() => {});
     if (job === j) { setDrive("ok", `Field marks saved online ${clockTime(Date.now())}`); drawOverlay(); renderCounts(); }
+    if (!fieldDirty) lsSet("aj-fieldq-" + j.id, null);
   } catch (e) {
     fieldDirty = true;
-    setDrive("bad", "Couldn't save the field marks online. Check the internet");
+    if (!navigator.onLine || e instanceof TypeError) { teamOffline = true; setDrive("bad", "No internet. Field marks are kept on this device until WiFi is back"); }
+    else setDrive("bad", "Couldn't save the field marks online. Check the internet");
   } finally {
     fieldSaving = false;
     if (fieldDirty && $("driveStatus").className.indexOf("bad") < 0) { clearTimeout(fieldTimer); fieldTimer = setTimeout(fieldPush, 2500); }
