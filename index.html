@@ -143,17 +143,17 @@ button { cursor: pointer; }
 .zoomrow .zl { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .zoomrow .btn { justify-content: center; padding: 0 6px; }
 .btn.tool.hand[aria-pressed="true"], .zoomrow .btn[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
-.mk-run { fill: none; stroke: var(--mark-run); stroke-width: 1.5; stroke-linejoin: round; stroke-linecap: round; }
-.mk-draft { fill: none; stroke: var(--mark-run); stroke-width: 1.5; stroke-dasharray: 8 5; }
-.mk-meas { fill: none; stroke: var(--mark-measure); stroke-width: 2.5; }
-.mk-dot { fill: var(--mark-halo); stroke: var(--mark-run); stroke-width: 1.25; }
+.mk-run { fill: none; stroke: var(--mark-run); stroke-width: .75; stroke-linejoin: round; stroke-linecap: round; }
+.mk-draft { fill: none; stroke: var(--mark-run); stroke-width: .75; stroke-dasharray: 6 4; }
+.mk-meas { fill: none; stroke: var(--mark-measure); stroke-width: 1.25; } /* half as thick (Jonathan 2026-10-30) */
+.mk-dot { fill: var(--mark-halo); stroke: var(--mark-run); stroke-width: .75; }
 .mk-dot.meas { stroke: var(--mark-measure); }
 .mk-label { font-family: var(--font-mono); font-weight: 600; paint-order: stroke; stroke: var(--mark-halo); stroke-linejoin: round; fill: var(--mark-run); }
 .mk-label.meas { fill: var(--mark-measure); }
 .mk-glow { fill: rgb(14 165 233 / .35); stroke: #0ea5e9; stroke-width: 2.5; filter: drop-shadow(0 0 5px #0ea5e9); }
 .mk-glow.hover { fill: rgb(14 165 233 / .15); stroke-width: 1.5; filter: none; }
 .mk-handle { fill: #fff; stroke: #0ea5e9; stroke-width: 2.5; cursor: grab; }
-.mk-glow-run { fill: none; stroke: #0ea5e9; stroke-opacity: .45; stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 4px #0ea5e9); }
+.mk-glow-run { fill: none; stroke: #0ea5e9; stroke-opacity: .45; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 4px #0ea5e9); }
 .mk-box { fill: color-mix(in srgb, var(--accent) 10%, transparent); stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 6 4; }
 .selbar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px; max-width: calc(100% - 24px);
   background: var(--panel); border: 1px solid var(--accent); border-radius: 8px; padding: 6px 8px 6px 12px; font-size: 14px; box-shadow: 0 4px 14px rgb(0 0 0 / .14); }
@@ -590,7 +590,7 @@ td .bid-ln[data-q], td .bid-ln[data-s] { width: calc(100% - 80px); }
 .btn.tool.hl-r[aria-pressed="true"] { background: #ffd6d6; border-color: #d33; color: #5a0000; }
 .btn.tool.hl-y::before, .btn.tool.hl-r::before { content: ""; width: 12px; height: 12px; border-radius: 2px; background: #ffe14d; margin-right: 6px; flex: none; }
 .btn.tool.hl-r::before { background: #ff5c5c; }
-.mk-hl { stroke-width: 1.5; }
+.mk-hl { stroke-width: .75; }
 .mk-hl.y { fill: rgb(255 225 0 / .35); stroke: #d4b100; }
 .mk-hl.r { fill: rgb(255 60 60 / .28); stroke: #d33; }
 .mk-hl.draft { stroke-dasharray: 5 3; }
@@ -815,7 +815,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v128<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v129<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
@@ -5366,7 +5366,7 @@ function drawOverlay() {
   if (cmp) return drawCmpHandles(svg);
   const ns = { "vector-effect": "non-scaling-stroke" };
   const ptsAttr = pts => pts.map(q => q.join(",")).join(" ");
-  const dots = (g, pts, cls) => pts.forEach(q => g.appendChild(svgEl("circle", { cx: q[0], cy: q[1], r: 3 / k, class: "mk-dot " + (cls || ""), ...ns })));
+  const dots = (g, pts, cls) => pts.forEach(q => g.appendChild(svgEl("circle", { cx: q[0], cy: q[1], r: 1.5 / k, class: "mk-dot " + (cls || ""), ...ns })));
   const g = svgEl("g", {});
   (p.hl || []).forEach(h => {
     const rc = svgEl("rect", { x: h.x, y: h.y, width: h.w, height: h.h, class: "mk-hl " + h.c, ...ns });
