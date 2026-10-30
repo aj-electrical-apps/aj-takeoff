@@ -397,6 +397,11 @@ html.look-new body { font-family: var(--font-ui); }
 .cnt-div { display: flex; align-items: center; gap: 8px; margin: 6px 2px 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .cnt-div::after { content: ""; flex: 1; height: 1px; background: var(--line); order: 1; }
 .cnt-div .sn { order: 2; font-weight: 600; }
+/* Field login (Jonathan 2026-10-30): the PM and super look, measure and print; the estimate is locked */
+.role-field :is(#uploadBtn, #bgLoad, #newJobBtn, #bidBtn, #trkBtn, #coBtn, #clearBtn, #replBtn, #lblBtn, #symBtn, #pnlBtn, #schedBtn, #impBtn, #addCountBtn, #addWireBtn,
+  #runBtn, #scaleBtn, #eraseBtn, #hlYBtn, #hlRBtn, #roomBtn, #fileBtn, #histUndo, #histRedo, #tsBidTab, #tsRateTab, #tsPropTab, #tsAsmTab, #tsDbo, #tsRomex, #tsAllBox,
+  #jobForm, #teamWhoBox, #jobsOpenFile, #labelForm, .cnt-edit, .psec[data-fold="toolbox"], .tool-sub, .feed-edit) { display: none !important; }
+.role-field .brand small::after { content: " · Field"; }
 .drive span.t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @keyframes pulse { from { opacity: .35 } to { opacity: 1 } }
 @media (prefers-reduced-motion: reduce) { .drive.busy .dot { animation: none; } }
@@ -674,7 +679,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v113</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v114</small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
@@ -2245,7 +2250,8 @@ function renderCounts() {
     tx.append(nm, kind, ds);
     const n = document.createElement("span"); n.className = "cnt-n"; n.innerHTML = `${nS}<small>of ${nA}</small>`;
     b.append(tx, n);
-    b.onclick = () => setTool("place", d.id);
+    b.onclick = () => fieldMode ? findCount(d.id) : setTool("place", d.id);
+    if (fieldMode) b.title = "Light up every one of these on the drawing";
     li.appendChild(b);
     const fd = document.createElement("button"); fd.type = "button"; fd.className = "cnt-find"; fd.setAttribute("aria-pressed", findId === d.id);
     fd.title = findId === d.id ? "Stop lighting these up" : "Light up every one of these on the drawing"; fd.setAttribute("aria-label", "Find every " + nameOf(d));
@@ -3025,6 +3031,7 @@ $("schedForm").addEventListener("submit", e => {
   toast(`${made} fixture type${made === 1 ? "" : "s"} added${upd ? `, ${upd} updated` : ""}. They're in the Fixture schedule box at the top of the toolbox.`);
 });
 function setHl(m) {
+  if (fieldMode && hlMode !== m) return fieldNo();
   hlMode = hlMode === m ? null : m;
   if (hlMode && tool) setTool(null);
   $("hlYBtn").setAttribute("aria-pressed", hlMode === "y"); $("hlRBtn").setAttribute("aria-pressed", hlMode === "r"); $("roomBtn").setAttribute("aria-pressed", hlMode === "room"); $("schedBtn").setAttribute("aria-pressed", hlMode === "sched"); $("pnlBtn").setAttribute("aria-pressed", hlMode === "pnl" || !$("pnlModal").hidden); $("symBtn").setAttribute("aria-pressed", hlMode === "sym"); $("lblBtn").setAttribute("aria-pressed", hlMode === "lbl");
@@ -4745,6 +4752,7 @@ function takeoffText() {
 function openTakeoff(view) {
   if (tool) setTool(null);
   tsView = view || tsView;
+  if (fieldMode && FIELD_NO_TABS.includes(tsView)) tsView = "count";
   renderTakeoff();
   $("takeoffModal").hidden = false; tsTop(); $("tsCloseTop").focus({ preventScroll: true });
 }
@@ -4926,6 +4934,8 @@ function setTool(t, dev) {
   if (t && hlMode) setHl(hlMode);
   const p = pages[current];
   if (t && t !== "calibrate" && !p) return;
+  if (fieldMode && t && t !== "measure") return fieldNo();
+  if (fieldMode && t === "measure" && !p.ftPerPx) return toast("This sheet has no scale set yet, so it can't be measured.");
   if ((t === "measure" || t === "run") && !p.ftPerPx) { openScale(t); return; }
   if (t && tool === t && t !== "calibrate" && (t !== "place" || placeType === dev)) t = null; // clicking the active tool turns it off
   tool = t; draft = []; hover = null; placed = []; hoverDev = null; contRun = null;
@@ -5305,6 +5315,7 @@ function snapState(ids) {
   return { c: JSON.stringify(countsList()), p: ids.map(id => { const pg = pages.find(x => x.id === id); return pg && [id, JSON.stringify([pg.devices, pg.runs, pg.ftPerPx || null, pg.scaleLabel || "", pg.rooms || [], pg.hl || []])]; }).filter(Boolean) };
 }
 function remember(list) {
+  if (fieldMode) { fieldNo(); throw new Error("Field login is view only"); }
   const ids = (list || [pages[current]]).filter(Boolean).map(pg => pg.id);
   undoStack.push(snapState(ids)); if (undoStack.length > 200) undoStack.shift();
   redoStack = []; updHist();
@@ -6149,10 +6160,10 @@ function qsPickType(cat, t) {
 function qsAll() {
   const out = [], on = id => { const b = $(id); return b && !b.hidden && !b.disabled && b.offsetParent !== null; };
   [...countsList().map(c => c.id), ...Object.values(DEVICES).filter(d => pages.some(pg => countOn(pg, d.id))).map(d => d.id)].forEach(id => { const c = { id }, d = devInfo(c.id); if (!d) return; const n = pages.reduce((t, pg) => t + qtyOn(pg, c.id), 0) + impQty(c.id);
-    out.push({ ico: "count", color: d.color, label: nameOf(d), sub: [d.kindName || d.kind, specOf(d)].filter(Boolean).join(" · "), t: `${n} counted`, k: `${d.tag} ${d.label} ${d.desc}`, rank: 4, go: () => setTool("place", c.id) }); });
-  wiresList().forEach(w => out.push({ ico: "run", color: w.color, label: wireLabel(w), sub: "Draw runs of it", t: "Run type", k: `${w.size || ""} ${w.conduit || ""} conduit wire`, rank: 4, go: () => startRunType(w.id) }));
-  CATS.forEach(c => c.types.forEach(t => out.push({ ico: "new", label: t, sub: c.name, t: "Toolbox", k: c.key === "misc" ? "other" : "", rank: 2, go: () => qsPickType(c.key, t) })));
-  QS_TABS.forEach(([v, label, k]) => out.push({ ico: "sheet", label, sub: "Open it", t: "Sheet", k, rank: 3, go: () => openTakeoff(v) }));
+    out.push({ ico: "count", color: d.color, label: nameOf(d), sub: [d.kindName || d.kind, specOf(d)].filter(Boolean).join(" · "), t: `${n} counted`, k: `${d.tag} ${d.label} ${d.desc}`, rank: 4, go: () => fieldMode ? findCount(c.id) : setTool("place", c.id) }); });
+  if (!fieldMode) wiresList().forEach(w => out.push({ ico: "run", color: w.color, label: wireLabel(w), sub: "Draw runs of it", t: "Run type", k: `${w.size || ""} ${w.conduit || ""} conduit wire`, rank: 4, go: () => startRunType(w.id) }));
+  if (!fieldMode) CATS.forEach(c => c.types.forEach(t => out.push({ ico: "new", label: t, sub: c.name, t: "Toolbox", k: c.key === "misc" ? "other" : "", rank: 2, go: () => qsPickType(c.key, t) })));
+  QS_TABS.filter(([v]) => !fieldMode || !FIELD_NO_TABS.includes(v)).forEach(([v, label, k]) => out.push({ ico: "sheet", label, sub: "Open it", t: "Sheet", k, rank: 3, go: () => openTakeoff(v) }));
   QS_BTNS.forEach(([id, k]) => { if (!on(id)) return; const b = $(id); out.push({ ico: "tool", label: b.textContent.replace(/\s+/g, " ").trim(), sub: b.title || "", t: "Tool", k, rank: 3, go: () => b.click() }); });
   pages.forEach((pg, i) => out.push({ ico: "page", label: sheetName(pg, i), sub: `Sheet ${i + 1} of ${pages.length}`, t: "Go to", k: "sheet page drawing", rank: 1, go: () => go(i) }));
   return out;
@@ -7063,6 +7074,33 @@ async function ensureJob(firstFileName) {
 }
 const touchJob = () => { if (job) { job.updated = new Date().toISOString(); saveJob(job); } };
 
+
+/* Field login (Jonathan 2026-10-30): with the field password (FIELD_PASSWORD in Vercel) the PM and super can open
+   every job, look at the drawings, counts, supplier sheet, underground and notes, measure, light up counts and print.
+   Prices, the bid, labor, proposal and bid tracker are hidden, nothing they do changes the estimate, and the
+   website itself refuses their changes to the team's jobs (middleware.js). */
+let fieldMode = false;
+const FIELD_NO_TABS = ["bid", "rate", "prop", "asm"];
+const fieldNo = () => toast("The field login can look, measure and print. Changes to the estimate are made in the office.");
+async function roleCheck() {
+  let role = window.AJ_ROLE || "office";
+  try { const r = await fetch("/api/role", { cache: "no-store" }); if (r.ok) role = window.AJ_ROLE || (await r.json()).role; } catch (e) {}
+  if (role === "field") enterField();
+}
+function enterField() {
+  fieldMode = true;
+  document.documentElement.classList.add("role-field");
+  if (tool && tool !== "measure") setTool(null);
+  if (hlMode) { const m = hlMode; fieldMode = false; setHl(m); fieldMode = true; }
+  clearTimeout(syncTimer); syncWanted = false;
+  $("nameInput").readOnly = true;
+  $("jobsWhere").textContent = "Field login: every job is here to look at. Changes to the estimate are made in the office.";
+  setDrive("ok", "Field login · view only");
+  renderCounts();
+  // the count and supplier sheets show their numbers but nothing on them can be changed
+  new MutationObserver(() => $("tsTable").querySelectorAll("input, select, textarea, button").forEach(e => { e.disabled = true; }))
+    .observe($("tsTable"), { childList: true, subtree: true });
+}
 /* ---------- team jobs (Jonathan 2026-10-29: "when someone puts in a new job it saves it so everyone can see it") ----------
    On the AJ Takeoff website every job also saves online, in Vercel Blob, a few seconds after each change:
      team/sheet/<job>/<sheet>-img|thumb|prev.jpg   each sheet image, uploaded once (again only if the sheet is replaced)
@@ -7085,6 +7123,7 @@ const teamReady = (async () => {
     teamJobs = (await r.json()).jobs || [];
   } catch (e) { return false; }
   teamOn = true; teamIndex = {}; teamJobs.forEach(f => teamIndex[f.id] = f);
+  await roleCheck();
   $("jobsWhere").textContent = "Jobs save online by themselves, so everyone using the app sees them on any computer.";
   $("teamWhoBox").hidden = false; $("teamWho").value = teamWho;
   if (job && !syncing) setDrive(job.teamUrl ? "ok" : "idle", job.teamUrl ? "Saved online" : "Saved on this computer");
@@ -7139,6 +7178,7 @@ async function teamPush(j, list, { force, progress } = {}) {
   return { url };
 }
 async function runTeamSync() {
+  if (fieldMode) { syncWanted = false; return; }
   if (syncing || !syncWanted || !job) return;
   syncing = true; syncWanted = false;
   const j = job, list = pages.filter(p => !p.example);
@@ -7255,7 +7295,7 @@ function teamTag(j) {
   if (f.deleted) return " · Deleted from the online list";
   return ` · Newer copy online${f.by ? " from " + f.by : ""}, opens it`;
 }
-const teamDelete = j => teamOn && fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "delete", id: segId(j.id), by: teamWho }) }).catch(() => {});
+const teamDelete = j => teamOn && !fieldMode && fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "delete", id: segId(j.id), by: teamWho }) }).catch(() => {});
 // Every minute, and when the app comes back into view: has someone else saved the open job?
 async function teamCheck() {
   if (!teamOn || !job || document.hidden || syncing || syncWanted || !job.teamUrl) return;
@@ -7272,7 +7312,7 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden) team
 $("teamLoad").onclick = () => { if (teamNewer) pullTeam(teamNewer); };
 // The first time this version opens: put every job saved in this browser online
 async function teamMoveUp() {
-  if (!teamOn) return;
+  if (!teamOn || fieldMode) return;
   const todo = jobs.filter(j => !j.teamUrl && !teamIndex[segId(j.id)]);
   let n = 0;
   for (const j of todo) {
