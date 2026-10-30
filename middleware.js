@@ -13,6 +13,7 @@ const json = (o, status) => new Response(JSON.stringify(o), { status, headers: {
 function needs(path, method) {
   const write = method !== "GET" && method !== "HEAD";
   if (/^\/api\/admin/.test(path)) return ["admin"];
+  if (/^\/api\/subs/.test(path)) return ["subs", "admin"];
   if (/^\/api\/bids/.test(path)) return ["tracker", "admin"];
   if (/^\/api\/(team-upload|share-upload)/.test(path) || (path === "/api/jobs" && write)) return ["edit"];
   if (path === "/api/settings" && write) return ["lists", "admin"];

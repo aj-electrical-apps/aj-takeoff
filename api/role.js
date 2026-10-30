@@ -6,10 +6,10 @@ import { loadTeam } from "../lib/team-store.js";
 // if not, they're signed out. Otherwise their sign-in is renewed for another 30 days with their position's
 // current access, so a change on the Admin page reaches them the next time the app checks.
 const H = { "Cache-Control": "no-store" };
-function answer(who, signin, positions, extra = {}) {
+function answer(who, signin, positions, extra = {}, lang) {
   const r = roleKey(who.r), perms = who.p != null ? String(who.p).split(",").filter(Boolean) : permsFor(positions, r);
   const pos = positions.find(p => p.key === r);
-  return Response.json({ role: perms.includes("edit") ? "office" : "field", position: r, positionName: pos ? pos.name : r, perms, admin: perms.includes("admin"), name: who.n || "", signin,
+  return Response.json({ role: perms.includes("edit") ? "office" : "field", position: r, positionName: pos ? pos.name : r, perms, admin: perms.includes("admin"), name: who.n || "", signin, id: who.id || null, lang: lang || null,
     locked: signin || !!norm(process.env.APP_PASSWORD) }, { headers: { ...H, ...extra } });
 }
 export async function GET(request) {
@@ -31,8 +31,9 @@ export async function GET(request) {
         return Response.json({ error: "Please sign in again.", signin: true }, { status: 401, headers: { ...H, "Set-Cookie": clearCookie() } });
       who = { n: u.name, r: roleKey(u.role), id: u.id, v: u.v || 0 };
     }
+    const lang = isPerson(who) ? (users.find(x => x.id === who.id) || {}).lang : null;
     who = { ...who, p: permsFor(positions, who.r).join(",") };
-    return answer(who, true, positions, { "Set-Cookie": cookieLine(await makeSession(key, who)) });
+    return answer(who, true, positions, { "Set-Cookie": cookieLine(await makeSession(key, who)) }, lang);
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500, headers: H });
   }

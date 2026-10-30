@@ -612,6 +612,37 @@ tr.ex-off .ex-row span { color: var(--muted); text-decoration: line-through; }
 .sched-tbl select.sched-unsure { background: #fff3bf; color: #5c3c00; border-color: #f59f00; }
 .sched-why { display: block; font-size: 10px; color: var(--muted, #888); margin-top: 2px; }
 .sched-src { width: 100%; border: 1px solid var(--line); border-radius: 6px; background: #fff; max-height: 180px; object-fit: contain; }
+.mk-hl.send, .mk-note { fill: rgb(234 88 12 / .1); stroke: #ea580c; stroke-width: 2; stroke-dasharray: 8 5; }
+.mk-note.focus { stroke-width: 3; fill: rgb(234 88 12 / .18); }
+.mk-note-n { fill: #fff; stroke: none; font-weight: 700; }
+.mk-note-dot { fill: #ea580c; }
+#sendBtn { border-color: #ea580c; color: #c2410c; font-weight: 600; }
+#sendBtn[aria-pressed="true"] { background: #ea580c; color: #fff; }
+#msgBtn .me-dot { background: #ea580c; }
+.msg-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.msg-row { display: grid; gap: 2px; width: 100%; text-align: left; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); font: inherit; cursor: pointer; }
+.msg-row.new { border-color: #ea580c; box-shadow: inset 3px 0 0 #ea580c; }
+.msg-row .mt { font-weight: 600; font-size: 14px; }
+.msg-row .mm, .msg-meta { font-size: 12.5px; color: var(--muted); }
+.msg-row .mx { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-thread { display: grid; gap: 8px; max-height: 46vh; overflow-y: auto; }
+.msg-b { padding: 8px 11px; border-radius: 10px; background: var(--bg); border: 1px solid var(--line); }
+.msg-b.mine { background: rgb(234 88 12 / .08); border-color: rgb(234 88 12 / .35); }
+.msg-b p { margin: 3px 0 0; white-space: pre-wrap; font-size: 15px; }
+.msg-b .orig { font-size: 12.5px; color: var(--muted); }
+.msg-lang { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); }
+.msg-lang button[aria-pressed="true"] { background: var(--fg); color: var(--panel); }
+.send-to { display: grid; gap: 4px; max-height: 30vh; overflow-y: auto; padding: 4px; border: 1px solid var(--line); border-radius: 8px; }
+.send-to label { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 15px; }
+.send-to label:has(input:checked) { background: rgb(234 88 12 / .1); }
+.send-to small { color: var(--muted); }
+.send-to .grp { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 6px 8px 0; }
+.sub-row { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
+.sub-row.off { opacity: .55; }
+.sub-jobs { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 4px; font-size: 14px; }
+.sub-jobs label { display: flex; gap: 6px; align-items: center; }
+.sub-pw { padding: 10px 12px; border-radius: 8px; background: rgb(22 163 74 / .1); border: 1px solid #16a34a; font-size: 14px; }
+.sub-pw code { font-size: 16px; font-weight: 700; }
 .mk-hl.room { fill: rgb(28 126 214 / .07); stroke: #1c7ed6; stroke-width: 2; stroke-dasharray: 8 4; }
 .mk-room-lbl { fill: #1864ab; font-weight: 700; paint-order: stroke; stroke: #fff; }
 .mk-co { fill: #d9480f; font-weight: 700; font-family: var(--font-mono); paint-order: stroke; stroke: #fff; }
@@ -740,9 +771,10 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v120<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v121<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
+    <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
 
@@ -890,6 +922,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
             Linear run</button>
           <button class="btn tool" id="scaleBtn" type="button" title="Set the drawing scale for this sheet">Set scale</button>
           <button class="btn tool erase" id="eraseBtn" type="button" aria-pressed="false" title="Click a symbol, or inside a yellow or red note box, to remove it (E)">Erase</button>
+          <button class="btn tool hl-send" id="sendBtn" type="button" aria-pressed="false" hidden title="Drag a box around part of the drawing and send it to the people you pick. They can answer back.">Highlight &amp; send</button>
           <p class="tool-sub">Mark up</p>
           <button class="btn tool hl-y" id="hlYBtn" type="button" aria-pressed="false" title="Yellow highlighter: drag over a note to save it to your Notes page">Yellow note</button>
           <button class="btn tool hl-r" id="hlRBtn" type="button" aria-pressed="false" title="Red highlighter: drag over a note to save it to your Notes page, count sheet and supplier sheet">Red note</button>
@@ -1107,10 +1140,54 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
   </div>
 </div>
 
+<div class="modal" id="hlsModal" hidden role="dialog" aria-modal="true" aria-labelledby="hlsTitle">
+  <form class="modal-card" id="sendForm">
+    <h2 id="hlsTitle">Send this part of the drawing</h2>
+    <p class="msg-meta" id="sendWhere"></p>
+    <div><b id="sendToL">Send to</b><div class="send-to" id="sendTo"></div></div>
+    <textarea id="sendText" maxlength="4000" placeholder="What do you need them to look at?"></textarea>
+    <p class="msg-meta" id="sendLangNote"></p>
+    <p class="adm-msg bad" id="sendMsg"></p>
+    <div class="row"><button class="btn" type="button" id="sendCancel">Cancel</button><button class="btn primary" type="submit" id="sendGo">Send</button></div>
+  </form>
+</div>
+<div class="modal" id="msgModal" hidden role="dialog" aria-modal="true" aria-labelledby="msgTitle">
+  <div class="modal-card">
+    <h2 id="msgTitle">Messages</h2>
+    <div class="msg-lang"><span id="msgLangL">Language</span> <button class="btn sm" type="button" data-lang="en">English</button><button class="btn sm" type="button" data-lang="es">Español</button></div>
+    <div id="msgListBox"><p class="hint" id="msgEmpty"></p><ul class="msg-list" id="msgList"></ul></div>
+    <div id="msgThreadBox" hidden>
+      <p class="msg-meta" id="msgThHead"></p>
+      <div class="row"><button class="btn sm" type="button" id="msgBack">Back</button><button class="btn sm primary" type="button" id="msgShow">Show on the drawing</button></div>
+      <div class="msg-thread" id="msgThread"></div>
+      <textarea id="msgReply" maxlength="4000"></textarea>
+      <p class="adm-msg bad" id="msgErr"></p>
+      <div class="row"><button class="btn primary" type="button" id="msgSend">Answer</button></div>
+    </div>
+    <div class="row"><button class="btn" type="button" id="msgClose">Close</button></div>
+  </div>
+</div>
+<div class="modal" id="subsModal" hidden role="dialog" aria-modal="true" aria-labelledby="subsTitle">
+  <div class="modal-card wide">
+    <h2 id="subsTitle">Subcontractors</h2>
+    <p class="hint">Each sub gets their own sign-in and sees only the jobs you check. They can look at the drawings, make their own mark-ups, and highlight a part of a drawing to send to you and the super. No prices, no estimate.</p>
+    <div class="sub-row">
+      <b>Add a subcontractor</b>
+      <div class="row"><input type="text" id="subName" maxlength="40" placeholder="Name, like Luis R."><input type="text" id="subCo" maxlength="60" placeholder="Company"></div>
+      <label><input type="checkbox" id="subEs"> Speaks Spanish (the app and messages show in Spanish for them)</label>
+      <div><b>Jobs they see</b><div class="sub-jobs" id="subNewJobs"></div></div>
+      <div class="row"><button class="btn primary" type="button" id="subAdd">Add and make a password</button></div>
+    </div>
+    <div class="sub-pw" id="subPw" hidden></div>
+    <p class="adm-msg" id="subMsg"></p>
+    <div class="adm-people" id="subList"></div>
+    <div class="row"><button class="btn" type="button" id="subClose">Close</button></div>
+  </div>
+</div>
 <div class="modal" id="adminModal" hidden role="dialog" aria-modal="true" aria-labelledby="admTitle">
   <div class="modal-card adm-card">
     <h2 id="admTitle">Admin</h2>
-    <p class="adm-me"><span id="admMe"></span> <a class="btn sm" id="admOut" href="/api/logout">Sign out</a></p>
+    <p class="adm-me"><span id="admMe"></span> <a class="btn sm" id="admOut" href="/api/logout">Sign out</a> <button class="btn sm" type="button" id="admSubs" hidden>Subcontractors</button></p>
     <div id="admBody">
       <p class="adm-warn" id="admSignin" hidden></p>
       <div class="adm-tabs" role="tablist"><button type="button" role="tab" data-at="people" aria-selected="true">People</button><button type="button" role="tab" data-at="positions" aria-selected="false">Positions</button><button type="button" role="tab" data-at="company" aria-selected="false">Company &amp; settings</button><button type="button" role="tab" data-at="approve" aria-selected="false">Changes to approve</button><button type="button" role="tab" data-at="backup" aria-selected="false">Backup</button></div>
@@ -3143,8 +3220,10 @@ $("schedForm").addEventListener("submit", e => {
   toast(`${made} fixture type${made === 1 ? "" : "s"} added${upd ? `, ${upd} updated` : ""}. They're in the Fixture schedule box at the top of the toolbox.`);
 });
 function setHl(m) {
-  if (fieldMode && hlMode !== m) return fieldNo();
+  if (fieldMode && hlMode !== m && m !== "send") return fieldNo();
   hlMode = hlMode === m ? null : m;
+  $("sendBtn").setAttribute("aria-pressed", hlMode === "send");
+  if (hlMode === "send") toast(L("Drag a box around the part of the drawing to send. Click an orange box to see its messages."));
   if (hlMode && tool) setTool(null);
   $("hlYBtn").setAttribute("aria-pressed", hlMode === "y"); $("hlRBtn").setAttribute("aria-pressed", hlMode === "r"); $("roomBtn").setAttribute("aria-pressed", hlMode === "room"); $("schedBtn").setAttribute("aria-pressed", hlMode === "sched"); $("pnlBtn").setAttribute("aria-pressed", hlMode === "pnl" || !$("pnlModal").hidden); $("symBtn").setAttribute("aria-pressed", hlMode === "sym"); $("lblBtn").setAttribute("aria-pressed", hlMode === "lbl");
   $("sheet").style.cursor = hlMode ? "crosshair" : "";
@@ -3175,10 +3254,16 @@ $("sheet").addEventListener("pointerup", e => {
   e.stopImmediatePropagation();
   const d = hlDrag, pg = pages[current]; hlDrag = null;
   if (!d.end || Math.hypot(e.clientX - d.cx, e.clientY - d.cy) < 8) { // a click: open a highlight that's there
+    if (hlMode === "send") { const n = noteAt(pg, d.start); drawOverlay(); if (n) openMsgs(n.id); return; }
     if (hlMode === "room") { const m = roomAt(pg, d.start); drawOverlay(); if (m) openRoom(pg, m); return; }
     if (hlMode === "sched" || hlMode === "lbl" || hlMode === "pnl" || hlMode === "sym") { drawOverlay(); return; }
     const h = hlAt(pg, d.start); drawOverlay();
     if (h) openHl(pg, h);
+    return;
+  }
+  if (hlMode === "send") {
+    const r = { x: Math.round(Math.min(d.start[0], d.end[0])), y: Math.round(Math.min(d.start[1], d.end[1])), w: Math.round(Math.abs(d.end[0] - d.start[0])), h: Math.round(Math.abs(d.end[1] - d.start[1])) };
+    sendDraft = r; drawOverlay(); openSend(pg, r);
     return;
   }
   if (hlMode === "sym") {
@@ -5178,6 +5263,7 @@ function drawOverlay() {
   }
   { const off = svgEl("g", { class: "mk-office" }); while (g.firstChild) off.appendChild(g.firstChild); g.appendChild(off); } // faded for the field
   drawGhost(g, p, ns, ptsAttr);
+  drawNotes(g, p, ns);
   if (tool === "place" && hover) {
     const e = shapeEl(devInfo(placeType), hover[0], hover[1], 8 / k, "mk-dev");
     e.setAttribute("opacity", ".55"); e.setAttribute("vector-effect", "non-scaling-stroke"); g.appendChild(e);
@@ -7252,6 +7338,7 @@ async function roleCheck() {
       role = window.AJ_ROLE || o.role; isAdmin = !!o.admin && role !== "field"; signedIn = !!o.signin;
       if (Array.isArray(o.perms) && !window.AJ_ROLE) { myPerms = new Set(o.perms); posName = o.positionName || ""; lsSet("aj-perms", o.perms.join(",")); lsSet("aj-pos", posName || null); }
       if (signedIn && o.name) { teamWho = o.name.slice(0, 30); lsSet("aj-who", teamWho); }
+      lsSet("aj-lang-srv", o.lang || null);
       lsSet("aj-role", role); lsSet("aj-admin", isAdmin ? "1" : null); lsSet("aj-signed", signedIn ? "1" : null);
     }
   } catch (e) {
@@ -7259,7 +7346,7 @@ async function roleCheck() {
     const pp = lsGet("aj-perms"); if (pp != null && !window.AJ_ROLE) { myPerms = new Set(pp.split(",").filter(Boolean)); posName = lsGet("aj-pos") || ""; }
   }
   if (window.AJ_ROLE === "field" || (role === "field" && !myPerms)) myPerms = new Set(["hours", "counts", "order", "marks", "scale"]);
-  applyPerms(); meBtnShow();
+  applyLang(); meBtnShow();
   if (role === "field" && !fieldMode) { enterField(); applyPerms(); }
 }
 function enterField() {
@@ -7271,7 +7358,7 @@ function enterField() {
   $("nameInput").readOnly = true;
   $("jobsWhere").textContent = "Field login: every job is here to look at. Changes to the estimate are made in the office.";
   setDrive("ok", "Field login");
-  toast("Field login: click a count, then the sheet, to add a field mark. Click a run type to draw a field run. They show faded and go on the Order page, never in the estimate.");
+  toast(L(can("counts") || can("order") ? "Field login: click a count, then the sheet, to add a field mark. Click a run type to draw a field run. They show faded and go on the Order page, never in the estimate." : "Your own mark-ups go on top of the office's, which show faded. Use Highlight & send to ask about part of a drawing."));
   renderCounts();
   // the count and supplier sheets show their numbers but nothing on them can be changed
   new MutationObserver(() => (tsView === "rate" || tsView === "asm") && can("lists") ? null : $("tsTable").querySelectorAll("input:not(.no-lock), select, textarea:not(.no-lock), button:not(.no-lock)").forEach(e => { e.disabled = true; }))
@@ -7540,7 +7627,7 @@ function applyPerms() {
   de.classList.toggle("office-off", lsGet("aj-office-mk") === "off");
   $("brandPos").textContent = posName && !isAdmin ? " · " + posName : "";
   $("officeMkBtn").hidden = !fieldMode;
-  $("officeMkBtn").textContent = lsGet("aj-office-mk") === "off" ? "Office mark-ups: hidden" : "Office mark-ups: faded";
+  $("officeMkBtn").textContent = L(lsGet("aj-office-mk") === "off" ? "Office mark-ups: hidden" : "Office mark-ups: faded");
   if (myPerms && !can("counts") && !can("order") && !can("hours")) $("takeoffBtn").hidden = true;
 }
 $("officeMkBtn").onclick = () => { lsSet("aj-office-mk", lsGet("aj-office-mk") === "off" ? null : "off"); applyPerms(); };
@@ -7580,6 +7667,7 @@ async function showAdmin() {
   $("admMe").textContent = signedIn ? `Signed in as ${teamWho || "you"} (${isAdmin ? "Admin" : posName || (fieldMode ? "Field" : "Office")}).` : "Everyone uses the shared app password for now.";
   $("admOut").hidden = !signedIn;
   $("admBody").hidden = !isAdmin;
+  $("admSubs").hidden = !teamOn || !can("subs");
   $("admTitle").textContent = isAdmin ? "Admin" : "Signed in";
   admSay(""); admDraft = null; admConfirm = null;
   $("adminModal").hidden = false;
@@ -7672,7 +7760,7 @@ function drawPositions() {
     card.innerHTML = `<div class="adm-top"><span class="adm-av r-${escH(pos.key)}" aria-hidden="true">${escH(initials(pos.name))}</span><input class="adm-nm" maxlength="40" value="${escH(pos.name)}"${adm ? " disabled" : ""} aria-label="Position name"><span class="adm-sub">${n} ${n === 1 ? "person" : "people"}</span></div>`
       + (adm ? `<div class="adm-sub">Admin has everything, plus this Admin page.</div>`
         : `<div class="adm-perms">${o.perms.map(([k, l, h]) => `<label class="adm-perm"><input type="checkbox" data-k="${k}"${pos.perms.includes(k) ? " checked" : ""}><span><b>${escH(l)}</b>${h ? `<small>${escH(h)}</small>` : ""}</span></label>`).join("")}</div>`
-        + (n ? "" : `<div><button class="btn sm warn" type="button" data-a="del">Remove this position</button></div>`));
+        + (n || pos.key === "sub" ? "" : `<div><button class="btn sm warn" type="button" data-a="del">Remove this position</button></div>`));
     const nm = card.querySelector(".adm-nm");
     nm.onchange = () => { const v = nm.value.trim(); if (!v) { nm.value = pos.name; return; } pos.name = v; savePositions(`Renamed to ${v}.`); };
     card.querySelectorAll("[data-k]").forEach(c => c.onchange = () => {
@@ -7698,6 +7786,280 @@ async function admDo(body, done) {
 const PW_WORDS = ["volt", "amps", "wire", "panel", "conduit", "breaker", "switch", "lamp", "copper", "fuse", "relay", "ground", "feeder", "strut", "ladder", "meter"];
 const pick = n => crypto.getRandomValues(new Uint32Array(1))[0] % n;
 const makePw = () => `${PW_WORDS[pick(PW_WORDS.length)]}-${PW_WORDS[pick(PW_WORDS.length)]}-${10 + pick(90)}`;
+/* ---------- Highlight & send, and subcontractors (Jonathan 2026-10-30: "high light a section and it will send to the pm and super
+   so they can coment back... set it to have a drop down so you can pick who it goes too... an option for spanish and translate to english").
+   A box dragged on a drawing goes to the people picked, saved online by api/notes with the message in English and Spanish.
+   Everyone it went to can answer; each person reads it in their own language. Subs are added by a PM (api/subs). */
+var ES_MAP = {
+  "Messages": "Mensajes", "Highlight & send": "Marcar y enviar", "Send this part of the drawing": "Enviar esta parte del plano", "Send to": "Enviar a",
+  "Send": "Enviar", "Cancel": "Cancelar", "Close": "Cerrar", "Back": "Atrás", "Answer": "Responder", "Show on the drawing": "Ver en el plano", "Language": "Idioma",
+  "What do you need them to look at?": "¿Qué necesitas que revisen?", "Write your answer": "Escribe tu respuesta",
+  "Write in English or Spanish. Each person reads it in their own language.": "Escribe en español o en inglés. Cada persona lo lee en su idioma.",
+  "Pick who it goes to.": "Elige a quién se envía.", "Type a message first.": "Escribe un mensaje primero.",
+  "Sending…": "Enviando…", "Sent.": "Enviado.", "No messages yet. Use Highlight & send on a drawing to start one.": "Todavía no hay mensajes. Usa Marcar y enviar en un plano para empezar.",
+  "Translated from Spanish": "Traducido del inglés", "Show original": "Ver original", "Translate": "Traducir", "you": "tú", "to": "para", "Sheet": "Hoja",
+  "No internet right now. Messages send once WiFi is back.": "No hay internet ahora. Los mensajes se envían cuando vuelva el WiFi.",
+  "Drag a box around the part of the drawing to send. Click an orange box to see its messages.": "Arrastra un cuadro alrededor de la parte del plano que quieres enviar. Toca un cuadro naranja para ver sus mensajes.",
+  "Office mark-ups: hidden": "Marcas de la oficina: ocultas", "Office mark-ups: faded": "Marcas de la oficina: tenues",
+  "Your own mark-ups go on top of the office's, which show faded. Use Highlight & send to ask about part of a drawing.": "Tus marcas van encima de las de la oficina, que se ven tenues. Usa Marcar y enviar para preguntar sobre una parte del plano.",
+  "Job": "Trabajo", "Measure": "Medir", "Set scale": "Escala", "Erase": "Borrar", "Field marks": "Marcas de campo", "Full sheet": "Hoja completa", "Linear run": "Tubería",
+  "Office": "Oficina", "Field": "Campo", "Subcontractors": "Subcontratistas", "Messages can only be sent once this job is saved online.": "Los mensajes se pueden enviar cuando el trabajo esté guardado en línea.",
+};
+function myLang() { return lsGet("aj-lang") || lsGet("aj-lang-srv") || "en"; }
+function L(t) { return myLang() === "es" && ES_MAP && ES_MAP[t] || t; }
+function setLabel(el, t) {
+  if (!el) return;
+  const n = [...el.childNodes].reverse().find(x => x.nodeType === 3 && x.textContent.trim());
+  if (!el.dataset.en) el.dataset.en = (n ? n.textContent : el.textContent).trim();
+  if (n) n.textContent = " " + L(el.dataset.en) + " "; else el.textContent = L(el.dataset.en);
+}
+function applyLang() {
+  ["measureBtn", "scaleBtn", "eraseBtn", "ghostBtn", "fullBtn", "runBtn", "sendBtn"].forEach(id => setLabel($(id), null));
+  setLabel(document.querySelector("#jobBtn .jl"));
+  ["hlsTitle", "sendToL", "sendCancel", "sendGo", "msgTitle", "msgLangL", "msgBack", "msgShow", "msgSend", "msgClose"].forEach(id => setLabel($(id)));
+  $("sendText").placeholder = L("What do you need them to look at?"); $("msgReply").placeholder = L("Write your answer");
+  $("sendLangNote").textContent = L("Write in English or Spanish. Each person reads it in their own language.");
+  document.querySelectorAll(".msg-lang [data-lang]").forEach(b => b.setAttribute("aria-pressed", b.dataset.lang === myLang()));
+  document.documentElement.lang = myLang();
+  msgBadge(); applyPerms();
+}
+let people = null, notes = [], noteMe = null, noteOpen = null, noteFocus = null, sendDraft = null, sendPage = null;
+const jobKey = () => job ? segId(job.id) : null;
+const noteSeen = () => { try { return JSON.parse(lsGet("aj-msg-seen") || "{}"); } catch (e) { return {}; } };
+const noteNew = n => n.msgs.length > (noteSeen()[n.id] || 0) && n.msgs[n.msgs.length - 1].byId !== noteMe;
+function markSeen(n) { const s = noteSeen(); s[n.id] = n.msgs.length; lsSet("aj-msg-seen", JSON.stringify(s)); msgBadge(); }
+const noteText = m => m[myLang()] || m.text;
+const noteAt = (pg, q) => notes.find(n => n.job === jobKey() && n.page === pg.id && q[0] >= n.rect.x && q[0] <= n.rect.x + n.rect.w && q[1] >= n.rect.y && q[1] <= n.rect.y + n.rect.h);
+function msgBadge() {
+  const b = $("msgBtn"); if (!b) return;
+  b.hidden = !teamOn; b.textContent = L("Messages");
+  const n = notes.filter(noteNew).length;
+  if (n) { const d = document.createElement("span"); d.className = "me-dot"; d.textContent = n; b.appendChild(d); }
+}
+async function notesLoad() {
+  if (!teamOn || teamOffline) return;
+  try {
+    const r = await fetch("/api/notes", { cache: "no-store" });
+    if (!r.ok) return;
+    const o = await r.json();
+    notes = o.notes || []; noteMe = o.me;
+    msgBadge(); drawOverlay();
+    if (!$("msgModal").hidden) noteOpen ? drawThread() : drawMsgs();
+  } catch (e) {}
+}
+function drawNotes(g, p, ns) {
+  const k0 = jobKey();
+  notes.filter(n => n.job === k0 && n.page === p.id).forEach((n, i) => {
+    const r = svgEl("rect", { x: n.rect.x, y: n.rect.y, width: n.rect.w, height: n.rect.h, class: "mk-note" + (n.id === noteFocus ? " focus" : ""), ...ns });
+    r.appendChild(svgEl("title", {}, `${n.from.name}: ${noteText(n.msgs[0])}`));
+    g.appendChild(r);
+    g.appendChild(svgEl("circle", { cx: n.rect.x, cy: n.rect.y, r: 11 / k, class: "mk-note-dot" }));
+    g.appendChild(svgEl("text", { x: n.rect.x, y: n.rect.y + 4 / k, class: "mk-note-n", "font-size": 12 / k, "text-anchor": "middle" }, String(n.msgs.length)));
+  });
+  if (sendDraft && sendPage === p.id) g.appendChild(svgEl("rect", { x: sendDraft.x, y: sendDraft.y, width: sendDraft.w, height: sendDraft.h, class: "mk-hl send", ...ns }));
+}
+$("sendBtn").onclick = () => {
+  if (!job || !teamOn) return toast(L("Messages can only be sent once this job is saved online."));
+  if (tool) setTool(null);
+  setHl("send");
+};
+async function openSend(pg, r) {
+  if (teamOffline) { sendDraft = null; drawOverlay(); return toast(L("No internet right now. Messages send once WiFi is back.")); }
+  sendPage = pg.id; $("sendMsg").textContent = ""; $("sendText").value = "";
+  $("sendWhere").textContent = `${job.name} · ${L("Sheet")} ${pg.name || pages.indexOf(pg) + 1}`;
+  $("hlsModal").hidden = false; applyLang();
+  const box = $("sendTo"); box.innerHTML = "…";
+  try { if (!people) { const o = await (await fetch("/api/people", { cache: "no-store" })).json(); people = o.people || []; if (o.me) noteMe = o.me; } }
+  catch (e) { people = null; box.textContent = L("No internet right now. Messages send once WiFi is back."); return; }
+  const jk = jobKey(), list = people.filter(x => x.id !== noteMe && (x.role !== "sub" || (x.jobs || []).includes(jk)));
+  const grp = {}; list.forEach(x => (grp[x.position] = grp[x.position] || []).push(x));
+  box.replaceChildren();
+  Object.keys(grp).forEach(g => {
+    const h = document.createElement("div"); h.className = "grp"; h.textContent = g; box.appendChild(h);
+    grp[g].forEach(x => { const l = document.createElement("label"); l.innerHTML = `<input type="checkbox" value="${escH(x.id)}"> <span>${escH(x.name)}</span>${x.company ? `<small>${escH(x.company)}</small>` : ""}`; box.appendChild(l); });
+  });
+  $("sendText").focus();
+}
+const sendClose = () => { $("hlsModal").hidden = true; sendDraft = null; drawOverlay(); };
+$("sendCancel").onclick = sendClose;
+$("hlsModal").addEventListener("keydown", e => { if (e.key === "Escape") sendClose(); });
+$("sendForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const to = [...$("sendTo").querySelectorAll("input:checked")].map(c => c.value), text = $("sendText").value.trim(), pg = pages.find(x => x.id === sendPage);
+  if (!to.length) return $("sendMsg").textContent = L("Pick who it goes to.");
+  if (!text) return $("sendMsg").textContent = L("Type a message first.");
+  $("sendMsg").textContent = L("Sending…"); $("sendGo").disabled = true;
+  try {
+    const r = await fetch("/api/notes", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ op: "new", job: jobKey(), jobName: job.name, page: sendPage, pageName: pg ? pg.name || String(pages.indexOf(pg) + 1) : "", rect: sendDraft, to, text, lang: myLang() }) });
+    const o = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(o.error || L("No internet right now. Messages send once WiFi is back."));
+    noteFocus = o.id; sendClose(); toast(L("Sent.")); notesLoad();
+  } catch (err) { $("sendMsg").textContent = err.message; }
+  finally { $("sendGo").disabled = false; }
+});
+// the Messages box: newest first, then one conversation
+const when = t => whenSaved(t);
+function openMsgs(id) {
+  noteOpen = id || null; $("msgModal").hidden = false; applyLang();
+  noteOpen ? drawThread() : drawMsgs();
+  notesLoad();
+}
+$("msgBtn").onclick = () => openMsgs();
+$("msgClose").onclick = () => { $("msgModal").hidden = true; noteOpen = null; };
+$("msgModal").addEventListener("keydown", e => { if (e.key === "Escape") $("msgClose").click(); });
+$("msgBack").onclick = () => { noteOpen = null; drawMsgs(); };
+document.querySelectorAll(".msg-lang [data-lang]").forEach(b => b.onclick = () => { lsSet("aj-lang", b.dataset.lang); applyLang(); noteOpen ? drawThread() : drawMsgs(); drawOverlay(); });
+const whoLine = n => `${n.from.id === noteMe ? L("you") : n.from.name} → ${n.to.map((id, i) => id === noteMe ? L("you") : n.toNames[i] || "").join(", ")}`;
+function drawMsgs() {
+  $("msgListBox").hidden = false; $("msgThreadBox").hidden = true;
+  const ul = $("msgList"); ul.replaceChildren();
+  $("msgEmpty").textContent = notes.length ? "" : L("No messages yet. Use Highlight & send on a drawing to start one.");
+  notes.forEach(n => {
+    const li = document.createElement("li"), b = document.createElement("button"), last = n.msgs[n.msgs.length - 1];
+    b.type = "button"; b.className = "msg-row" + (noteNew(n) ? " new" : "");
+    b.innerHTML = `<span class="mt"></span><span class="mm"></span><span class="mx"></span>`;
+    b.querySelector(".mt").textContent = `${n.jobName || ""} · ${L("Sheet")} ${n.pageName || ""}`;
+    b.querySelector(".mm").textContent = `${whoLine(n)} · ${n.msgs.length} · ${when(last.at)}`;
+    b.querySelector(".mx").textContent = `${last.byId === noteMe ? L("you") : last.by}: ${noteText(last)}`;
+    b.onclick = () => { noteOpen = n.id; drawThread(); };
+    li.appendChild(b); ul.appendChild(li);
+  });
+}
+function drawThread() {
+  const n = notes.find(x => x.id === noteOpen);
+  if (!n) return drawMsgs();
+  $("msgListBox").hidden = true; $("msgThreadBox").hidden = false; $("msgErr").textContent = "";
+  $("msgThHead").textContent = `${n.jobName || ""} · ${L("Sheet")} ${n.pageName || ""} · ${whoLine(n)}`;
+  const box = $("msgThread"); box.replaceChildren();
+  n.msgs.forEach(m => {
+    const d = document.createElement("div"), mine = m.byId === noteMe, lang = myLang();
+    d.className = "msg-b" + (mine ? " mine" : "");
+    d.innerHTML = `<span class="msg-meta"></span><p></p>`;
+    d.querySelector(".msg-meta").textContent = `${mine ? L("you") : m.by} · ${when(m.at)}`;
+    d.querySelector("p").textContent = noteText(m);
+    if (m.lang !== lang && m[lang]) {
+      const o = document.createElement("div"); o.className = "orig";
+      o.innerHTML = `${escH(lang === "es" ? "Traducido del inglés" : "Translated from Spanish")} · <a href="#">${escH(L("Show original"))}</a>`;
+      o.querySelector("a").onclick = ev => { ev.preventDefault(); o.textContent = m.text; };
+      d.appendChild(o);
+    } else if (!m.en) { // couldn't be translated when it was sent
+      const o = document.createElement("div"); o.className = "orig";
+      o.innerHTML = `<a target="_blank" rel="noopener">${escH(L("Translate"))}</a>`;
+      o.querySelector("a").href = `https://translate.google.com/?sl=auto&tl=${lang}&text=${encodeURIComponent(m.text)}&op=translate`;
+      d.appendChild(o);
+    }
+    box.appendChild(d);
+  });
+  box.scrollTop = box.scrollHeight;
+  markSeen(n);
+}
+$("msgSend").onclick = async () => {
+  const text = $("msgReply").value.trim(), id = noteOpen;
+  if (!text) return $("msgErr").textContent = L("Type a message first.");
+  if (teamOffline) return $("msgErr").textContent = L("No internet right now. Messages send once WiFi is back.");
+  $("msgErr").textContent = L("Sending…"); $("msgSend").disabled = true;
+  try {
+    const r = await fetch("/api/notes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "reply", id, text, lang: myLang() }) });
+    const o = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(o.error || L("No internet right now. Messages send once WiFi is back."));
+    const n = notes.find(x => x.id === id); if (n && o.msg) n.msgs.push(o.msg);
+    $("msgReply").value = ""; drawThread(); drawOverlay();
+  } catch (err) { $("msgErr").textContent = err.message; }
+  finally { $("msgSend").disabled = false; }
+};
+$("msgShow").onclick = () => { const n = notes.find(x => x.id === noteOpen); if (n) showNote(n); };
+async function showNote(n) {
+  $("msgModal").hidden = true;
+  if (jobKey() !== n.job) {
+    const mine = jobs.find(j => segId(j.id) === n.job), f = teamIndex[n.job];
+    if (mine && !(f && f.saved > (mine.updated || ""))) await openJob(mine);
+    else if (f) await pullTeam(f);
+    else return toast("That job isn't on the job list anymore.");
+  }
+  const i = pages.findIndex(p => p.id === n.page);
+  if (i < 0) return;
+  if (i !== current) go(i);
+  noteFocus = n.id;
+  requestAnimationFrame(() => {
+    if (!fit) return drawOverlay();
+    const r = n.rect, s0 = fit.s, z = Math.min(ZMAX, Math.max(1, Math.min(fit.W / (Math.max(r.w, 40) * s0), fit.H / (Math.max(r.h, 40) * s0)) * 0.55));
+    setView({ z, tx: fit.W / 2 - fit.left - (r.x + r.w / 2) * s0 * z, ty: fit.H / 2 - fit.top - (r.y + r.h / 2) * s0 * z });
+    drawOverlay();
+  });
+}
+teamReady.then(on => {
+  if (!on) return;
+  $("sendBtn").hidden = false; applyLang();
+  notesLoad(); setInterval(() => { if (!document.hidden) notesLoad(); }, 60000);
+  const m = new URLSearchParams(location.search).get("msg");
+  if (m) setTimeout(() => openMsgs(m), 1500);
+});
+// the PM's Subcontractors page
+let subsList = [];
+async function subsCall(body) {
+  const r = await fetch("/api/subs", body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : { cache: "no-store" });
+  const o = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(o.error || "That didn't work. Check the internet and try again.");
+  subsList = o.subs || subsList; people = null;
+  return o;
+}
+const subSay = (t, bad) => { $("subMsg").textContent = t || ""; $("subMsg").className = "adm-msg" + (bad ? " bad" : ""); };
+const liveJobs = () => teamJobs.filter(f => !f.deleted);
+function jobBoxes(box, have, onchange) {
+  box.replaceChildren();
+  if (!liveJobs().length) { box.textContent = "No jobs are online yet."; return; }
+  liveJobs().forEach(f => {
+    const l = document.createElement("label");
+    l.innerHTML = `<input type="checkbox" value="${escH(f.id)}"${have.includes(f.id) ? " checked" : ""}> <span>${escH(f.name)}</span>`;
+    if (onchange) l.querySelector("input").onchange = onchange;
+    box.appendChild(l);
+  });
+}
+const checked = box => [...box.querySelectorAll("input:checked")].map(c => c.value);
+function showPw(name, pw) {
+  const b = $("subPw"); b.hidden = false;
+  b.innerHTML = `Give <b>${escH(name)}</b> the app link and this password: <code>${escH(pw)}</code> <button class="btn sm" type="button">Copy</button><br><small>They sign in at aj-commercial-takeoff.vercel.app with the name <b>${escH(name)}</b> and that password. It isn't shown again; use New password if it's lost.</small>`;
+  b.querySelector("button").onclick = () => { navigator.clipboard && navigator.clipboard.writeText(`AJ Takeoff: https://aj-commercial-takeoff.vercel.app\nName: ${name}\nPassword: ${pw}`).then(() => toast("Copied. Paste it in a text to them.")); };
+}
+async function openSubs() {
+  $("adminModal").hidden = true; $("subsModal").hidden = false; $("subPw").hidden = true; subSay("");
+  $("subName").value = ""; $("subCo").value = ""; $("subEs").checked = false;
+  jobBoxes($("subNewJobs"), jobKey() ? [jobKey()] : []);
+  try { await subsCall(); drawSubs(); } catch (e) { subSay(e.message, true); }
+}
+$("admSubs").onclick = openSubs;
+$("subClose").onclick = () => { $("subsModal").hidden = true; };
+$("subsModal").addEventListener("keydown", e => { if (e.key === "Escape") $("subsModal").hidden = true; });
+async function subDo(body, done) {
+  subSay("Saving…");
+  try { await subsCall(body); drawSubs(); subSay(done); return true; } catch (e) { subSay(e.message, true); return false; }
+}
+$("subAdd").onclick = async () => {
+  const name = $("subName").value.trim(), pw = makePw();
+  if (!name) return subSay("Type the sub's name.", true);
+  if (await subDo({ op: "add", name, company: $("subCo").value, lang: $("subEs").checked ? "es" : "en", password: pw, jobs: checked($("subNewJobs")) }, `${name} was added.`)) {
+    showPw(name, pw); $("subName").value = ""; $("subCo").value = ""; $("subEs").checked = false;
+  }
+};
+function drawSubs() {
+  const box = $("subList"); box.replaceChildren();
+  if (!subsList.length) { box.innerHTML = `<p class="hint">No subcontractors yet.</p>`; return; }
+  subsList.forEach(u => {
+    const d = document.createElement("div"); d.className = "sub-row" + (u.off ? " off" : "");
+    d.innerHTML = `<div class="adm-top"><span class="adm-av r-sub" aria-hidden="true">${escH(initials(u.name))}</span><b>${escH(u.name)}</b><span class="adm-sub">${escH(u.company || "")}${u.off ? " · turned off" : ""}</span></div>
+      <label><input type="checkbox" data-a="es"${u.lang === "es" ? " checked" : ""}> Spanish</label>
+      <div><b>Jobs they see</b><div class="sub-jobs"></div></div>
+      <div class="row"><button class="btn sm" type="button" data-a="pw">New password</button><button class="btn sm" type="button" data-a="off">${u.off ? "Turn back on" : "Turn off"}</button><button class="btn sm warn" type="button" data-a="rm">Remove</button></div>`;
+    const jb = d.querySelector(".sub-jobs");
+    jobBoxes(jb, u.jobs || [], () => subDo({ op: "jobs", id: u.id, jobs: checked(jb) }, `${u.name}'s jobs saved.`));
+    d.querySelector('[data-a="es"]').onchange = e => subDo({ op: "lang", id: u.id, lang: e.target.checked ? "es" : "en" }, `${u.name} now sees the app in ${e.target.checked ? "Spanish" : "English"}.`);
+    d.querySelector('[data-a="pw"]').onclick = async () => { const pw = makePw(); if (await subDo({ op: "reset", id: u.id, password: pw }, `New password for ${u.name}.`)) showPw(u.name, pw); };
+    d.querySelector('[data-a="off"]').onclick = () => subDo({ op: "off", id: u.id, off: !u.off }, u.off ? `${u.name} can sign in again.` : `${u.name} can't sign in now.`);
+    d.querySelector('[data-a="rm"]').onclick = e => { if (e.target.dataset.sure) subDo({ op: "remove", id: u.id }, `${u.name} was removed.`); else { e.target.dataset.sure = 1; e.target.textContent = "Tap again to remove"; } };
+    box.appendChild(d);
+  });
+}
 const CO_FIELDS = [["name", "Company name"], ["phone", "Phone"], ["email", "Email"], ["address", "Address"], ["license", "License #"]];
 function drawCompanyBox() {
   const c = company(), box = $("admCo");
