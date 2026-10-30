@@ -751,6 +751,8 @@ tr.ex-off .ex-row span { color: var(--muted); text-decoration: line-through; }
 .ctx button:hover, .ctx button:focus-visible { background: var(--accent-soft); outline: none; }
 .ctx button.del { color: var(--warn); }
 .ctx button.del:hover, .ctx button.del:focus-visible { background: var(--warn-soft); }
+.mark-tip { position: fixed; z-index: 31; pointer-events: none; background: var(--fg); color: var(--bg); padding: 6px 10px; border-radius: 6px; font-size: 13px; line-height: 1.35; max-width: 260px; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.mark-tip b { font-size: 14px; }
 .toast { position: fixed; z-index: 30; left: 50%; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 8px 14px; border-radius: 6px; font-size: 14px; max-width: calc(100% - 32px); }
 .confirm { display: flex; gap: 6px; align-items: center; font-size: 13px; }
 
@@ -792,7 +794,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v125<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v126<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
@@ -5483,6 +5485,38 @@ function symbolAt(e) {
   p.devices.forEach(v => { const dd = dist([v.x, v.y], q); if (dd < bd) { bd = dd; best = v; } });
   return best;
 }
+// hovering (or tapping on a phone) a panel or disconnect on the drawing shows what it is and its amps (Jonathan 2026-10-30)
+const TIP_GROUPS = ["gr", "gear"];
+let markTipT = null;
+function markTipHtml(v) {
+  const d = devInfo(v.t); if (!d || !TIP_GROUPS.includes(d.group)) return "";
+  const kind = d.kindName || d.kind || "Panel";
+  const amps = [d.amps ? `${d.amps} amp` : "Amps not set", d.sVolts && `${d.sVolts}${/v$/i.test(d.sVolts) ? "" : " V"}`].filter(Boolean).join(" · ");
+  const spec = [d.sMaker, d.sModel].filter(Boolean).join(" ");
+  return [`<b>${esc(kind)}${d.label ? " " + esc(d.label) : ""}</b>`, esc(amps), d.serves && `Feeds: ${esc(d.serves)}`, spec && esc(spec), d.desc && esc(d.desc)].filter(Boolean).join("<br>");
+}
+function showMarkTip(e, v, stay) {
+  let t = $("markTip");
+  const h = v ? markTipHtml(v) : "";
+  if (!h) { if (t) t.hidden = true; return; }
+  if (!t) { t = document.createElement("div"); t.id = "markTip"; t.className = "mark-tip"; t.setAttribute("role", "tooltip"); document.body.appendChild(t); }
+  t.innerHTML = h; t.hidden = false;
+  const w = t.offsetWidth, ht = t.offsetHeight;
+  let x = e.clientX + 14, y = e.clientY + 14;
+  if (x + w > innerWidth - 8) x = Math.max(8, e.clientX - w - 14);
+  if (y + ht > innerHeight - 8) y = Math.max(8, e.clientY - ht - 14);
+  t.style.left = x + "px"; t.style.top = y + "px";
+  clearTimeout(markTipT); if (stay) markTipT = setTimeout(() => { t.hidden = true; }, 4000);
+}
+const hideMarkTip = () => { const t = $("markTip"); if (t) t.hidden = true; };
+$("sheet").addEventListener("pointermove", e => {
+  if (e.pointerType === "touch") return;
+  if (tool || cmp || hlMode || e.buttons) return hideMarkTip();
+  showMarkTip(e, symbolAt(e));
+});
+$("sheet").addEventListener("pointerleave", e => { if (e.pointerType !== "touch") hideMarkTip(); });
+$("sheet").addEventListener("pointerdown", e => { if (e.pointerType !== "touch") hideMarkTip(); else { const v = !tool && !cmp && !hlMode ? symbolAt(e) : null; if (v) { const at = [e.clientX, e.clientY]; const up = ev => { removeEventListener("pointerup", up); if (Math.hypot(ev.clientX - at[0], ev.clientY - at[1]) < 10) showMarkTip(ev, v, true); }; addEventListener("pointerup", up); } else hideMarkTip(); } });
+$("stage").addEventListener("wheel", hideMarkTip, { passive: true });
 function openCtx(e) {
   if (cmp) return;
   const v = symbolAt(e) || runAt(e);
