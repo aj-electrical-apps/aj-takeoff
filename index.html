@@ -674,7 +674,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v112</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v113</small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
@@ -6778,9 +6778,9 @@ const onOwnSite = () => location.protocol === "https:" && !/claude|anthropic|use
 let blobClient = null;
 async function uploadJobFile(file, progress) {
   blobClient = blobClient || await import("./blob-client.js");
-  const r = await blobClient.upload(`jobs/${file.name}`, file, {
+  const r = await blobClient.uploadPresigned(`jobs/${file.name}`, file, {
     access: "public", handleUploadUrl: "/api/share-upload", contentType: "application/octet-stream",
-    multipart: file.size > 20e6, onUploadProgress: e => progress(e.percentage / 100)
+    onUploadProgress: e => progress(e.percentage / 100)
   });
   return r.url;
 }
@@ -7095,7 +7095,7 @@ $("teamWho").oninput = () => { teamWho = $("teamWho").value.trim().slice(0, 30);
 async function teamPut(path, blob, type) {
   if (window.AJ_TEAM_PUT) return window.AJ_TEAM_PUT(path, blob, type); // tests only
   blobClient = blobClient || await import("./blob-client.js");
-  return (await blobClient.upload(path, blob, { access: "public", handleUploadUrl: "/api/team-upload", contentType: type, multipart: blob.size > 20e6 })).url;
+  return (await blobClient.uploadPresigned(path, blob, { access: "public", handleUploadUrl: "/api/team-upload", contentType: type })).url;
 }
 async function teamCurrent(j) {
   const r = await fetch(`/api/jobs?id=${segId(j.id)}`, { cache: "no-store" });
