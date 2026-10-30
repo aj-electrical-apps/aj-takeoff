@@ -4,7 +4,7 @@ import { randomBytes } from "node:crypto";
 
 // The Admin page: the people who can sign in, their access and passwords. Admins only.
 // GET -> { users, signin, appPw, fieldPw, backupKey }
-// POST { op: "add", name, role, password } | { op: "role", id, role } | { op: "reset", id, password }
+// POST { op: "add", name, role, password } | { op: "role", id, role } | { op: "rename", id, name } | { op: "reset", id, password }
 //      { op: "off", id, off } | { op: "remove", id }
 const H = { "Cache-Control": "no-store" };
 const bad = (error, status = 400) => Response.json({ error }, { status, headers: H });
@@ -44,6 +44,11 @@ export async function POST(request) {
     else if (b.op === "role") {
       if (!ROLES.includes(b.role)) return bad("Pick Admin, Office or Field.");
       Object.assign(u, { role: b.role, changed: now });
+    } else if (b.op === "rename") {
+      const name = String(b.name || "").trim().replace(/\s+/g, " ").slice(0, 30);
+      if (name.length < 2) return bad("Type the person's name.");
+      if (users.some(x => x !== u && x.login === loginOf(name))) return bad(`${name} is already on the list.`);
+      Object.assign(u, { name, login: loginOf(name), changed: now });
     } else if (b.op === "reset") {
       if (!pwOk(b.password)) return bad("Use at least 6 characters for the password.");
       Object.assign(u, hashPassword(b.password), { v: (u.v || 0) + 1, changed: now });

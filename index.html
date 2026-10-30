@@ -274,13 +274,28 @@ html.look-new body { font-family: var(--font-ui); }
 .adm-card h3 { margin: 6px 0 0; font-size: 16px; }
 .adm-me { margin: 0; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .adm-warn { margin: 0; padding: 10px 12px; border-radius: 8px; background: #fff4d6; color: #5a4300; border: 1px solid #e8c766; }
-.adm-people { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.adm-people li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; }
-.adm-people li.off { opacity: .6; }
-.adm-people .nm { font-weight: 600; flex: 1 1 140px; }
-.adm-people .nm small { display: block; font-weight: 400; color: var(--muted, #667); font-size: 12px; }
-.adm-people select, .adm-add select { height: 34px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); }
-.adm-people input, .adm-add input, .adm-co input { height: 34px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); font-size: 15px; }
+.adm-tabs { display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.adm-tabs button { border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 999px; padding: 6px 14px; font: inherit; font-weight: 600; cursor: pointer; }
+.adm-tabs button[aria-selected="true"] { background: var(--fg); color: var(--panel); border-color: var(--fg); }
+.adm-sec { display: grid; gap: 10px; }
+.adm-people { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.adm-people li.adm-row { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
+.adm-people li.adm-row.open { border-color: var(--accent, #f0a020); box-shadow: 0 0 0 2px rgb(240 160 32 / .25); }
+.adm-top { display: flex; gap: 10px; align-items: center; }
+.adm-av { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: #fff; flex: none; }
+.adm-av.r-admin { background: #7c3aed; } .adm-av.r-office { background: #2563eb; } .adm-av.r-field { background: #16a34a; }
+.adm-top input.adm-nm { flex: 1 1 auto; min-width: 0; font-weight: 600; }
+.adm-sub { font-size: 13px; color: var(--muted, #667); }
+.adm-picks { display: flex; gap: 6px; flex-wrap: wrap; }
+.adm-picks button { border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 999px; padding: 6px 14px; font: inherit; cursor: pointer; }
+.adm-picks button[aria-pressed="true"] { background: var(--fg); color: var(--panel); border-color: var(--fg); font-weight: 700; }
+.adm-lbl { font-size: 13px; font-weight: 700; }
+.adm-pwrow { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.adm-pwrow input { flex: 1 1 160px; font-family: ui-monospace, monospace; }
+.btn.warn { color: #b3261e; }
+.adm-addbtn { justify-self: start; }
+.adm-people li.off .adm-top { opacity: .55; }
+.adm-people input, .adm-co input { height: 34px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); font-size: 15px; }
 .adm-add { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
 .adm-add label, .adm-co label { display: grid; gap: 3px; font-size: 13px; }
 .adm-co { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
@@ -710,7 +725,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v117</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v118</small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
@@ -1082,24 +1097,21 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <p class="adm-me"><span id="admMe"></span> <a class="btn sm" id="admOut" href="/api/logout">Sign out</a></p>
     <div id="admBody">
       <p class="adm-warn" id="admSignin" hidden></p>
-      <h3>People</h3>
-      <p class="hint">Each person signs in with their own name and password. <b>Admin</b>: everything, plus this page. <b>Office</b>: everything except this page. <b>Field</b>: looks, measures, field marks and the Order page; no prices and no changes to the estimate.</p>
-      <ul class="adm-people" id="admPeople"></ul>
-      <form class="adm-add" id="admAdd" autocomplete="off">
-        <label>Name<input id="admName" maxlength="30" required placeholder="e.g. Mike R"></label>
-        <label>Access<select id="admRole"><option value="field">Field</option><option value="office">Office</option><option value="admin">Admin</option></select></label>
-        <label>Password<input id="admPw" required minlength="6" autocomplete="new-password"></label>
-        <button class="btn" type="button" id="admMake" title="Make up an easy password">Make one up</button>
-        <button class="btn primary" type="submit">Add person</button>
-      </form>
+      <div class="adm-tabs" role="tablist"><button type="button" role="tab" data-at="people" aria-selected="true">People</button><button type="button" role="tab" data-at="company" aria-selected="false">Company &amp; settings</button><button type="button" role="tab" data-at="backup" aria-selected="false">Backup</button></div>
+      <section class="adm-sec" data-sec="people">
+        <p class="hint">Tap <b>Edit</b> on a person to change their access or password. <b>Field</b>: looks, measures, field marks and the Order page, no prices. <b>Office</b>: everything except this page. <b>Admin</b>: everything.</p>
+        <ul class="adm-people" id="admPeople"></ul>
+        <button class="btn primary adm-addbtn" type="button" id="admAddBtn">+ Add a person</button>
+      </section>
+      <section class="adm-sec" data-sec="company" hidden>
+        <div class="adm-co" id="admCo"></div>
+        <p class="hint" id="admSetNote"></p>
+        <div class="actions" style="justify-content:flex-start"><button class="btn" type="button" id="admSetPush">Send this computer's settings to everyone</button></div>
+      </section>
+      <section class="adm-sec" data-sec="backup" hidden>
+        <p class="hint" id="admBackup"></p>
+      </section>
       <p class="adm-msg" id="admMsg" role="status"></p>
-      <h3>Company</h3>
-      <div class="adm-co" id="admCo"></div>
-      <h3>Shared settings</h3>
-      <p class="hint" id="admSetNote"></p>
-      <div class="actions" style="justify-content:flex-start"><button class="btn" type="button" id="admSetPush">Send this computer's settings to everyone</button></div>
-      <h3>Drive backup</h3>
-      <p class="hint" id="admBackup"></p>
     </div>
     <div class="actions"><button class="btn primary" type="button" id="admClose">Close</button></div>
   </div>
@@ -7483,7 +7495,7 @@ async function showAdmin() {
   $("admOut").hidden = !signedIn;
   $("admBody").hidden = !isAdmin;
   $("admTitle").textContent = isAdmin ? "Admin" : "Signed in";
-  admSay("");
+  admSay(""); admDraft = null; admConfirm = null;
   $("adminModal").hidden = false;
   if (!isAdmin) return;
   drawCompanyBox(); drawSetNote();
@@ -7491,39 +7503,76 @@ async function showAdmin() {
   try { admInfo = await admCall(); drawAdmin(); } catch (e) { admSay(e.message, true); }
   settingsPull().then(drawSetNote);
 }
+let admOpen = null, admConfirm = null, admDraft = null;
+const ROLE_PICKS = [["field", "Field"], ["office", "Office"], ["admin", "Admin"]];
+const initials = n => String(n || "?").trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
+const escH = t => String(t == null ? "" : t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+document.querySelectorAll(".adm-tabs [data-at]").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".adm-tabs [data-at]").forEach(x => x.setAttribute("aria-selected", x === b));
+  document.querySelectorAll(".adm-sec").forEach(x => { x.hidden = x.dataset.sec !== b.dataset.at; });
+  admSay("");
+});
+// Like the kids app: one line per person, Edit opens it, access is three big buttons, the password is typed right there.
 function drawAdmin() {
   const o = admInfo, ul = $("admPeople"), w = $("admSignin");
   if (!o) return;
   w.hidden = o.signin;
   if (!o.signin) w.innerHTML = "One step left: everyone's own sign-in turns on once <b>SESSION_SECRET</b> is added in Vercel and the app is redeployed. Add the people now, yourself first as an Admin, so they can sign in right away.";
-  ul.replaceChildren();
-  if (!o.users.length) { const li = document.createElement("li"); li.textContent = "Nobody yet. Add yourself first; the first person is always an Admin."; ul.appendChild(li); }
-  o.users.forEach(u => {
-    const li = document.createElement("li"); if (u.off) li.className = "off";
-    li.innerHTML = `<span class="nm"></span><select aria-label="Access"><option value="admin">Admin</option><option value="office">Office</option><option value="field">Field</option></select><button class="btn sm" type="button" data-a="pw">New password</button><button class="btn sm" type="button" data-a="off"></button><button class="btn sm" type="button" data-a="rm">Remove</button>`;
-    const nm = li.querySelector(".nm"); nm.textContent = u.name;
-    const sm = document.createElement("small"); sm.textContent = [u.off ? "Turned off" : "", u.added && "Added " + stampDate(u.added) + (u.by && u.by !== u.name ? " by " + u.by : "")].filter(Boolean).join(" · "); nm.appendChild(sm);
-    const sel = li.querySelector("select"); sel.value = u.role;
-    sel.onchange = () => admDo({ op: "role", id: u.id, role: sel.value }, `${u.name} is now ${roleName(sel.value)}. It takes effect the next time they open the app.`);
-    const off = li.querySelector('[data-a="off"]');
-    off.textContent = u.off ? "Turn on" : "Turn off";
-    off.onclick = () => admDo({ op: "off", id: u.id, off: !u.off }, u.off ? `${u.name} can sign in again.` : `${u.name} is turned off and gets signed out the next time the app checks (within 10 minutes).`);
-    li.querySelector('[data-a="rm"]').onclick = () => { if (confirm(`Remove ${u.name}? They won't be able to sign in. Jobs they saved stay.`)) admDo({ op: "remove", id: u.id }, `${u.name} was removed.`); };
-    li.querySelector('[data-a="pw"]').onclick = e => {
-      const inp = document.createElement("input"), ok = document.createElement("button");
-      inp.value = makePw(); inp.setAttribute("aria-label", "New password for " + u.name);
-      ok.className = "btn sm primary"; ok.type = "button"; ok.textContent = "Save password";
-      e.currentTarget.replaceWith(inp, ok); inp.focus(); inp.select();
-      ok.onclick = () => { const pw = inp.value.trim(); admDo({ op: "reset", id: u.id, password: pw }, `${u.name}'s new password is “${pw}”. Tell them; their old one stops working now.`); };
-    };
+  const rows = o.users.slice();
+  if (admDraft) rows.push(admDraft);
+  ul.innerHTML = rows.length ? "" : `<li class="adm-row"><span class="adm-sub">Nobody yet. Tap “Add a person” and add yourself first; the first person is always an Admin.</span></li>`;
+  rows.forEach(u => {
+    const open = u.draft || admOpen === u.id, li = document.createElement("li");
+    li.className = "adm-row" + (open ? " open" : "") + (u.off ? " off" : "");
+    li.innerHTML = `<div class="adm-top"><span class="adm-av r-${u.role}" aria-hidden="true">${escH(initials(u.name))}</span>
+      <input class="adm-nm" maxlength="30" value="${escH(u.name)}" placeholder="Their name" aria-label="Name">
+      ${u.draft ? "" : `<button class="btn sm${open ? " primary" : ""}" type="button" data-a="open" aria-expanded="${open}">${open ? "Done" : "Edit"}</button>`}</div>
+      <div class="adm-sub">${u.draft ? "New person" : `${roleName(u.role)} · 🔒 Has a password${u.off ? " · Turned off, can't sign in" : ""}`}</div>
+      ${open ? `<div class="adm-lbl">Access</div><div class="adm-picks">${ROLE_PICKS.map(([v, l]) => `<button type="button" data-role="${v}" aria-pressed="${u.role === v}">${l}</button>`).join("")}</div>
+      <div class="adm-lbl">${u.draft ? "Password" : "New password"}</div>
+      <div class="adm-pwrow"><input class="adm-pw" value="${escH(u.draft ? u.pw : "")}" placeholder="Type a new password" autocomplete="off" aria-label="Password">
+        <button class="btn sm" type="button" data-a="make">Make one up</button>
+        ${u.draft ? "" : `<button class="btn sm primary" type="button" data-a="pw">Save password</button>`}</div>
+      ${u.draft ? `<div class="adm-picks"><button class="btn primary" type="button" data-a="add">Add ${escH(u.name || "person")}</button><button class="btn" type="button" data-a="cancel">Cancel</button></div>`
+        : admConfirm === u.id ? `<div class="adm-picks"><button class="btn warn" type="button" data-a="rm">Yes, remove ${escH(u.name)}</button><button class="btn" type="button" data-a="keep">Keep</button></div>`
+        : `<div class="adm-picks"><button class="btn sm" type="button" data-a="off">${u.off ? "Turn back on" : "Turn off (can't sign in)"}</button><button class="btn sm warn" type="button" data-a="ask">Remove this person</button></div>`}` : ""}`;
+    const q = sel => li.querySelector(sel), nm = q(".adm-nm"), pw = q(".adm-pw");
+    if (u.draft) { nm.oninput = () => { u.name = nm.value; const b = q('[data-a="add"]'); if (b) b.textContent = "Add " + (nm.value.trim() || "person"); }; if (pw) pw.oninput = () => { u.pw = pw.value; }; }
+    else nm.onchange = () => { const v = nm.value.trim(); if (v && v !== u.name) admDo({ op: "rename", id: u.id, name: v }, `Renamed to ${v}. They sign in with the new name now.`); else nm.value = u.name; };
+    li.querySelectorAll("[data-role]").forEach(b => b.onclick = () => {
+      if (u.draft) { u.role = b.dataset.role; return drawAdmin(); }
+      if (b.dataset.role !== u.role) admDo({ op: "role", id: u.id, role: b.dataset.role }, `${u.name} is now ${roleName(b.dataset.role)}. It takes effect the next time they open the app.`);
+    });
+    const act = (k, f) => { const b = q(`[data-a="${k}"]`); if (b) b.onclick = f; };
+    act("open", () => { admOpen = open ? null : u.id; admConfirm = null; admSay(""); drawAdmin(); });
+    act("make", () => { pw.value = makePw(); if (u.draft) u.pw = pw.value; pw.focus(); pw.select(); });
+    act("pw", () => { const v = pw.value.trim(); if (v.length < 6) return admSay("Use at least 6 characters for the password.", true); admDo({ op: "reset", id: u.id, password: v }, `${u.name}'s new password is “${v}”. Tell them; their old one stops working now.`); });
+    act("off", () => admDo({ op: "off", id: u.id, off: !u.off }, u.off ? `${u.name} can sign in again.` : `${u.name} is turned off and gets signed out the next time the app checks (within 10 minutes).`));
+    act("ask", () => { admConfirm = u.id; drawAdmin(); });
+    act("keep", () => { admConfirm = null; drawAdmin(); });
+    act("rm", () => { admConfirm = null; admOpen = null; admDo({ op: "remove", id: u.id }, `${u.name} was removed. Jobs they saved stay.`); });
+    act("cancel", () => { admDraft = null; admSay(""); drawAdmin(); });
+    act("add", async () => {
+      const name = (u.name || "").trim(), p = (u.pw || "").trim();
+      if (!name) { admSay("Type their name.", true); return nm.focus(); }
+      if (p.length < 6) return admSay("Use at least 6 characters for the password.", true);
+      admDraft = null;
+      if (!await admDo({ op: "add", name, role: u.role, password: p }, `${name} was added. Their password is “${p}”. Send them the app link and that password.`)) { admDraft = u; drawAdmin(); }
+    });
     ul.appendChild(li);
   });
+  $("admAddBtn").hidden = !!admDraft;
   const bk = $("admBackup");
   if (o.backupKey) {
     bk.innerHTML = `Daily Drive backup: at script.google.com open the backup project, then <b>Project Settings</b> (gear) → <b>Script properties</b>. Set <b>APP_PASSWORD</b> to <span class="adm-key"></span> and click Save.`;
     bk.querySelector(".adm-key").textContent = o.backupKey;
   } else bk.textContent = "The key for the daily Drive backup shows here once sign-in is turned on.";
 }
+$("admAddBtn").onclick = () => {
+  admOpen = null; admConfirm = null; admSay("");
+  admDraft = { id: "new", draft: true, name: "", role: admInfo && admInfo.users.length ? "field" : "admin", pw: makePw() };
+  drawAdmin(); const n = $("admPeople").querySelector("li.open .adm-nm"); if (n) n.focus();
+};
 async function admDo(body, done) {
   admSay("Saving…");
   try { admInfo = await admCall(body); drawAdmin(); admSay(done); return true; } catch (e) { admSay(e.message, true); drawAdmin(); return false; }
@@ -7531,12 +7580,6 @@ async function admDo(body, done) {
 const PW_WORDS = ["volt", "amps", "wire", "panel", "conduit", "breaker", "switch", "lamp", "copper", "fuse", "relay", "ground", "feeder", "strut", "ladder", "meter"];
 const pick = n => crypto.getRandomValues(new Uint32Array(1))[0] % n;
 const makePw = () => `${PW_WORDS[pick(PW_WORDS.length)]}-${PW_WORDS[pick(PW_WORDS.length)]}-${10 + pick(90)}`;
-$("admMake").onclick = () => { $("admPw").value = makePw(); };
-$("admAdd").addEventListener("submit", async e => {
-  e.preventDefault();
-  const name = $("admName").value.trim(), pw = $("admPw").value.trim();
-  if (await admDo({ op: "add", name, role: $("admRole").value, password: pw }, `${name} was added. Their password is “${pw}”. Send them the app link and that password.`)) { $("admName").value = ""; $("admPw").value = ""; }
-});
 const CO_FIELDS = [["name", "Company name"], ["phone", "Phone"], ["email", "Email"], ["address", "Address"], ["license", "License #"]];
 function drawCompanyBox() {
   const c = company(), box = $("admCo");
