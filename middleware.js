@@ -19,7 +19,8 @@ export default async function middleware(request) {
   const who = await readSession(key, request.headers.get("cookie")) || await basicWho(request, key);
   if (!who) {
     if (path.startsWith("/api/")) return json({ error: "Please sign in again.", signin: true }, 401);
-    return Response.redirect(new URL("/login.html" + (path.length > 1 ? "?next=" + encodeURIComponent(path + url.search) : ""), url), 302);
+    const back = path + url.search;
+    return Response.redirect(new URL("/login.html" + (back.length > 1 ? "?next=" + encodeURIComponent(back) : ""), url), 302);
   }
   if (who.r === "field" && fieldBlocked(path, request.method)) return json({ error: "The field login can't change the estimate." }, 403);
   if (who.id === "backup" && request.method !== "GET") return json({ error: "The backup key can only read." }, 403);

@@ -294,6 +294,8 @@ html.look-new body { font-family: var(--font-ui); }
 .adm-pwrow input { flex: 1 1 160px; font-family: ui-monospace, monospace; }
 .btn.warn { color: #b3261e; }
 .adm-addbtn { justify-self: start; }
+.adm-lines { margin: 0; padding-left: 18px; font-size: 14px; display: grid; gap: 2px; }
+.me-dot { display: inline-grid; place-items: center; min-width: 18px; height: 18px; margin-left: 6px; padding: 0 5px; border-radius: 9px; background: #d93025; color: #fff; font-size: 11px; font-weight: 700; }
 .adm-people li.off .adm-top { opacity: .55; }
 .adm-people input, .adm-co input { height: 34px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); font-size: 15px; }
 .adm-add { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
@@ -725,7 +727,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v118</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v119</small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
@@ -1097,7 +1099,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <p class="adm-me"><span id="admMe"></span> <a class="btn sm" id="admOut" href="/api/logout">Sign out</a></p>
     <div id="admBody">
       <p class="adm-warn" id="admSignin" hidden></p>
-      <div class="adm-tabs" role="tablist"><button type="button" role="tab" data-at="people" aria-selected="true">People</button><button type="button" role="tab" data-at="company" aria-selected="false">Company &amp; settings</button><button type="button" role="tab" data-at="backup" aria-selected="false">Backup</button></div>
+      <div class="adm-tabs" role="tablist"><button type="button" role="tab" data-at="people" aria-selected="true">People</button><button type="button" role="tab" data-at="company" aria-selected="false">Company &amp; settings</button><button type="button" role="tab" data-at="approve" aria-selected="false">Changes to approve</button><button type="button" role="tab" data-at="backup" aria-selected="false">Backup</button></div>
       <section class="adm-sec" data-sec="people">
         <p class="hint">Tap <b>Edit</b> on a person to change their access or password. <b>Field</b>: looks, measures, field marks and the Order page, no prices. <b>Office</b>: everything except this page. <b>Admin</b>: everything.</p>
         <ul class="adm-people" id="admPeople"></ul>
@@ -1107,6 +1109,12 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
         <div class="adm-co" id="admCo"></div>
         <p class="hint" id="admSetNote"></p>
         <div class="actions" style="justify-content:flex-start"><button class="btn" type="button" id="admSetPush">Send this computer's settings to everyone</button></div>
+      </section>
+      <section class="adm-sec" data-sec="approve" hidden>
+        <p class="hint">When someone in the office changes a parts list, labor hours, the standard exclusions or a vendor list, it waits here. They see their change right away; everyone else gets it once you approve.</p>
+        <ul class="adm-people" id="admSug"></ul>
+        <div class="adm-lbl">Ask someone to edit a list</div>
+        <div class="adm-picks" id="admLinks"></div>
       </section>
       <section class="adm-sec" data-sec="backup" hidden>
         <p class="hint" id="admBackup"></p>
@@ -7477,6 +7485,8 @@ function meBtnShow() {
   const b = $("meBtn");
   b.hidden = !teamOn || (!isAdmin && !signedIn);
   b.textContent = isAdmin ? "Admin" : (teamWho || "Signed in");
+  const n = isAdmin && typeof setInfo !== "undefined" && setInfo && setInfo.pending ? setInfo.pending.length : 0;
+  if (n) { const d = document.createElement("span"); d.className = "me-dot"; d.textContent = n; d.title = `${n} change${n === 1 ? "" : "s"} to approve`; b.appendChild(d); }
 }
 $("meBtn").onclick = () => showAdmin();
 $("admClose").onclick = () => { $("adminModal").hidden = true; };
@@ -7498,7 +7508,7 @@ async function showAdmin() {
   admSay(""); admDraft = null; admConfirm = null;
   $("adminModal").hidden = false;
   if (!isAdmin) return;
-  drawCompanyBox(); drawSetNote();
+  drawCompanyBox(); drawSetNote(); drawEditLinks();
   if (teamOffline) return admSay("No internet right now. People and passwords can be changed once WiFi is back.", true);
   try { admInfo = await admCall(); drawAdmin(); } catch (e) { admSay(e.message, true); }
   settingsPull().then(drawSetNote);
@@ -7591,10 +7601,16 @@ function drawCompanyBox() {
   });
 }
 
-/* Shared settings: the same localStorage values as always, copied to and from api/settings */
+/* Shared settings: the same localStorage values as always, copied to and from api/settings.
+   Admins' changes go to everyone straight away. Office people's changes are sent as suggestions and stay on their own
+   computer until an admin approves them on the Admin page (Jonathan 2026-10-30: "I want to approve before it saves"). */
 const SET_KEYS = ["aj-company", "aj-labor-edits", "aj-asm-edits", "aj-excl-std", "aj-list-sup", "aj-list-natl", "aj-list-falv", "aj-list-lp"];
+const SET_NAMES = { "aj-company": "Company details", "aj-labor-edits": "Labor hours", "aj-asm-edits": "Parts lists", "aj-excl-std": "Standard exclusions", "aj-list-sup": "Suppliers", "aj-list-natl": "National accounts", "aj-list-falv": "Fire alarm and low voltage vendors", "aj-list-lp": "Lightning protection vendors" };
+const SET_ARRAYS = k => k === "aj-excl-std" || k.startsWith("aj-list-");
 var setInfo = null, setTimer = null, setDirty = new Set((lsGet("aj-set-dirty") || "").split(",").filter(Boolean));
 const setSnap = () => { const o = {}; SET_KEYS.forEach(k => { const v = lsGet(k); if (v != null) o[k] = v; }); return o; };
+const setBase = () => { try { return JSON.parse(lsGet("aj-set-base") || "{}"); } catch (e) { return {}; } };
+const setPending = () => { try { return JSON.parse(lsGet("aj-set-pending") || "[]"); } catch (e) { return []; } }; // my suggestions: [{ id, keys }]
 function setApply(data, skip) {
   SET_KEYS.forEach(k => { if (k in data && !(skip && skip.has(k))) lsSet(k, data[k]); });
   companyCache = null; laborEditsCache = null; asmEditsCache = null;
@@ -7613,47 +7629,83 @@ function setMerge(team, local) {
   return out;
 }
 const setSaveDirty = () => lsSet("aj-set-dirty", setDirty.size ? [...setDirty].join(",") : null);
+const canShare = () => isAdmin; // everyone else suggests
 async function settingsPull() {
   if (!teamOn || teamOffline) return;
   try {
     const r = await fetch("/api/settings", { cache: "no-store" });
     if (!r.ok) return;
     const o = await r.json(), stamp = lsGet("aj-set-stamp");
-    setInfo = o;
-    if (!o.url || o.url === stamp) return;
+    setInfo = o; meBtnShow();
+    // my suggestions that were approved or turned down: the shared copy counts again
+    const mine = setPending().filter(p => !(o.decided || {})[p.id]);
+    lsSet("aj-set-pending", mine.length ? JSON.stringify(mine) : null);
+    const hold = new Set([...setDirty, ...mine.flatMap(p => p.keys)]);
+    if (!o.url) return;
     if (!stamp) {
       const local = setSnap(), m = setMerge(o.data, local);
       lsSet("aj-set-backup", JSON.stringify(local));
-      setApply(m); lsSet("aj-set-stamp", o.url);
+      setApply(m); lsSet("aj-set-base", JSON.stringify(o.data)); lsSet("aj-set-stamp", o.url);
       if (!fieldMode) { SET_KEYS.forEach(k => { if (m[k] !== o.data[k]) setDirty.add(k); }); if (setDirty.size) { setSaveDirty(); settingsPush(); } }
-    } else { setApply(o.data, setDirty); lsSet("aj-set-stamp", o.url); }
+    } else if (o.url !== stamp || hold.size !== setDirty.size) {
+      setApply(o.data, hold); lsSet("aj-set-base", JSON.stringify(o.data)); lsSet("aj-set-stamp", o.url);
+    }
   } catch (e) {}
+}
+// what changed in one setting since the shared copy: added, changed and removed items
+function setDiff(k, base, now) {
+  let a, b;
+  try { a = JSON.parse(base || (SET_ARRAYS(k) ? "[]" : "{}")); b = JSON.parse(now || (SET_ARRAYS(k) ? "[]" : "{}")); } catch (e) { return null; }
+  if (SET_ARRAYS(k)) {
+    const add = b.filter(x => !a.includes(x)), del = a.filter(x => !b.includes(x));
+    return add.length || del.length ? { arr: true, add, del } : null;
+  }
+  const set = {}, del = [];
+  Object.keys(b || {}).forEach(x => { if (JSON.stringify(b[x]) !== JSON.stringify((a || {})[x])) set[x] = b[x]; });
+  Object.keys(a || {}).forEach(x => { if (!(x in (b || {}))) del.push(x); });
+  return Object.keys(set).length || del.length ? { set, del } : null;
 }
 async function settingsPush(replace) {
   if (!teamOn || fieldMode || teamOffline) return false;
+  if (!canShare()) return settingsSuggest();
   try {
     if (!replace) { // someone else's newer settings first, keeping what changed here
       const r = await fetch("/api/settings", { cache: "no-store" });
-      if (r.ok) { const o = await r.json(); if (o.url && o.url !== lsGet("aj-set-stamp")) setApply(o.data, setDirty); }
+      if (r.ok) { const o = await r.json(); setInfo = o; if (o.url && o.url !== lsGet("aj-set-stamp")) setApply(o.data, setDirty); }
     }
-    const sent = new Set(setDirty);
-    const r = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: setSnap(), by: teamWho }) });
+    const sent = new Set(setDirty), snap = setSnap();
+    const r = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: snap, by: teamWho }) });
     if (!r.ok) return false;
     const o = await r.json();
-    lsSet("aj-set-stamp", o.url); sent.forEach(k => setDirty.delete(k)); setSaveDirty();
+    lsSet("aj-set-stamp", o.url); lsSet("aj-set-base", JSON.stringify(snap)); sent.forEach(k => setDirty.delete(k)); setSaveDirty();
     setInfo = { ...(setInfo || {}), url: o.url, saved: o.saved, by: teamWho };
+    return true;
+  } catch (e) { return false; }
+}
+async function settingsSuggest() {
+  const base = setBase(), diff = {}, keys = [...setDirty];
+  keys.forEach(k => { const d = setDiff(k, base[k], lsGet(k)); if (d) diff[k] = d; });
+  if (!Object.keys(diff).length) { keys.forEach(k => setDirty.delete(k)); setSaveDirty(); return true; }
+  try {
+    const r = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "suggest", diff, by: teamWho }) });
+    if (!r.ok) return false;
+    const o = await r.json();
+    lsSet("aj-set-pending", JSON.stringify([...setPending(), { id: o.id, keys: Object.keys(diff) }]));
+    keys.forEach(k => setDirty.delete(k)); setSaveDirty();
+    toast("Your change was sent to an admin to approve. You see it here meanwhile; everyone else gets it once it's approved.");
     return true;
   } catch (e) { return false; }
 }
 function settingsTouch(k) {
   try { if (!teamOn || fieldMode) return; } catch (e) { return; } // too early in startup: nothing to share yet
   setDirty.add(k); setSaveDirty();
-  clearTimeout(setTimer); setTimer = setTimeout(() => settingsPush(), 3000);
+  clearTimeout(setTimer); setTimer = setTimeout(() => settingsPush(), canShare() ? 3000 : 8000);
 }
 function drawSetNote() {
   const o = setInfo;
-  $("admSetNote").textContent = "Company details, labor hours, parts lists, standard exclusions and vendor lists are shared. A change on any office computer reaches everyone the next time they open the app. "
+  $("admSetNote").textContent = "Company details, labor hours, parts lists, standard exclusions and vendor lists are shared. Your changes as an admin reach everyone the next time they open the app; changes from the office wait under Changes to approve. "
     + (o && o.url ? `Last shared ${whenSaved(o.saved)}${o.by ? " by " + o.by : ""}.` : "Nothing is shared yet: click the button below on the computer that has your settings.");
+  drawSuggestions();
 }
 $("admSetPush").onclick = async () => {
   if (setInfo && setInfo.url && !confirm("Replace everyone's company details, labor hours, parts lists, exclusions and vendor lists with this computer's?")) return;
@@ -7661,6 +7713,68 @@ $("admSetPush").onclick = async () => {
   toast(await settingsPush(true) ? "Everyone has this computer's settings now." : "Couldn't share the settings. Check the internet.");
   drawSetNote();
 };
+// Changes to approve: what each suggestion adds, changes and removes, in words
+const itemName = (k, x) => k === "aj-asm-edits" ? String(x).split("|").pop() : k === "aj-labor-edits" ? ((LABOR.find(r => r.k === x) || {}).l || x) : k === "aj-company" ? ({ name: "Company name", phone: "Phone", email: "Email", address: "Address", license: "License #" }[x] || x) : x;
+const itemVal = (k, v) => k === "aj-asm-edits" && Array.isArray(v) ? v.map(p => Array.isArray(p) ? `${p[0]} ${p[1]}` : p).join(", ") || "nothing"
+  : k === "aj-labor-edits" && v && typeof v === "object" ? [v.h != null ? `${v.h} hours` : "", v.m != null ? `material ${v.m}` : ""].filter(Boolean).join(", ") || JSON.stringify(v)
+  : typeof v === "string" ? v : JSON.stringify(v);
+function sugLines(diff) {
+  const out = [];
+  Object.entries(diff || {}).forEach(([k, d]) => {
+    const n = SET_NAMES[k] || k;
+    (d.add || []).forEach(x => out.push(`${n}: add “${x}”`));
+    (d.del || []).forEach(x => out.push(`${n}: remove “${itemName(k, x)}”`));
+    Object.entries(d.set || {}).forEach(([x, v]) => out.push(`${n}: ${itemName(k, x)} → ${itemVal(k, v)}`));
+  });
+  return out;
+}
+function drawSuggestions() {
+  const box = $("admSug"), list = (setInfo && setInfo.pending) || [];
+  const tab = document.querySelector('.adm-tabs [data-at="approve"]');
+  if (tab) tab.textContent = list.length ? `Changes to approve (${list.length})` : "Changes to approve";
+  box.replaceChildren();
+  if (!list.length) { box.innerHTML = `<li class="adm-row"><span class="adm-sub">Nothing waiting. When someone in the office changes a parts list, labor hours, exclusions or a vendor list, it shows up here for your OK.</span></li>`; return; }
+  list.forEach(sg => {
+    const li = document.createElement("li"), lines = sugLines(sg.diff);
+    li.className = "adm-row";
+    li.innerHTML = `<div class="adm-top"><b style="flex:1"></b><span class="adm-sub"></span></div><ul class="adm-lines"></ul>
+      <div class="adm-picks"><button class="btn primary" type="button" data-a="ok">Approve</button><button class="btn warn" type="button" data-a="no">Turn down</button></div>`;
+    li.querySelector("b").textContent = `${sg.by || "Someone"} suggested ${lines.length} change${lines.length === 1 ? "" : "s"}`;
+    li.querySelector(".adm-sub").textContent = whenSaved(sg.at);
+    const ul = li.querySelector(".adm-lines");
+    lines.slice(0, 40).forEach(t => { const x = document.createElement("li"); x.textContent = t; ul.appendChild(x); });
+    if (lines.length > 40) { const x = document.createElement("li"); x.textContent = `…and ${lines.length - 40} more`; ul.appendChild(x); }
+    const decide = async ok => {
+      admSay("Saving…");
+      try {
+        const r = await fetch("/api/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "decide", id: sg.id, ok, by: teamWho }) });
+        const o = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(o.error || "That didn't work. Check the internet.");
+        if (ok) { setApply(o.data, setDirty); lsSet("aj-set-base", JSON.stringify(o.data)); lsSet("aj-set-stamp", o.url); }
+        admSay(ok ? `Approved. Everyone gets ${sg.by || "the"}${sg.by ? "'s" : ""} change the next time they open the app.` : `Turned down. ${sg.by || "Their"}${sg.by ? "'s" : ""} computer goes back to the shared copy.`);
+      } catch (e) { admSay(e.message, true); }
+      await settingsPull(); drawSetNote();
+    };
+    li.querySelector('[data-a="ok"]').onclick = () => decide(true);
+    li.querySelector('[data-a="no"]').onclick = () => decide(false);
+    box.appendChild(li);
+  });
+}
+// links that open a list straight away, to send to whoever should edit it
+const EDIT_LINKS = [["asm", "Parts lists"], ["rate", "Labor hours"], ["prop", "Exclusions and vendor lists (on the Proposal)"]];
+function drawEditLinks() {
+  const box = $("admLinks");
+  box.replaceChildren();
+  EDIT_LINKS.forEach(([v, l]) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "btn sm"; b.textContent = "Copy link: " + l;
+    b.onclick = async () => {
+      const url = `${location.origin}/?edit=${v}`;
+      try { await navigator.clipboard.writeText(url); admSay(`Copied ${url}. Paste it in a text or email. Their changes come back here for your OK.`); }
+      catch (e) { admSay(`Send them this link: ${url}`); }
+    };
+    box.appendChild(b);
+  });
+}
 
 /* Working without internet */
 function fieldKeep() {
@@ -7704,7 +7818,7 @@ $("onLater").onclick = () => { $("onlineModal").hidden = true; toast("Your chang
 window.addEventListener("online", () => setTimeout(() => backOnline(true), 1500));
 window.addEventListener("offline", () => { if (teamOn) { teamOffline = true; setDrive("bad", "No internet. Changes are kept on this device until WiFi is back"); } });
 setInterval(() => { if (teamOffline && navigator.onLine !== false) backOnline(true); }, 30000);
-setInterval(() => { if (teamOn && !teamOffline && !document.hidden) roleCheck(); }, 600000); // someone turned off or changed on the Admin page
+setInterval(() => { if (teamOn && !teamOffline && !document.hidden) { roleCheck(); settingsPull(); } }, 600000); // someone turned off or changed on the Admin page
 
 /* Ghost lines and the Order page (Jonathan 2026-10-30): the field login places its own marks and draws its own runs,
    faded and dashed over the office markups. They live in the job's field layer online (api/field), never in the
@@ -7964,6 +8078,7 @@ async function loadExamples() {
     const q = new URLSearchParams(location.search);
     if (q.get("job")) { const u = q.get("job"); history.replaceState(null, "", location.pathname); openSharedJob(u); return; }
     if (q.get("open") === "job") { showFiles(true); history.replaceState(null, "", location.pathname); return; }
+    if (["asm", "rate", "prop"].includes(q.get("edit"))) { const v = q.get("edit"); history.replaceState(null, "", location.pathname); await teamReady; openTakeoff(v); if (v === "prop") toast("The standard exclusions and vendor lists are on this Proposal page. Your changes go to an admin to approve."); return; }
   } catch (e) {}
   showStart();
 })();
