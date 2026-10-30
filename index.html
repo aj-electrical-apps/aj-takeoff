@@ -807,15 +807,17 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
   body.ph-menu .app > .toolbar { display: flex !important; position: fixed; top: 0; left: 0; right: 0; z-index: 27; flex-wrap: wrap; overflow: visible; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
   body.ph-menu .app > .toolbar .brand { display: none; }
   body.ph-tools .desk > .runs { display: flex !important; position: fixed; left: 0; right: 0; bottom: var(--phbar-h, 56px); max-height: 68vh; z-index: 25; box-shadow: 0 -4px 16px rgba(0,0,0,.25); border-top: 1px solid var(--line); }
-  body.ph-sheets .desk > .rail { display: flex !important; position: fixed; left: 0; right: 0; bottom: var(--phbar-h, 56px); z-index: 25; box-shadow: 0 -4px 16px rgba(0,0,0,.25); }
-  body.ph-sheets .labelbar { display: flex !important; position: fixed; left: 0; right: 0; bottom: calc(var(--phbar-h, 56px) + var(--phrail-h, 120px)); z-index: 25; flex-wrap: wrap; }
+  body.ph-sheets .desk > .rail { display: flex !important; position: fixed; left: 0; right: 0; bottom: var(--phbar-h, 56px); z-index: 25; max-height: 40vh; align-items: flex-start; box-shadow: 0 -4px 16px rgba(0,0,0,.25); }
+  body.ph-sheets.ph-named .labelbar { display: none !important; }
+  body.ph-sheets .rail .thumb .num { display: block; font-size: 11px; }
+  body.ph-sheets:not(.ph-named) .labelbar { display: flex !important; position: fixed; left: 0; right: 0; bottom: calc(var(--phbar-h, 56px) + var(--phrail-h, 120px)); z-index: 25; flex-wrap: wrap; }
   .ph-close { display: block; align-self: flex-end; }
 }
 </style>
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v129<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v130<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
@@ -7382,6 +7384,7 @@ const saveJob = j => { if (job && j.id === job.id) scheduleSync(); return putJob
 function showJobName() { $("jobName").textContent = job ? job.name : "Example job"; }
 async function openJob(j) {
   if (tool) setTool(null);
+  phPanel(null);
   if (teamOn && syncWanted && job && job !== j) { clearTimeout(syncTimer); await runTeamSync(); }
   if (teamOn && fieldDirty && job && job !== j) { clearTimeout(fieldTimer); await fieldPush(); }
   pages.forEach(p => { URL.revokeObjectURL(p.url); p.thumbUrl && URL.revokeObjectURL(p.thumbUrl); });
@@ -7755,7 +7758,10 @@ function phPanel(which) {
   ["menu", "tools", "sheets"].forEach(k => document.body.classList.toggle("ph-" + k, k === which));
   $("phMenu").setAttribute("aria-expanded", which === "menu"); $("phTools").setAttribute("aria-expanded", which === "tools"); $("phSheet").setAttribute("aria-expanded", which === "sheets");
   $("phMenu").classList.toggle("on", which === "menu"); $("phTools").classList.toggle("on", which === "tools"); $("phSheet").classList.toggle("on", which === "sheets");
-  document.documentElement.style.setProperty("--phbar-h", $("phBar").offsetHeight + "px");
+  // measured from the bar's top, so the phone's home-bar space under it is counted too (iPhone screenshot 2026-10-30)
+  document.documentElement.style.setProperty("--phbar-h", Math.max(0, innerHeight - $("phBar").getBoundingClientRect().top) + "px");
+  // the sheet name box only comes up while some sheets still need names
+  document.body.classList.toggle("ph-named", pages.length > 0 && pages.every(x => x.example || x.name.trim()));
   if (which === "sheets") requestAnimationFrame(() => { document.documentElement.style.setProperty("--phrail-h", $("rail").offsetHeight + "px"); const c = $("rail").children[current]; if (c) c.scrollIntoView({ inline: "center", block: "nearest" }); });
 }
 const phToggle = k => phPanel(document.body.classList.contains("ph-" + k) ? null : k);
