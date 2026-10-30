@@ -2,7 +2,9 @@
  * AJ Takeoff daily backup (runs in your own Google account, free).
  *
  * Every night it copies into your shared drive, under  AJ take off app > Daily backups:
- *   <date>/AJ Takeoff app.html     the whole app, so it can be put back up anywhere
+ *   <date>/AJ Takeoff app.html     the app page as it is live that night
+ *   <date>/AJ Takeoff app (all files).zip   every file of the app from GitHub (page, sign-in, server code, icons),
+ *                                  so the whole app can be put back up anywhere
  *   <date>/Bid tracker.json        every row of the Bid tracker
  *   <date>/Job list.json           every job, including deleted ones
  *   <date>/Jobs/<job>.json         each job: counts, runs, bid, proposal, sheet names and markups
@@ -13,6 +15,7 @@
  * APP_PASSWORD: the backup key shown on the app's Admin page (or the app password itself).
  */
 const SITE = "https://aj-commercial-takeoff.vercel.app";
+const APP_ZIP = "https://codeload.github.com/aj-electrical-apps/aj-takeoff/zip/refs/heads/main"; // the latest app, all files
 const BID_BACKUPS_FOLDER = "1Q1AgXUgvyylm-Npq2txLHOmlZhZdmWkA"; // "Bid tracker backups"; Daily backups goes next to it
 const KEEP_DAYS = 90;
 const TIME_LIMIT_MS = 5 * 60 * 1000; // Google stops a run at 6 minutes; sheets not copied yet are picked up next night
@@ -40,6 +43,9 @@ function backupNow() {
   const put = (dir, name, text, type) => { const old = dir.getFilesByName(name); while (old.hasNext()) old.next().setTrashed(true); dir.createFile(name, text, type || "application/json"); };
 
   put(today, "AJ Takeoff app.html", fetchSite("/").getContentText(), "text/html");
+  const zip = UrlFetchApp.fetch(APP_ZIP, { muteHttpExceptions: true });
+  if (zip.getResponseCode() === 200) { const n = "AJ Takeoff app (all files).zip", old = today.getFilesByName(n); while (old.hasNext()) old.next().setTrashed(true); today.createFile(zip.getBlob().setName(n)); }
+  else console.log("Couldn't get the app files from GitHub (" + zip.getResponseCode() + "); the app page was still saved.");
   put(today, "Bid tracker.json", fetchSite("/api/bids").getContentText());
   const jobs = JSON.parse(fetchSite("/api/jobs?all=1").getContentText()).jobs || [];
   put(today, "Job list.json", JSON.stringify(jobs, null, 1));
