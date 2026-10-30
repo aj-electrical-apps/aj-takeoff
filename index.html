@@ -466,6 +466,9 @@ html.look-new body { font-family: var(--font-ui); }
 .drive span.t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @keyframes pulse { from { opacity: .35 } to { opacity: 1 } }
 @media (prefers-reduced-motion: reduce) { .drive.busy .dot { animation: none; } }
+.job-row .off-tag { font-family: var(--font); font-size: 11px; color: var(--ok, #1a7f37); }
+.job-li-off { display: flex; gap: 6px; align-items: stretch; }
+.job-li-off .job-row { flex: 1; min-width: 0; }
 .job-row .badge { font-size: 11px; font-weight: 600; color: var(--accent); }
 .sub-h { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; margin: 4px 0 0; }
 
@@ -790,11 +793,29 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
   .modal { padding: 8px; }
   .modal-card { padding: 14px; }
 }
+/* Phones, full-screen drawing (Jonathan 2026-10-30): only a bottom bar with Menu, sheet flipper and Tools.
+   Menu drops the top bar down, Tools slides the toolbox up, the sheet name opens the sheet list. */
+.phbar, .ph-close { display: none; }
+@media (max-width: 760px) {
+  .app { grid-template-rows: minmax(0, 1fr) auto; }
+  .app > .toolbar, .labelbar, .desk > .runs, .desk > .rail { display: none !important; }
+  .desk { grid-template-rows: minmax(0, 1fr) !important; }
+  .phbar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: var(--panel); border-top: 1px solid var(--line); z-index: 26; }
+  .phbar .btn { min-height: 40px; }
+  .phbar #phSheet { flex: 1; min-width: 0; justify-content: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+  .phbar .on { background: var(--accent-soft); border-color: var(--accent); }
+  body.ph-menu .app > .toolbar { display: flex !important; position: fixed; top: 0; left: 0; right: 0; z-index: 27; flex-wrap: wrap; overflow: visible; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
+  body.ph-menu .app > .toolbar .brand { display: none; }
+  body.ph-tools .desk > .runs { display: flex !important; position: fixed; left: 0; right: 0; bottom: var(--phbar-h, 56px); max-height: 68vh; z-index: 25; box-shadow: 0 -4px 16px rgba(0,0,0,.25); border-top: 1px solid var(--line); }
+  body.ph-sheets .desk > .rail { display: flex !important; position: fixed; left: 0; right: 0; bottom: var(--phbar-h, 56px); z-index: 25; box-shadow: 0 -4px 16px rgba(0,0,0,.25); }
+  body.ph-sheets .labelbar { display: flex !important; position: fixed; left: 0; right: 0; bottom: calc(var(--phbar-h, 56px) + var(--phrail-h, 120px)); z-index: 25; flex-wrap: wrap; }
+  .ph-close { display: block; align-self: flex-end; }
+}
 </style>
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v127<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v128<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
@@ -921,6 +942,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     </section>
     </div>
     <aside class="runs" aria-label="Tools, counts and takeoff">
+      <button class="btn sm ph-close" type="button" id="phToolsClose">Close ✕</button>
       <div class="qs" id="qs">
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 4 4"/></svg>
         <input id="qsInput" type="search" placeholder="Search: duplex, exit, 3/4 EMT, bid…" aria-label="Search items, tools and sheets" autocomplete="off" role="combobox" aria-controls="qsList" aria-expanded="false">
@@ -1012,6 +1034,13 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       </div>
     </aside>
   </main>
+  <nav class="phbar" id="phBar" aria-label="Phone controls">
+    <button class="btn sm" id="phMenu" type="button" aria-expanded="false">☰ Menu</button>
+    <button class="btn sm" id="phPrev" type="button" aria-label="Previous sheet">‹</button>
+    <button class="btn sm" id="phSheet" type="button" aria-expanded="false" title="Show all sheets">Sheet –</button>
+    <button class="btn sm" id="phNext" type="button" aria-label="Next sheet">›</button>
+    <button class="btn sm primary" id="phTools" type="button" aria-expanded="false">Tools</button>
+  </nav>
 
   <form class="labelbar" id="labelForm" autocomplete="off">
     <label for="nameInput">Sheet name</label>
@@ -2005,7 +2034,7 @@ function renderSheet() {
   $("clearGroup").hidden = !job;
   $("scaleBtn").textContent = p && p.ftPerPx ? `Scale ${p.scaleLabel}` : "Set scale";
   $("scaleBtn").classList.toggle("warn", !!p && !p.ftPerPx);
-  if (!p) { img.removeAttribute("src"); $("pos").textContent = "–"; $("sheetNo").textContent = "Sheet –"; $("progress").textContent = ""; return; }
+  if (!p) { img.removeAttribute("src"); $("pos").textContent = "–"; $("sheetNo").textContent = "Sheet –"; $("phSheet").textContent = "No sheets"; $("progress").textContent = ""; return; }
   const want = showOld && p.prevBlob ? prevUrl(p) : p.url;
   if (img.getAttribute("src") !== want) img.src = want;
   img.classList.toggle("repl-old", want !== p.url);
@@ -2016,6 +2045,7 @@ function renderSheet() {
   applyZoom();
   $("pos").textContent = `${current + 1} / ${pages.length}`;
   $("sheetNo").textContent = `Sheet ${String(current + 1).padStart(3, "0")}`;
+  $("phSheet").textContent = `${p.name.trim() || "Sheet " + (current + 1)} · ${current + 1}/${pages.length}`;
   $("nameInput").value = p.name;
   const named = pages.filter(x => x.name.trim()).length;
   $("progress").innerHTML = `<b>${named}</b> of ${pages.length} named`;
@@ -5273,6 +5303,7 @@ let scaleDraft = null;  // {then, knownPx}
 let placed = [];        // devices dropped since the place tool was picked, for Undo last
 
 function setTool(t, dev) {
+  if (t) phPanel(null);
   if (t && hlMode) setHl(hlMode);
   const p = pages[current];
   if (t && t !== "calibrate" && !p) return;
@@ -7393,6 +7424,7 @@ function jobRowsInto(list, arr, modalId) {
     b.querySelector(".jt").textContent = j.name;
     b.querySelector(".jm").textContent = [j.customer, j.created && "Started " + stampDate(j.created), j.bidDate && "Bid " + j.bidDate, j.updated && "Last worked " + stampDate(j.updated)].filter(Boolean).join(" · ") || "No details yet";
     b.querySelector(".js").textContent = `${jobCounts[j.id] || 0} sheets`;
+    if (teamOn) { const off = document.createElement("span"); off.className = "off-tag"; off.textContent = "✓ On this device, works offline"; b.querySelector(".js").append(document.createElement("br"), off); }
     const tt = teamTag(j); if (tt) { const tag = document.createElement("span"); tag.className = "badge"; tag.textContent = tt; b.querySelector(".jm").appendChild(tag); }
     b.onclick = async () => {
       $(modalId).hidden = true;
@@ -7641,8 +7673,8 @@ function teamConflict(j, cur) {
 }
 $("teamModal").addEventListener("keydown", e => { if (e.key === "Escape") $("teamModal").hidden = true; });
 // Copy the online copy of a job into this browser (sheets it already has are reused), then open it.
-async function pullTeam(f) {
-  const title = "Opening the newest copy…";
+async function pullTeam(f, { keepOnly } = {}) {
+  const title = keepOnly ? "Saving onto this device…" : "Opening the newest copy…";
   try {
     busy(title, 0, f.name);
     const r = await fetch(f.url);
@@ -7674,6 +7706,7 @@ async function pullTeam(f) {
     await putJobLocal(j);
     jobs = jobs.filter(x => x.id !== j.id).concat(j);
     busy(null, null);
+    if (keepOnly) { jobCounts[j.id] = rows.filter(x => x.blob).length; return toast(`${j.name} is saved on this device. It opens without internet.`); }
     syncWanted = false;
     await openJob(j);
     setDrive("ok", `Opened the newest copy${f.by ? `, saved by ${f.by}` : ""}`);
@@ -7708,11 +7741,36 @@ function drawTeamRemote(q) {
     b.querySelector(".jm").textContent = [f.customer, f.bidDate && "Bid " + f.bidDate, `Saved ${whenSaved(f.saved)}${f.by ? " by " + f.by : ""}`].filter(Boolean).join(" · ");
     b.querySelector(".js").textContent = `${f.sheets || 0} sheets`;
     b.onclick = () => { $("jobsModal").hidden = true; pullTeam(f); };
-    li.appendChild(b); ul.appendChild(li);
+    const k = document.createElement("button"); k.type = "button"; k.className = "btn sm"; k.textContent = "Save offline";
+    k.title = "Copy this job and all its sheets onto this device so it opens without internet";
+    k.onclick = async () => { k.disabled = true; k.textContent = "Saving…"; await pullTeam(f, { keepOnly: true }); $("jobsFind").oninput && $("jobsFind").oninput(); };
+    li.className = "job-li-off"; li.append(b, k); ul.appendChild(li);
   });
   if (rest.length && !$("jobList").children.length) $("jobsEmpty").hidden = true;
   if (!q && !rest.length && !jobs.length) $("jobsEmpty").textContent = "No jobs yet, here or online. Start one below.";
 }
+/* Phone bottom bar: one panel open at a time; tapping the drawing closes it */
+const isPhone = () => matchMedia("(max-width: 760px)").matches;
+function phPanel(which) {
+  ["menu", "tools", "sheets"].forEach(k => document.body.classList.toggle("ph-" + k, k === which));
+  $("phMenu").setAttribute("aria-expanded", which === "menu"); $("phTools").setAttribute("aria-expanded", which === "tools"); $("phSheet").setAttribute("aria-expanded", which === "sheets");
+  $("phMenu").classList.toggle("on", which === "menu"); $("phTools").classList.toggle("on", which === "tools"); $("phSheet").classList.toggle("on", which === "sheets");
+  document.documentElement.style.setProperty("--phbar-h", $("phBar").offsetHeight + "px");
+  if (which === "sheets") requestAnimationFrame(() => { document.documentElement.style.setProperty("--phrail-h", $("rail").offsetHeight + "px"); const c = $("rail").children[current]; if (c) c.scrollIntoView({ inline: "center", block: "nearest" }); });
+}
+const phToggle = k => phPanel(document.body.classList.contains("ph-" + k) ? null : k);
+$("phMenu").onclick = () => phToggle("menu");
+$("phTools").onclick = () => phToggle("tools");
+$("phSheet").onclick = () => phToggle("sheets");
+$("phToolsClose").onclick = () => phPanel(null);
+$("phPrev").onclick = () => go(current - 1);
+$("phNext").onclick = () => go(current + 1);
+$("viewer").addEventListener("pointerdown", () => { if (isPhone()) phPanel(null); }, true);
+$("rail").addEventListener("click", e => { if (isPhone() && e.target.closest(".thumb")) setTimeout(() => phPanel(null), 50); });
+// menu buttons that open a window close the menu
+document.querySelector(".app > .toolbar").addEventListener("click", e => { if (isPhone() && e.target.closest("button") && !e.target.closest("#phMenu")) setTimeout(() => phPanel(null), 50); });
+// Jobs and sheets stay on this device (like Drive's "available offline"): ask the browser not to clear them when space runs low
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persisted().then(p => p || navigator.storage.persist()).catch(() => {}); } catch (e) {}
 // a note on a job row when the online copy is newer, or the job was deleted online
 function teamTag(j) {
   const f = teamOn && teamIndex[segId(j.id)];
