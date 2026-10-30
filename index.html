@@ -621,6 +621,7 @@ tr.ex-off .ex-row span { color: var(--muted); text-decoration: line-through; }
 #msgBtn .me-dot { background: #ea580c; }
 .msg-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .msg-row { display: grid; gap: 2px; width: 100%; text-align: left; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); font: inherit; cursor: pointer; }
+#msgReply, #sendText { width: 100%; box-sizing: border-box; }
 .msg-row.new { border-color: #ea580c; box-shadow: inset 3px 0 0 #ea580c; }
 .msg-row .mt { font-weight: 600; font-size: 14px; }
 .msg-row .mm, .msg-meta { font-size: 12.5px; color: var(--muted); }
@@ -767,11 +768,25 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
   .hide-sm { display: none; }
   .viewer { padding: 8px; }
 }
+/* Phones (Jonathan 2026-10-30: "will this app work on a phone?"): the top bar is one row you swipe sideways,
+   so the drawing gets most of the screen */
+@media (max-width: 760px) {
+  .toolbar { flex-wrap: nowrap; overflow-x: auto; gap: 8px; padding-block: 6px; scrollbar-width: none; }
+  .toolbar > * { flex: none; }
+  .toolbar .brand { font-size: 0 !important; gap: 0; margin-right: 0; }
+  .brand small, #lookBtn, #pageCount, #cmpBtn, #driveText, .tabs { display: none !important; }
+  .center { grid-template-rows: minmax(0, 1fr); }
+  .rail { padding: 4px 8px; }
+  .thumb { width: 84px; }
+  .runs { max-height: 30vh; }
+  .modal { padding: 8px; }
+  .modal-card { padding: 14px; }
+}
 </style>
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v121<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v122<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
