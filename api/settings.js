@@ -10,7 +10,7 @@ import { loadSettings, saveSettings } from "../lib/team-store.js";
 // POST { data, by }                       admins: replace the shared settings
 //      { op: "suggest", diff, by }        office: suggest a change
 //      { op: "decide", id, ok }           admins: approve or turn down a suggestion
-const KEYS = /^aj-(company|labor-edits|asm-edits|excl-std|list-(sup|natl|falv|lp))$/;
+const KEYS = /^aj-(company|equip-rates|labor-edits|asm-edits|excl-std|list-(sup|natl|falv|lp))$/;
 const H = { "Cache-Control": "no-store" };
 const bad = (error, status = 400) => Response.json({ error }, { status, headers: H });
 async function suggestions() {

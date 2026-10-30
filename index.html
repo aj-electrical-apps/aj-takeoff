@@ -535,6 +535,12 @@ html.look-new body { font-family: var(--font-ui); }
 .bid-h, .bid-q, .bid-usd, #bidRate { width: 92px; text-align: right; font-family: var(--font-mono); }
 .bid-h.over { border-color: var(--accent); font-weight: 700; }
 .bid-ln { width: 100%; }
+.eq-row select { font: inherit; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); max-width: 100%; }
+.eq-row small input { width: 56px; }
+.eq-rates summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+.eq-tbl { border-collapse: collapse; margin: 6px 0; font-size: 13px; }
+.eq-tbl th, .eq-tbl td { padding: 2px 6px; text-align: left; }
+.eq-tbl input { width: 76px; }
 td .bid-ln[data-q], td .bid-ln[data-s] { width: calc(100% - 80px); }
 .pr-head td { font-size: 12px; color: var(--muted); }
 .pr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px 12px; }
@@ -786,7 +792,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v123<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v124<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
@@ -3683,8 +3689,71 @@ function bidRows() {
 function bidTotals(rows) {
   const b = bidOf(), lines = b.lines || [];
   const hrs = rows.reduce((t, r) => t + r.hrs, 0) + lines.reduce((t, l) => t + (+l.qty || 0) * (+l.h || 0), 0);
-  const other = lines.reduce((t, l) => t + (+l.qty || 0) * (+l.usd || 0), 0), rate = +b.rate || 0;
-  return { hrs, rate, labor: hrs * rate, other, total: hrs * rate + other };
+  const eq = equipCalc(hrs), lineUsd = lines.reduce((t, l) => t + (+l.qty || 0) * (+l.usd || 0), 0), other = lineUsd + eq.usd, rate = +b.rate || 0;
+  return { hrs, rate, labor: hrs * rate, other, lineUsd, eq, total: hrs * rate + other };
+}
+/* Equipment rentals (Jonathan 2026-10-30: "a rate for the rentals for like lifts based on the man hours for how long the rental
+   should be and the machines to dig based on the amount of underground"). Lift days come from the man hours, digging days from
+   the ditch footage on the Underground tab. Rates are placeholders, editable, and shared like the labor table. */
+const EQUIP_DEFAULT = {
+  lift: [["Scissor lift 19'", 150, 350, 700, 150], ["Scissor lift 26'", 200, 450, 900, 150], ["Scissor lift 32'", 275, 600, 1200, 150], ["Boom lift 45'", 450, 1100, 2400, 250], ["Boom lift 60'", 600, 1500, 3200, 250]],
+  dig: [["Walk-behind trencher", 250, 800, 2000, 100, 400], ["Ride-on trencher", 450, 1400, 3500, 200, 800], ["Mini excavator", 350, 1100, 2800, 200, 250], ["Backhoe", 450, 1400, 3500, 250, 300]],
+};
+let equipRatesCache = null;
+const equipRates = () => { if (!equipRatesCache) { try { equipRatesCache = JSON.parse(lsGet("aj-equip-rates") || "null"); } catch (e) {} if (!equipRatesCache || !equipRatesCache.lift) equipRatesCache = JSON.parse(JSON.stringify(EQUIP_DEFAULT)); } return equipRatesCache; };
+const saveEquipRates = () => { lsSet("aj-equip-rates", JSON.stringify(equipRates())); if (typeof settingsTouch === "function") settingsTouch("aj-equip-rates"); };
+// cheapest mix of months (20 work days), weeks (5) and days
+function rentCost(days, day, week, month) {
+  if (days <= 0) return 0;
+  const byWeek = d => Math.min(d * day, Math.floor(d / 5) * week + (d % 5) * day, Math.ceil(d / 5) * week);
+  const m = Math.floor(days / 20), rest = days - m * 20;
+  return Math.min(m * month + (rest ? Math.min(byWeek(rest), month) : 0), Math.ceil(days / 20) * month);
+}
+function equipCalc(hrs) {
+  const e = bidOf().equip || {}, R = equipRates(), out = { usd: 0, lift: null, dig: null };
+  const lr = e.lift && R.lift.find(r => r[0] === e.lift.kind);
+  if (lr) {
+    const pct = e.lift.pct != null ? +e.lift.pct : 50, crew = Math.max(1, +e.lift.crew || 2), qty = Math.max(1, +e.lift.qty || 1);
+    const auto = Math.max(1, Math.ceil(hrs * pct / 100 / (8 * crew * qty))), days = e.lift.days != null && e.lift.days !== "" ? Math.max(0, +e.lift.days) : auto;
+    const usd = qty * (rentCost(days, lr[1], lr[2], lr[3]) + (+lr[4] || 0));
+    out.lift = { kind: lr[0], pct, crew, qty, auto, days, usd, over: days !== auto }; out.usd += usd;
+  }
+  const dr = e.dig && R.dig.find(r => r[0] === e.dig.kind);
+  if (dr) {
+    const lf = ugTot(ugRows()).lf, qty = Math.max(1, +e.dig.qty || 1), auto = Math.max(1, Math.ceil(lf / Math.max(1, +dr[5] || 300) / qty)), days = e.dig.days != null && e.dig.days !== "" ? Math.max(0, +e.dig.days) : auto;
+    const usd = qty * (rentCost(days, dr[1], dr[2], dr[3]) + (+dr[4] || 0));
+    out.dig = { kind: dr[0], lf, qty, auto, days, usd, perDay: +dr[5] || 0, over: days !== auto }; out.usd += usd;
+  }
+  return out;
+}
+function equipHtml(tot) {
+  const e = bidOf().equip || {}, R = equipRates(), q = tot.eq, opt = (list, cur) => `<option value="">None</option>` + list.map(r => `<option${r[0] === cur ? " selected" : ""}>${esc(r[0])}</option>`).join("");
+  const lift = q.lift, dig = q.dig;
+  let h = `<tr class="sec"><td colspan="5">Equipment rentals</td></tr>
+    <tr class="eq-row"><td><select class="eq" data-g="lift" data-f="kind" aria-label="Lift">${opt(R.lift, lift && lift.kind)}</select>
+      <small>${lift ? `<span class="no-print"><input type="number" class="eq ts-pct" data-g="lift" data-f="pct" min="0" max="100" step="5" value="${lift.pct}" aria-label="Percent of man hours up on the lift">% of the ${fmtH(tot.hrs)} man hours are up on a lift, <input type="number" class="eq ts-pct" data-g="lift" data-f="crew" min="1" step="1" value="${lift.crew}" aria-label="Men per lift"> men per lift, 8-hour days. </span>${fmtH(tot.hrs * lift.pct / 100)} lift hours = ${lift.auto} day${lift.auto === 1 ? "" : "s"}${lift.qty > 1 ? ` with ${lift.qty} lifts` : ""}. Delivery included.` : "Pick a lift and the days come from the man hours on this bid."}</small></td>
+      <td class="n">${lift ? `<input type="number" class="eq bid-q${lift.over ? " over" : ""}" data-g="lift" data-f="days" min="0" step="1" value="${lift.over ? lift.days : ""}" placeholder="${lift.auto}" aria-label="Rental days"> days` : ""}</td>
+      <td class="n">${lift ? `<input type="number" class="eq bid-q" data-g="lift" data-f="qty" min="1" step="1" value="${lift.qty}" aria-label="How many lifts"> lift${lift.qty === 1 ? "" : "s"}` : ""}</td><td></td><td class="n">${lift ? fmt$(lift.usd) : ""}</td></tr>
+    <tr class="eq-row"><td><select class="eq" data-g="dig" data-f="kind" aria-label="Digging machine">${opt(R.dig, dig && dig.kind)}</select>
+      <small>${dig ? (dig.lf ? `${dig.lf.toLocaleString()} ft of ditch on the Underground tab ÷ ${dig.perDay} ft a day${dig.qty > 1 ? ` ÷ ${dig.qty} machines` : ""} = ${dig.auto} day${dig.auto === 1 ? "" : "s"}. Delivery included.` : "No ditch on the Underground tab yet, so it's set to 1 day. Type the days if you know them.") : "Pick a machine and the days come from the underground footage."}</small></td>
+      <td class="n">${dig ? `<input type="number" class="eq bid-q${dig.over ? " over" : ""}" data-g="dig" data-f="days" min="0" step="1" value="${dig.over ? dig.days : ""}" placeholder="${dig.auto}" aria-label="Rental days"> days` : ""}</td>
+      <td class="n">${dig ? `<input type="number" class="eq bid-q" data-g="dig" data-f="qty" min="1" step="1" value="${dig.qty}" aria-label="How many machines"> ea` : ""}</td><td></td><td class="n">${dig ? fmt$(dig.usd) : ""}</td></tr>
+    <tr class="no-print"><td colspan="5"><details class="eq-rates"${e.ratesOpen ? " open" : ""}><summary>Rental rates (day, week, month, delivery; trenching feet per day). Placeholders: change them to your rental yard's prices.</summary><table class="eq-tbl"><tr><th>Machine</th><th>Day $</th><th>Week $</th><th>Month $</th><th>Delivery $</th><th>Ft/day</th></tr>`
+    + ["lift", "dig"].map(g => R[g].map((r, i) => `<tr><td>${esc(r[0])}</td>${[1, 2, 3, 4, 5].map(c => c === 5 && g === "lift" ? "<td></td>" : `<td><input type="number" class="eq-rate" data-g="${g}" data-i="${i}" data-c="${c}" min="0" step="1" value="${r[c]}" aria-label="${esc(r[0])}"></td>`).join("")}</tr>`).join("")).join("")
+    + `</table><button class="btn sm" type="button" id="eqReset">Put back the starting rates</button></details></td></tr>`;
+  return h;
+}
+function equipBind(t, save) {
+  const b = bidOf();
+  t.querySelectorAll("select.eq, input.eq").forEach(inp => inp.onchange = () => {
+    const e = b.equip || (b.equip = {}), g = inp.dataset.g, f = inp.dataset.f;
+    if (f === "kind") { if (!inp.value) delete e[g]; else e[g] = { ...(e[g] || {}), kind: inp.value }; }
+    else if (e[g]) { const v = inp.value.trim(); if (v === "") delete e[g][f]; else e[g][f] = Math.max(0, +v || 0); }
+    save();
+  });
+  t.querySelectorAll("input.eq-rate").forEach(inp => inp.onchange = () => { equipRates()[inp.dataset.g][+inp.dataset.i][+inp.dataset.c] = Math.max(0, +inp.value || 0); saveEquipRates(); (b.equip || (b.equip = {})).ratesOpen = true; save(); });
+  const d = t.querySelector(".eq-rates"); if (d) d.ontoggle = () => { (b.equip || (b.equip = {})).ratesOpen = d.open; };
+  if ($("eqReset")) $("eqReset").onclick = () => { equipRatesCache = JSON.parse(JSON.stringify(EQUIP_DEFAULT)); saveEquipRates(); save(); };
 }
 const fmtH = h => (Math.round(h * 100) / 100).toLocaleString(undefined, { maximumFractionDigits: 2 });
 const fmt$ = v => "$" + Math.round(v).toLocaleString();
@@ -3718,14 +3787,17 @@ function renderBid() {
     <td class="n"><input type="number" class="bid-h" data-i="${i}" data-f="h" min="0" step="0.005" value="${l.h || ""}" placeholder="0"></td>
     <td class="n">${fmtH((+l.qty || 0) * (+l.h || 0))}</td><td class="n">${fmt$((+l.qty || 0) * ((+l.h || 0) * tot.rate + (+l.usd || 0)))}</td></tr>`).join("") +
     `<tr class="no-print"><td colspan="5"><button class="btn sm" type="button" id="bidAddLine">+ Add a line</button> <select id="bidPick" aria-label="Add a line from your labor table"><option value="">or pick one from your labor table…</option>${[...new Set(LABOR.map(r => r.s))].map(s => `<optgroup label="${esc(s)}">${LABOR.filter(r => r.s === s).map(r => `<option value="${esc(r.k)}">${esc(r.l)}</option>`).join("")}</optgroup>`).join("")}</select></td></tr>`;
+  h += equipHtml(tot);
   h += `<tr class="bid-tot"><td>Total man hours</td><td></td><td></td><td class="n"><b>${fmtH(tot.hrs)}</b></td><td></td></tr>
     <tr class="bid-tot"><td>Labor at <span class="no-print"><input type="number" id="bidRate" min="0" step="1" value="${tot.rate}" aria-label="Dollars per man hour"></span><span class="print-only">$${tot.rate}</span> per man hour</td><td></td><td></td><td></td><td class="n"><b>${fmt$(tot.labor)}</b></td></tr>
-    ${tot.other ? `<tr class="bid-tot"><td>Other $ (from other lines)</td><td></td><td></td><td></td><td class="n"><b>${fmt$(tot.other)}</b></td></tr>` : ""}
+    ${tot.lineUsd ? `<tr class="bid-tot"><td>Other $ (from other lines)</td><td></td><td></td><td></td><td class="n"><b>${fmt$(tot.lineUsd)}</b></td></tr>` : ""}
+    ${tot.eq.usd ? `<tr class="bid-tot"><td>Equipment rentals</td><td></td><td></td><td></td><td class="n"><b>${fmt$(tot.eq.usd)}</b></td></tr>` : ""}
     <tr class="bid-tot grand"><td>Labor bid total</td><td></td><td></td><td></td><td class="n"><b>${fmt$(tot.total)}</b></td></tr>
     <tr class="bid-tot"><td>Labor markup <span class="no-print"><input type="number" id="bidMk" class="ts-pct" min="0" max="200" step="0.5" value="${+propOf().mk.labor || ""}" placeholder="0" aria-label="Labor markup percent"></span><span class="print-only">${+propOf().mk.labor || 0}</span> % <small class="no-print">Same box as Labor markup on the Proposal tab</small></td><td></td><td></td><td></td><td class="n">${fmt$(tot.total * (+propOf().mk.labor || 0) / 100)}</td></tr>
     <tr class="bid-tot grand"><td>Labor with markup</td><td></td><td></td><td></td><td class="n"><b>${fmt$(tot.total * (1 + (+propOf().mk.labor || 0) / 100))}</b></td></tr></tbody>`;
   t.innerHTML = h;
   const save = () => { if (job) saveJob(job); renderTakeoff(); };
+  equipBind(t, save);
   $("bidRate").onchange = e => { b.rate = Math.max(0, +e.target.value || 0); save(); };
   $("bidMk").onchange = e => { propOf().mk.labor = Math.max(0, +e.target.value || 0); save(); };
   t.querySelectorAll("input.bid-h[data-k]").forEach(inp => inp.onchange = () => { const v = inp.value.trim(); if (v === "") delete b.over[inp.dataset.k]; else b.over[inp.dataset.k] = Math.max(0, +v || 0); save(); });
@@ -3740,7 +3812,9 @@ function bidText() {
   rows.forEach(r => { if (r.sec !== sec) { sec = r.sec; out.push("", sec.toUpperCase()); } out.push(`${r.qty.toLocaleString()} ${r.unit}  ${r.name}  ×  ${r.h != null ? r.h : "?"} = ${fmtH(r.hrs)} man hours`); });
   if ((b.lines || []).length) { out.push("", "OTHER LINES"); b.lines.forEach(l => out.push(`${l.qty || 0}  ${l.desc || "(no description)"}  ×  ${l.h || 0} man hours${+l.usd ? ` + $${l.usd} each` : ""}`)); }
   out.push("", `Total man hours: ${fmtH(tot.hrs)}`, `Labor at $${tot.rate} per man hour: ${fmt$(tot.labor)}`);
-  if (tot.other) out.push(`Other $: ${fmt$(tot.other)}`);
+  if (tot.lineUsd) out.push(`Other $: ${fmt$(tot.lineUsd)}`);
+  if (tot.eq.lift) out.push(`${tot.eq.lift.kind}${tot.eq.lift.qty > 1 ? " × " + tot.eq.lift.qty : ""}, ${tot.eq.lift.days} day${tot.eq.lift.days === 1 ? "" : "s"}: ${fmt$(tot.eq.lift.usd)}`);
+  if (tot.eq.dig) out.push(`${tot.eq.dig.kind}${tot.eq.dig.qty > 1 ? " × " + tot.eq.dig.qty : ""}, ${tot.eq.dig.days} day${tot.eq.dig.days === 1 ? "" : "s"}: ${fmt$(tot.eq.dig.usd)}`);
   out.push(`Labor bid total: ${fmt$(tot.total)}`);
   return out.join("\n");
 }
@@ -8113,8 +8187,8 @@ function drawCompanyBox() {
 /* Shared settings: the same localStorage values as always, copied to and from api/settings.
    Admins' changes go to everyone straight away. Office people's changes are sent as suggestions and stay on their own
    computer until an admin approves them on the Admin page (Jonathan 2026-10-30: "I want to approve before it saves"). */
-const SET_KEYS = ["aj-company", "aj-labor-edits", "aj-asm-edits", "aj-excl-std", "aj-list-sup", "aj-list-natl", "aj-list-falv", "aj-list-lp"];
-const SET_NAMES = { "aj-company": "Company details", "aj-labor-edits": "Labor hours", "aj-asm-edits": "Parts lists", "aj-excl-std": "Standard exclusions", "aj-list-sup": "Suppliers", "aj-list-natl": "National accounts", "aj-list-falv": "Fire alarm and low voltage vendors", "aj-list-lp": "Lightning protection vendors" };
+const SET_KEYS = ["aj-company", "aj-equip-rates", "aj-labor-edits", "aj-asm-edits", "aj-excl-std", "aj-list-sup", "aj-list-natl", "aj-list-falv", "aj-list-lp"];
+const SET_NAMES = { "aj-company": "Company details", "aj-equip-rates": "Equipment rental rates", "aj-labor-edits": "Labor hours", "aj-asm-edits": "Parts lists", "aj-excl-std": "Standard exclusions", "aj-list-sup": "Suppliers", "aj-list-natl": "National accounts", "aj-list-falv": "Fire alarm and low voltage vendors", "aj-list-lp": "Lightning protection vendors" };
 const SET_ARRAYS = k => k === "aj-excl-std" || k.startsWith("aj-list-");
 var setInfo = null, setTimer = null, setDirty = new Set((lsGet("aj-set-dirty") || "").split(",").filter(Boolean));
 const setSnap = () => { const o = {}; SET_KEYS.forEach(k => { const v = lsGet(k); if (v != null) o[k] = v; }); return o; };
@@ -8122,7 +8196,7 @@ const setBase = () => { try { return JSON.parse(lsGet("aj-set-base") || "{}"); }
 const setPending = () => { try { return JSON.parse(lsGet("aj-set-pending") || "[]"); } catch (e) { return []; } }; // my suggestions: [{ id, keys }]
 function setApply(data, skip) {
   SET_KEYS.forEach(k => { if (k in data && !(skip && skip.has(k))) lsSet(k, data[k]); });
-  companyCache = null; laborEditsCache = null; asmEditsCache = null;
+  companyCache = null; laborEditsCache = null; asmEditsCache = null; equipRatesCache = null;
 }
 // the first time a device syncs: whatever only this device had is kept and shared too
 function setMerge(team, local) {
@@ -8223,9 +8297,10 @@ $("admSetPush").onclick = async () => {
   drawSetNote();
 };
 // Changes to approve: what each suggestion adds, changes and removes, in words
-const itemName = (k, x) => k === "aj-asm-edits" ? String(x).split("|").pop() : k === "aj-labor-edits" ? ((LABOR.find(r => r.k === x) || {}).l || x) : k === "aj-company" ? ({ name: "Company name", phone: "Phone", email: "Email", address: "Address", license: "License #" }[x] || x) : x;
+const itemName = (k, x) => k === "aj-equip-rates" ? (x === "lift" ? "Lift rental rates" : "Digging machine rental rates") : k === "aj-asm-edits" ? String(x).split("|").pop() : k === "aj-labor-edits" ? ((LABOR.find(r => r.k === x) || {}).l || x) : k === "aj-company" ? ({ name: "Company name", phone: "Phone", email: "Email", address: "Address", license: "License #" }[x] || x) : x;
 const itemVal = (k, v) => k === "aj-asm-edits" && Array.isArray(v) ? v.map(p => Array.isArray(p) ? `${p[0]} ${p[1]}` : p).join(", ") || "nothing"
   : k === "aj-labor-edits" && v && typeof v === "object" ? [v.h != null ? `${v.h} hours` : "", v.m != null ? `material ${v.m}` : ""].filter(Boolean).join(", ") || JSON.stringify(v)
+  : k === "aj-equip-rates" && Array.isArray(v) ? v.map(r => `${r[0]} $${r[1]}/day, $${r[2]}/wk, $${r[3]}/mo, $${r[4]} delivery${r[5] ? `, ${r[5]} ft/day` : ""}`).join("; ")
   : typeof v === "string" ? v : JSON.stringify(v);
 function sugLines(diff) {
   const out = [];
