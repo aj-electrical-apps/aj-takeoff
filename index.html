@@ -399,9 +399,19 @@ html.look-new body { font-family: var(--font-ui); }
 .cnt-div .sn { order: 2; font-weight: 600; }
 /* Field login (Jonathan 2026-10-30): the PM and super look, measure and print; the estimate is locked */
 .role-field :is(#uploadBtn, #bgLoad, #newJobBtn, #bidBtn, #trkBtn, #coBtn, #clearBtn, #replBtn, #lblBtn, #symBtn, #pnlBtn, #schedBtn, #impBtn, #addCountBtn, #addWireBtn,
-  #runBtn, #scaleBtn, #eraseBtn, #hlYBtn, #hlRBtn, #roomBtn, #fileBtn, #histUndo, #histRedo, #tsBidTab, #tsRateTab, #tsPropTab, #tsAsmTab, #tsDbo, #tsRomex, #tsAllBox,
+  #scaleBtn, #hlYBtn, #hlRBtn, #roomBtn, #fileBtn, #histUndo, #histRedo, #tsBidTab, #tsRateTab, #tsPropTab, #tsAsmTab, #tsDbo, #tsRomex, #tsAllBox,
   #jobForm, #teamWhoBox, #jobsOpenFile, #labelForm, .cnt-edit, .psec[data-fold="toolbox"], .tool-sub, .feed-edit) { display: none !important; }
 .role-field .brand small::after { content: " · Field"; }
+.role-field #runList :is(input, select, button) { pointer-events: none; }
+.mk-ghost { stroke-dasharray: 10 7; opacity: .6; }
+.mk-ghost-ring { fill: none; stroke: #7048e8; stroke-width: 1.5; stroke-dasharray: 4 3; }
+.cnt-n .gq { color: #7048e8; font-weight: 600; }
+#tsTable tr.ord-add td:first-child { box-shadow: inset 3px 0 0 #7048e8; }
+#tsTable .ord-q { width: 90px; text-align: right; }
+#ordNote { width: 100%; box-sizing: border-box; font: inherit; }
+.ord-ok { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.print-only { display: none; }
+@media print { .print-only { display: inline; } #tsTable .ord-q, #ordNote { display: none; } }
 .drive span.t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @keyframes pulse { from { opacity: .35 } to { opacity: 1 } }
 @media (prefers-reduced-motion: reduce) { .drive.busy .dot { animation: none; } }
@@ -679,7 +689,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v114</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v115</small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
@@ -832,6 +842,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
           <button class="btn tool hl-y" id="hlYBtn" type="button" aria-pressed="false" title="Yellow highlighter: drag over a note to save it to your Notes page">Yellow note</button>
           <button class="btn tool hl-r" id="hlRBtn" type="button" aria-pressed="false" title="Red highlighter: drag over a note to save it to your Notes page, count sheet and supplier sheet">Red note</button>
           <button class="btn tool hl-room" id="roomBtn" type="button" aria-pressed="false" title="Typical room: drag a box around one room you marked up, then say how many of that room the job has">Typical room</button>
+          <button class="btn tool" id="ghostBtn" type="button" aria-pressed="true" hidden title="Show or hide the marks and runs the field added. They never change your estimate.">Field marks</button>
           <button class="btn tool" id="replBtn" type="button" title="Addendum: swap this sheet for a revised drawing and keep your markups">Replace sheet</button>
           <button class="btn tool" id="replOld" type="button" aria-pressed="false" title="Flip between the old and new drawing" hidden>Show old</button>
           <button class="btn tool" id="replAlign" type="button" aria-pressed="false" title="Click 2 spots on the old drawing and the same 2 on the new one, and your markups move to match" hidden>Line up</button>
@@ -1179,6 +1190,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <button class="btn" type="button" id="tsSupTab" aria-pressed="false">Supplier sheet</button>
       <button class="btn" type="button" id="tsUgTab" aria-pressed="false">Underground sub</button>
       <button class="btn" type="button" id="tsNotesTab" aria-pressed="false">Notes</button>
+      <button class="btn" type="button" id="tsOrderTab" aria-pressed="false" hidden>Order</button>
       <button class="btn" type="button" id="tsAsmTab" aria-pressed="false">Parts lists</button>
       <button class="btn" type="button" id="tsBidTab" aria-pressed="false">Bid sheet</button>
       <button class="btn" type="button" id="tsRateTab" aria-pressed="false">Labor rates</button>
@@ -2248,10 +2260,10 @@ function renderCounts() {
     const kind = document.createElement("span"); kind.textContent = d.custom && !(d.amps && !d.tag) && !typeTitled(d) ? ` · ${d.kind}` : "";
     const ds = document.createElement("span"); ds.className = "d"; ds.textContent = typeTitled(d) ? [kindSub(d), [d.sMaker, d.sModel].filter(Boolean).join(" "), d.desc].filter(Boolean).join(" · ") : d.custom ? (specOf(d) || (d.amps ? "" : "Tap the pencil to add a mounting height")) : specOf(d);
     tx.append(nm, kind, ds);
-    const n = document.createElement("span"); n.className = "cnt-n"; n.innerHTML = `${nS}<small>of ${nA}</small>`;
+    const n = document.createElement("span"); n.className = "cnt-n"; n.innerHTML = `${nS}<small>of ${nA}</small>${ghostQty(d.id) ? `<small class="gq">+${ghostQty(d.id)} field</small>` : ""}`;
     b.append(tx, n);
-    b.onclick = () => fieldMode ? findCount(d.id) : setTool("place", d.id);
-    if (fieldMode) b.title = "Light up every one of these on the drawing";
+    b.onclick = () => setTool("place", d.id);
+    if (fieldMode) b.title = "Add a field mark of this on the sheet. It goes on the Order page, not in the estimate.";
     li.appendChild(b);
     const fd = document.createElement("button"); fd.type = "button"; fd.className = "cnt-find"; fd.setAttribute("aria-pressed", findId === d.id);
     fd.title = findId === d.id ? "Stop lighting these up" : "Light up every one of these on the drawing"; fd.setAttribute("aria-label", "Find every " + nameOf(d));
@@ -4372,6 +4384,13 @@ function renderTakeoff() {
   const t = $("tsTable"), sup = tsView === "sup", notes = tsView === "notes";
   $("tsCountTab").setAttribute("aria-pressed", tsView === "count"); $("tsSupTab").setAttribute("aria-pressed", sup); $("tsNotesTab").setAttribute("aria-pressed", notes); $("tsAsmTab").setAttribute("aria-pressed", tsView === "asm");
   $("tsBidTab").setAttribute("aria-pressed", tsView === "bid"); $("tsRateTab").setAttribute("aria-pressed", tsView === "rate"); $("tsPropTab").setAttribute("aria-pressed", tsView === "prop"); $("tsDbo").setAttribute("aria-pressed", dboOn()); $("tsRomex").setAttribute("aria-pressed", romexOn()); $("tsRomex").textContent = romexOn() ? "Back to MC" : "All Romex"; $("tsRomex").hidden = tsView !== "count";
+  $("tsOrderTab").setAttribute("aria-pressed", tsView === "order");
+  if (tsView === "order") {
+    $("tsTitle").textContent = "Order"; $("tsAllBox").hidden = true;
+    $("tsJob").innerHTML = `<b>${esc(job ? job.name : "Example job")}</b> · ${new Date().toLocaleDateString()}<br>AJ Electrical`;
+    $("tsHint").textContent = "The supplier list from the estimate, plus what the field marked and drew (in purple). Change any quantity, add a note, approve it, then Print, Copy or Email it to the supplier.";
+    return renderOrder();
+  }
   if (tsView === "prop") {
     $("tsTitle").textContent = "Proposal"; $("tsAllBox").hidden = true;
     $("tsJob").innerHTML = `<b>${esc(job ? job.name : "Example job")}</b> · ${new Date().toLocaleDateString()}<br>AJ Electrical`;
@@ -4775,6 +4794,7 @@ $("tsAsmTab").onclick = () => { tsView = "asm"; renderTakeoff(); };
 $("tsBidTab").onclick = () => { tsView = "bid"; renderTakeoff(); };
 $("tsRateTab").onclick = () => { tsView = "rate"; renderTakeoff(); };
 $("tsPropTab").onclick = () => { tsView = "prop"; renderTakeoff(); };
+$("tsOrderTab").onclick = () => { tsView = "order"; renderTakeoff(); tsTop(); };
 /* All Romex: one click turns every MC feed (and MC cable wire type) into Romex of the same size; job.romexBack remembers what changed so a second click puts it back */
 let exampleRomexBack = null;
 const romexOn = () => !!(job ? job.romexBack : exampleRomexBack);
@@ -4811,13 +4831,13 @@ const tsTop = () => { const c = $("takeoffModal").querySelector(".modal-card"); 
 ["tsCountTab", "tsSupTab", "tsUgTab", "tsNotesTab", "tsAsmTab", "tsBidTab", "tsRateTab", "tsPropTab"].forEach(id => $(id).addEventListener("click", tsTop));
 $("takeoffModal").addEventListener("keydown", e => { if (e.key === "Escape") $("takeoffModal").hidden = true; });
 $("tsCopy").onclick = async () => {
-  try { await navigator.clipboard.writeText(tsView === "bid" ? bidText() : tsView === "ug" ? ugText() : takeoffText()); toast(tsView === "bid" ? "Bid sheet copied." : tsView === "ug" ? "Underground sheet copied. Paste it into an email or text." : "Material list copied. Paste it into an email or text."); }
+  try { await navigator.clipboard.writeText(tsView === "order" ? orderText() : tsView === "bid" ? bidText() : tsView === "ug" ? ugText() : takeoffText()); toast(tsView === "bid" ? "Bid sheet copied." : tsView === "ug" ? "Underground sheet copied. Paste it into an email or text." : "Material list copied. Paste it into an email or text."); }
   catch (e) { toast("Couldn't copy here. Use Email or Print instead."); }
 };
 $("tsEmail").onclick = () => {
   const bid = tsView === "bid";
   const ug = tsView === "ug";
-  $("tsEmail").href = `mailto:?subject=${encodeURIComponent(`${bid ? "Bid sheet" : ug ? "Underground for pricing" : "Material list"}: ${job ? job.name : "Example job"}`)}&body=${encodeURIComponent(bid ? bidText() : ug ? ugText() : takeoffText())}`;
+  $("tsEmail").href = `mailto:?subject=${encodeURIComponent(`${tsView === "order" ? "Order" : bid ? "Bid sheet" : ug ? "Underground for pricing" : "Material list"}: ${job ? job.name : "Example job"}`)}&body=${encodeURIComponent(tsView === "order" ? orderText() : bid ? bidText() : ug ? ugText() : takeoffText())}`;
 };
 // the underground sub gets the drawings too: each sheet with underground runs, marked with only those runs (Jonathan 2026-10-29)
 async function ugSheetImgs() {
@@ -4934,7 +4954,7 @@ function setTool(t, dev) {
   if (t && hlMode) setHl(hlMode);
   const p = pages[current];
   if (t && t !== "calibrate" && !p) return;
-  if (fieldMode && t && t !== "measure") return fieldNo();
+  if (fieldMode && t && !["measure", "place", "run", "erase"].includes(t)) return fieldNo();
   if (fieldMode && t === "measure" && !p.ftPerPx) return toast("This sheet has no scale set yet, so it can't be measured.");
   if ((t === "measure" || t === "run") && !p.ftPerPx) { openScale(t); return; }
   if (t && tool === t && t !== "calibrate" && (t !== "place" || placeType === dev)) t = null; // clicking the active tool turns it off
@@ -5037,6 +5057,7 @@ function drawOverlay() {
     g.appendChild(e);
     if (d.tag || d.label) g.appendChild(svgEl("text", { x: v.x + 10 / k, y: v.y - 6 / k, class: "mk-tag", "font-size": 11 / k, "stroke-width": 3 / k }, d.tag || d.label));
   }
+  drawGhost(g, p, ns, ptsAttr);
   if (tool === "place" && hover) {
     const e = shapeEl(devInfo(placeType), hover[0], hover[1], 8 / k, "mk-dev");
     e.setAttribute("opacity", ".55"); e.setAttribute("vector-effect", "non-scaling-stroke"); g.appendChild(e);
@@ -5079,10 +5100,15 @@ $("overlay").addEventListener("click", e => {
   if (tool === "place") {
     if (e.detail > 1) return; // second click of a double-click deletes instead (dblclick below)
     const v = { t: placeType, x: q[0], y: q[1], ...(coScope ? { co: coScope } : {}) };
+    if (fieldMode) { // the field's marks go in its own layer, never the estimate
+      const gv = { id: uid(), t: placeType, x: Math.round(q[0]), y: Math.round(q[1]), by: teamWho };
+      ghostOf(p).devices.push(gv); placed.push(gv); fieldTouch(); drawOverlay(); updateHint(); renderCounts(); return;
+    }
     remember(); p.devices.push(v); placed.push(v);
     saveMeta(p); drawOverlay(); updateHint(); renderCounts(); return;
   }
   if (tool === "erase") {
+    if (fieldMode) return ghostErase(p, q);
     let best = null, bd = 14 / k;
     p.devices.forEach(v => { const dd = dist([v.x, v.y], q); if (dd < bd) { bd = dd; best = v; } });
     if (best) { remember(); p.devices = p.devices.filter(v => v !== best); if (dropEmptyRooms(p, [best])) toast("That was the last mark in the typical room, so its box is gone too. Undo brings it back."); hoverDev = null; saveMeta(p); drawOverlay(); renderCounts(); }
@@ -5608,6 +5634,11 @@ function finishRun() {
   const p = pages[current];
   if (tool !== "run") return;
   if (draft.length < 2) { toast("Click at least two points to make a run."); return; }
+  if (fieldMode) {
+    const g = ghostOf(p), r = { id: uid(), name: `Field run ${g.runs.length + 1}`, pts: draft, px: polyLen(draft), typeId: runType || null, by: teamWho };
+    g.runs.push(r); draft = []; hover = null; contRun = null; fieldTouch(); drawOverlay(); updateHint();
+    return toast(`Field run added: ${fmtLF(r.px * p.ftPerPx)}. It's on the Order page, not in the estimate.`);
+  }
   remember();
   if (contRun && p.runs.includes(contRun)) { // continuing a run makes that run longer instead of adding one
     contRun.pts = draft; contRun.px = polyLen(draft);
@@ -6143,7 +6174,7 @@ $("labelForm").addEventListener("submit", e => {
 /* Quick search (Jonathan 2026-10-29: "easy to use like Amazon"): one box at the top of the right panel finds anything.
    This job's counts and run types (click to place or draw), every toolbox type (opens its pop-up with that type picked),
    the tools, the sheets (count, bid, proposal…) and the plan sheets by name. "/" jumps to it from anywhere. */
-const QS_TABS = [["count", "Count sheet", "quantities count"], ["sup", "Supplier sheet", "material list order quote vendor"], ["bid", "Bid sheet", "labor hours price money estimate"],
+const QS_TABS = [["order", "Order", "supplier order approve field"], ["count", "Count sheet", "quantities count"], ["sup", "Supplier sheet", "material list order quote vendor"], ["bid", "Bid sheet", "labor hours price money estimate"],
   ["prop", "Proposal", "quote send customer price"], ["rate", "Labor rates", "hours table"], ["asm", "Parts lists", "assemblies boxes rings"], ["ug", "Underground sub", "trench ditch"], ["notes", "Notes list", "highlights"]];
 const QS_BTNS = [["uploadBtn", "pdf plans add sheets"], ["fileBtn", "save open file email drive"], ["newJobBtn", "start"], ["jobBtn", "jobs open switch"], ["notesBtn", "highlights"], ["coBtn", "co extra"], ["trkBtn", "tracker won lost"],
   ["cmpBtn", "compare"], ["rsBtn", "second screen monitor"], ["tabPin", "pin tab"], ["measureBtn", "distance ruler"], ["runBtn", "conduit wire footage draw"], ["scaleBtn", "scale"], ["eraseBtn", "delete remove"],
@@ -6160,8 +6191,8 @@ function qsPickType(cat, t) {
 function qsAll() {
   const out = [], on = id => { const b = $(id); return b && !b.hidden && !b.disabled && b.offsetParent !== null; };
   [...countsList().map(c => c.id), ...Object.values(DEVICES).filter(d => pages.some(pg => countOn(pg, d.id))).map(d => d.id)].forEach(id => { const c = { id }, d = devInfo(c.id); if (!d) return; const n = pages.reduce((t, pg) => t + qtyOn(pg, c.id), 0) + impQty(c.id);
-    out.push({ ico: "count", color: d.color, label: nameOf(d), sub: [d.kindName || d.kind, specOf(d)].filter(Boolean).join(" · "), t: `${n} counted`, k: `${d.tag} ${d.label} ${d.desc}`, rank: 4, go: () => fieldMode ? findCount(c.id) : setTool("place", c.id) }); });
-  if (!fieldMode) wiresList().forEach(w => out.push({ ico: "run", color: w.color, label: wireLabel(w), sub: "Draw runs of it", t: "Run type", k: `${w.size || ""} ${w.conduit || ""} conduit wire`, rank: 4, go: () => startRunType(w.id) }));
+    out.push({ ico: "count", color: d.color, label: nameOf(d), sub: [d.kindName || d.kind, specOf(d)].filter(Boolean).join(" · "), t: `${n} counted`, k: `${d.tag} ${d.label} ${d.desc}`, rank: 4, go: () => setTool("place", c.id) }); });
+  wiresList().forEach(w => out.push({ ico: "run", color: w.color, label: wireLabel(w), sub: "Draw runs of it", t: "Run type", k: `${w.size || ""} ${w.conduit || ""} conduit wire`, rank: 4, go: () => startRunType(w.id) }));
   if (!fieldMode) CATS.forEach(c => c.types.forEach(t => out.push({ ico: "new", label: t, sub: c.name, t: "Toolbox", k: c.key === "misc" ? "other" : "", rank: 2, go: () => qsPickType(c.key, t) })));
   QS_TABS.filter(([v]) => !fieldMode || !FIELD_NO_TABS.includes(v)).forEach(([v, label, k]) => out.push({ ico: "sheet", label, sub: "Open it", t: "Sheet", k, rank: 3, go: () => openTakeoff(v) }));
   QS_BTNS.forEach(([id, k]) => { if (!on(id)) return; const b = $(id); out.push({ ico: "tool", label: b.textContent.replace(/\s+/g, " ").trim(), sub: b.title || "", t: "Tool", k, rank: 3, go: () => b.click() }); });
@@ -6958,6 +6989,7 @@ function showJobName() { $("jobName").textContent = job ? job.name : "Example jo
 async function openJob(j) {
   if (tool) setTool(null);
   if (teamOn && syncWanted && job && job !== j) { clearTimeout(syncTimer); await runTeamSync(); }
+  if (teamOn && fieldDirty && job && job !== j) { clearTimeout(fieldTimer); await fieldPush(); }
   pages.forEach(p => { URL.revokeObjectURL(p.url); p.thumbUrl && URL.revokeObjectURL(p.thumbUrl); });
   clearTimeout(syncTimer); syncWanted = false;
   job = j; lsSet("aj-current-job", j ? j.id : null); showJobName(); coScope = null; showOld = false; coChip();
@@ -6971,6 +7003,7 @@ async function openJob(j) {
   if (tabs.length && !tabs.includes(pages[current]?.id)) current = Math.max(0, pages.findIndex(p => p.id === tabs[tabs.length - 1]));
   renderAll();
   folderCheck(true);
+  if (teamOn) { fieldUrl = null; fieldDirty = false; clearTimeout(fieldTimer); fieldLoad(); }
   if (teamOn && !j.teamUrl) { syncWanted = true; scheduleSync(); } // a job that isn't online yet goes up
   else if (teamOn) teamCheck();
 }
@@ -7095,10 +7128,11 @@ function enterField() {
   clearTimeout(syncTimer); syncWanted = false;
   $("nameInput").readOnly = true;
   $("jobsWhere").textContent = "Field login: every job is here to look at. Changes to the estimate are made in the office.";
-  setDrive("ok", "Field login · view only");
+  setDrive("ok", "Field login");
+  toast("Field login: click a count, then the sheet, to add a field mark. Click a run type to draw a field run. They show faded and go on the Order page, never in the estimate.");
   renderCounts();
   // the count and supplier sheets show their numbers but nothing on them can be changed
-  new MutationObserver(() => $("tsTable").querySelectorAll("input, select, textarea, button").forEach(e => { e.disabled = true; }))
+  new MutationObserver(() => $("tsTable").querySelectorAll("input:not(.no-lock), select, textarea:not(.no-lock), button:not(.no-lock)").forEach(e => { e.disabled = true; }))
     .observe($("tsTable"), { childList: true, subtree: true });
 }
 /* ---------- team jobs (Jonathan 2026-10-29: "when someone puts in a new job it saves it so everyone can see it") ----------
@@ -7123,6 +7157,7 @@ const teamReady = (async () => {
     teamJobs = (await r.json()).jobs || [];
   } catch (e) { return false; }
   teamOn = true; teamIndex = {}; teamJobs.forEach(f => teamIndex[f.id] = f);
+  $("tsOrderTab").hidden = false;
   await roleCheck();
   $("jobsWhere").textContent = "Jobs save online by themselves, so everyone using the app sees them on any computer.";
   $("teamWhoBox").hidden = false; $("teamWho").value = teamWho;
@@ -7298,6 +7333,7 @@ function teamTag(j) {
 const teamDelete = j => teamOn && !fieldMode && fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "delete", id: segId(j.id), by: teamWho }) }).catch(() => {});
 // Every minute, and when the app comes back into view: has someone else saved the open job?
 async function teamCheck() {
+  fieldLoad();
   if (!teamOn || !job || document.hidden || syncing || syncWanted || !job.teamUrl) return;
   try {
     const j = job, cur = await teamCurrent(j);
@@ -7328,6 +7364,170 @@ async function teamMoveUp() {
   if (todo.length && !syncing && !syncWanted && job) setDrive(job.teamUrl ? "ok" : "idle", job.teamUrl ? "Saved online" : "Saved on this computer");
   if (todo.length) toast(`Your ${todo.length === 1 ? "job is" : todo.length + " jobs are"} online now, so everyone can open ${todo.length === 1 ? "it" : "them"}.`);
 }
+
+/* Ghost lines and the Order page (Jonathan 2026-10-30): the field login places its own marks and draws its own runs,
+   faded and dashed over the office markups. They live in the job's field layer online (api/field), never in the
+   estimate. The Order page starts from the supplier list, adds what the field drew, and lets them set quantities,
+   write a note, approve it and print or email it. The office sees the field marks too and can hide them. */
+let fieldLayer = { order: { qty: {}, note: "", approved: null }, gone: [] }, fieldUrl = null, fieldDirty = false, fieldTimer = null, fieldSaving = false;
+let showGhost = lsGet("aj-ghost") !== "0";
+const ghostOf = p => p.ghost || (p.ghost = { devices: [], runs: [] });
+const ghostQty = id => pages.reduce((t, pg) => t + (pg.ghost ? pg.ghost.devices.filter(v => v.t === id).length : 0), 0);
+const ghostAny = () => pages.some(pg => pg.ghost && (pg.ghost.devices.length || pg.ghost.runs.length));
+function ghostBtnShow() {
+  const n = pages.reduce((t, pg) => t + (pg.ghost ? pg.ghost.devices.length + pg.ghost.runs.length : 0), 0);
+  $("ghostBtn").hidden = !teamOn || fieldMode || !n;
+  $("ghostBtn").setAttribute("aria-pressed", showGhost); $("ghostBtn").textContent = `Field marks (${n})`;
+}
+$("ghostBtn").onclick = () => { showGhost = !showGhost; lsSet("aj-ghost", showGhost ? null : "0"); ghostBtnShow(); drawOverlay(); };
+function fieldApply(layer, url) {
+  fieldLayer = { order: { qty: {}, note: "", approved: null }, gone: [], ...layer };
+  fieldLayer.order = { qty: {}, note: "", approved: null, ...(layer.order || {}) };
+  fieldUrl = url;
+  pages.forEach(p => { const g = (layer.pages || {})[p.id]; p.ghost = { devices: g && g.devices || [], runs: g && g.runs || [] }; });
+  ghostBtnShow(); drawOverlay(); renderCounts();
+  if (!$("takeoffModal").hidden && tsView === "order") renderTakeoff();
+}
+async function fieldNewest(j) {
+  const r = await fetch(`/api/field?id=${segId(j.id)}`, { cache: "no-store" });
+  if (!r.ok) throw new Error("field");
+  return (await r.json()).current;
+}
+async function fieldLoad() {
+  if (!teamOn || !job || fieldDirty || fieldSaving) return;
+  const j = job;
+  try {
+    const cur = await fieldNewest(j);
+    if (job !== j || fieldDirty) return;
+    if (!cur) { if (fieldUrl !== null || ghostAny()) fieldApply({}, null); else ghostBtnShow(); return; }
+    if (cur.url === fieldUrl) return;
+    const layer = await (await fetch(cur.url)).json();
+    if (job === j && !fieldDirty) fieldApply(layer, cur.url);
+  } catch (e) {}
+}
+// something in the field layer changed: save it online in a few seconds
+function fieldTouch() {
+  fieldDirty = true; ghostBtnShow();
+  clearTimeout(fieldTimer); fieldTimer = setTimeout(fieldPush, 2500);
+}
+const byId = list => new Map(list.map(x => [x.id, x]));
+async function fieldPush() {
+  if (!fieldDirty || !job || !teamOn) return;
+  if (fieldSaving) { clearTimeout(fieldTimer); fieldTimer = setTimeout(fieldPush, 1500); return; }
+  fieldSaving = true; fieldDirty = false;
+  const j = job;
+  try {
+    setDrive("busy", "Saving field marks online…");
+    // someone else in the field saved since this copy was loaded: keep their marks too
+    const cur = await fieldNewest(j);
+    let theirs = null;
+    if (cur && cur.url !== fieldUrl) theirs = await (await fetch(cur.url)).json();
+    const gone = new Set([...(fieldLayer.gone || []), ...(theirs && theirs.gone || [])]);
+    const out = { app: "aj-takeoff", kind: "field-layer", v: 1, savedAt: new Date().toISOString(), by: teamWho, gone: [...gone].slice(-2000), pages: {},
+      order: { ...(theirs && theirs.order || {}), ...fieldLayer.order, qty: { ...(theirs && theirs.order && theirs.order.qty || {}), ...fieldLayer.order.qty } } };
+    pages.forEach(p => {
+      const mine = ghostOf(p), th = theirs && theirs.pages && theirs.pages[p.id] || { devices: [], runs: [] };
+      const merge = (a, b) => [...new Map([...byId(b), ...byId(a)]).values()].filter(x => !gone.has(x.id));
+      p.ghost = { devices: merge(mine.devices, th.devices || []), runs: merge(mine.runs, th.runs || []) };
+      if (p.ghost.devices.length || p.ghost.runs.length) out.pages[p.id] = p.ghost;
+    });
+    if (theirs && theirs.pages) Object.keys(theirs.pages).forEach(id => { if (!out.pages[id] && !pages.some(p => p.id === id)) out.pages[id] = theirs.pages[id]; });
+    fieldLayer.order = out.order; fieldLayer.gone = out.gone;
+    const details = b64url({ by: teamWho.slice(0, 30), u: out.savedAt });
+    const url = await (window.AJ_TEAM_PUT ? window.AJ_TEAM_PUT(`team/field/${segId(j.id)}/m${details}.json`, new Blob([JSON.stringify(out)], { type: "application/json" }), "application/json")
+      : (async () => { blobClient = blobClient || await import("./blob-client.js");
+          return (await blobClient.uploadPresigned(`team/field/${segId(j.id)}/m${details}.json`, new Blob([JSON.stringify(out)], { type: "application/json" }), { access: "public", handleUploadUrl: "/api/field-upload", contentType: "application/json" })).url; })());
+    if (job === j) fieldUrl = url;
+    // two people saved at the same moment: the next save folds the other copy in, so no one's marks get lost
+    try { const now = await fieldNewest(j); if (now && now.url !== url && job === j) fieldDirty = true; } catch (e) {}
+    fetch("/api/field", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "tidy", id: segId(j.id) }) }).catch(() => {});
+    if (job === j) { setDrive("ok", `Field marks saved online ${clockTime(Date.now())}`); drawOverlay(); renderCounts(); }
+  } catch (e) {
+    fieldDirty = true;
+    setDrive("bad", "Couldn't save the field marks online. Check the internet");
+  } finally {
+    fieldSaving = false;
+    if (fieldDirty && $("driveStatus").className.indexOf("bad") < 0) { clearTimeout(fieldTimer); fieldTimer = setTimeout(fieldPush, 2500); }
+  }
+}
+// erase in the field: only the field's own marks and runs
+function ghostErase(p, q) {
+  const g = ghostOf(p), lim = 14 / k;
+  let best = null, bd = lim, kind = null;
+  g.devices.forEach(v => { const dd = dist([v.x, v.y], q); if (dd < bd) { bd = dd; best = v; kind = "d"; } });
+  const seg = (a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy, t = L ? Math.max(0, Math.min(1, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L)) : 0; return dist(q, [a[0] + t * dx, a[1] + t * dy]); };
+  if (!best) g.runs.forEach(r => { for (let i = 1; i < r.pts.length; i++) { const dd = seg(r.pts[i - 1], r.pts[i]); if (dd < bd) { bd = dd; best = r; kind = "r"; } } });
+  if (!best) return toast("Click right on one of the field's own marks or runs to remove it. The office's marks can't be changed here.");
+  if (kind === "d") g.devices = g.devices.filter(v => v !== best); else g.runs = g.runs.filter(r => r !== best);
+  fieldLayer.gone = [...(fieldLayer.gone || []), best.id];
+  fieldTouch(); drawOverlay(); renderCounts();
+}
+function drawGhost(g0, p, ns, ptsAttr) {
+  if (!(fieldMode || showGhost) || !p.ghost) return;
+  p.ghost.runs.forEach(r => {
+    const w = wireOf(r.typeId), line = svgEl("polyline", { points: ptsAttr(r.pts), class: "mk-run mk-ghost", ...(w ? { style: `stroke:${w.color}` } : {}), ...ns });
+    line.appendChild(svgEl("title", {}, `Field: ${r.name}${w ? " · " + wireLabel(w) : ""}${p.ftPerPx ? " · " + fmtLF(r.px * p.ftPerPx) : ""}${r.by ? " · by " + r.by : ""}`));
+    g0.appendChild(line);
+  });
+  p.ghost.devices.forEach(v => {
+    const d = devInfo(v.t); if (!d) return;
+    g0.appendChild(svgEl("circle", { cx: v.x, cy: v.y, r: 13 / k, class: "mk-ghost-ring", ...ns }));
+    const e = shapeEl(d, v.x, v.y, 8 / k, "mk-dev"); e.setAttribute("vector-effect", "non-scaling-stroke"); e.setAttribute("opacity", ".5");
+    e.appendChild(svgEl("title", {}, `Field: ${nameOf(d)}${v.by ? " · by " + v.by : ""}`)); g0.appendChild(e);
+  });
+}
+/* The Order page: the supplier list, what the field added, and the quantity to order */
+function supLines() {
+  const { counts, mat, parts, fittings } = supplierRows(), L = [];
+  bySection(counts.filter(c => !c.misc)).forEach(sec => sec.rows.forEach(c => L.push({ sec: sec.title, name: c.name + (c.what ? ` (${c.what})` : ""), qty: c.qty, unit: "ea" })));
+  mat.forEach(m => L.push({ sec: "Conduit and wire", name: m.name, qty: m.lf, unit: "ft" }));
+  fittings.forEach(m => L.push({ sec: "Conduit fittings", name: m.name, qty: m.qty, unit: "ea" }));
+  parts.forEach(m => L.push({ sec: "Installation parts", name: m.name, qty: m.qty, unit: "ea" }));
+  counts.filter(c => c.misc && c.sup).forEach(c => L.push({ sec: "Misc items", name: c.label || c.name, qty: c.qty, unit: c.unit === "LF" ? "ft" : "ea" }));
+  return L;
+}
+// the supplier list of only what the field drew: the same math, run on the field marks alone
+function ghostLines() {
+  if (!ghostAny()) return [];
+  const keep = pages.map(p => [p.devices, p.runs, p.rooms]), hold = job ? [job.imports, job.supOver] : null;
+  pages.forEach(p => { const g = ghostOf(p); p.devices = g.devices; p.runs = g.runs; p.rooms = []; });
+  if (job) { job.imports = []; job.supOver = {}; }
+  try { return supLines(); }
+  finally { pages.forEach((p, i) => { [p.devices, p.runs, p.rooms] = keep[i]; }); if (job) { [job.imports, job.supOver] = hold; } }
+}
+function orderLines() {
+  const m = new Map(), key = l => `${l.sec}|${l.name}`;
+  supLines().forEach(l => m.set(key(l), { ...l, key: key(l), est: l.qty, add: 0 }));
+  ghostLines().forEach(l => { const k0 = key(l), o = m.get(k0) || { ...l, key: k0, est: 0, add: 0 }; o.add += l.qty; m.set(k0, o); });
+  const q = fieldLayer.order.qty || {};
+  return [...m.values()].map(o => { const calc = Math.ceil(o.est + o.add); return { ...o, calc, qty: q[o.key] != null && q[o.key] !== "" ? +q[o.key] : calc }; });
+}
+function renderOrder() {
+  const t = $("tsTable"), L = orderLines(), o = fieldLayer.order, secs = [...new Set(L.map(l => l.sec))];
+  $("tsEmpty").hidden = !!L.length;
+  const num = n => (Math.round(n * 10) / 10).toLocaleString();
+  t.innerHTML = `<thead><tr><th>Item</th><th class="n">Estimate</th><th class="n">Field adds</th><th class="n">Order</th></tr></thead><tbody>` +
+    secs.map(s => `<tr class="sec"><td colspan="4">${esc(s)}</td></tr>` + L.filter(l => l.sec === s).map(l => `<tr${l.add ? ' class="ord-add"' : ""}><td>${esc(l.name)}</td><td class="n">${l.est ? num(l.est) + " " + l.unit : ""}</td><td class="n">${l.add ? "+" + num(l.add) + " " + l.unit : ""}</td>
+      <td class="n"><input type="number" class="ord-q no-lock" min="0" step="1" data-ok="${esc(l.key)}" value="${l.qty}" aria-label="Order quantity for ${esc(l.name)}"><span class="print-only">${l.qty.toLocaleString()}</span> ${l.unit}</td></tr>`).join("")).join("") +
+    `<tr class="sec"><td colspan="4">Note to the supplier</td></tr><tr><td colspan="4"><textarea id="ordNote" class="no-lock" rows="3" placeholder="e.g. Deliver to the north gate Tuesday 7 AM. Call the super at the number on the PO.">${esc(o.note || "")}</textarea><span class="print-only">${esc(o.note || "")}</span></td></tr>
+    <tr><td colspan="4"><div class="ord-ok">${o.approved ? `<b>Approved by ${esc(o.approved.by || "the field")}</b> · ${new Date(o.approved.at).toLocaleString()}` : "Not approved yet."}
+      <button class="btn sm no-lock no-print" type="button" id="ordApprove">${o.approved ? "Take back approval" : "Approve this order"}</button></div></td></tr></tbody>`;
+  t.querySelectorAll(".ord-q").forEach(inp => inp.onchange = () => {
+    const k0 = inp.dataset.ok, l = L.find(x => x.key === k0);
+    if (inp.value === "" || +inp.value === l.calc) delete o.qty[k0]; else o.qty[k0] = Math.max(0, +inp.value);
+    o.approved = null; fieldTouch(); renderOrder();
+  });
+  $("ordNote").onchange = () => { o.note = $("ordNote").value.trim(); fieldTouch(); };
+  $("ordApprove").onclick = () => { o.approved = o.approved ? null : { by: teamWho || (fieldMode ? "Field" : "Office"), at: new Date().toISOString() }; fieldTouch(); renderOrder(); };
+}
+function orderText() {
+  const L = orderLines(), o = fieldLayer.order, lines = [`Order: ${job ? job.name : "Example job"}`, `AJ Electrical · ${new Date().toLocaleDateString()}`, ""];
+  [...new Set(L.map(l => l.sec))].forEach(s => { lines.push(s.toUpperCase()); L.filter(l => l.sec === s && l.qty > 0).forEach(l => lines.push(`${l.qty.toLocaleString()} ${l.unit}  ${l.name}`)); lines.push(""); });
+  if (o.note) lines.push("NOTE", o.note, "");
+  lines.push(o.approved ? `Approved by ${o.approved.by} on ${new Date(o.approved.at).toLocaleString()}` : "Not approved yet");
+  return lines.join("\n");
+}
+setInterval(() => { if (!document.hidden) fieldLoad(); }, 60000);
 
 /* Delete the open job, with an in-page confirm (the viewer blocks confirm()) */
 function askClear() {
