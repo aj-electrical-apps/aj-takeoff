@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
-<title>AJ Commercial Takeoff</title>
+<title>AJ Takeoff</title><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/favicon.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><meta name="theme-color" content="#1c2233"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="AJ Takeoff">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap">
@@ -268,6 +268,20 @@ html.look-new body { font-family: var(--font-ui); }
   .look-new .totals b, .look-new .cnt-n { color: var(--fg); }
 }
 .look-btn { font-size: 12px; }
+.brand { display: flex; align-items: center; gap: 8px; }
+.brand-logo { height: 28px; width: auto; flex: none; background: #fff; border-radius: 6px; padding: 3px 5px; box-sizing: content-box; }
+/* what each position can do (Admin page, Positions) */
+.no-cost :is(#bidBtn, #tsBidTab, #tsPropTab), .no-tracker #trkBtn, .no-lists :is(#tsAsmTab, #tsRateTab), .no-hours #tsHoursTab,
+.no-counts :is(#tsCountTab, #tsSupTab, #tsUgTab), .no-order #tsOrderTab, .no-scale :is(#measureBtn, #scaleBtn) { display: none !important; }
+.role-field.can-scale:not(.no-scale) #scaleBtn { display: inline-flex !important; }
+.role-field .mk-office { opacity: .3; }
+.role-field.office-off .mk-office { display: none; }
+.role-field .mk-ghost { opacity: .95; }
+.adm-pos .adm-perms { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 6px; }
+.adm-perm { display: flex; gap: 8px; align-items: flex-start; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; font-size: 14px; }
+.adm-perm input { margin-top: 3px; width: 18px; height: 18px; flex: none; }
+.adm-perm small { display: block; color: var(--muted, #667); font-size: 12px; }
+.adm-perm:has(input:checked) { border-color: #16a34a; background: rgb(22 163 74 / .08); }
 .team-files #fileSave, .team-files #fileOpen, .team-files #jobFolderBox, .team-files #driveTip { display: none !important; }
 .file-more-btn { justify-self: start; }
 .adm-card { width: min(720px, 100%); }
@@ -283,7 +297,7 @@ html.look-new body { font-family: var(--font-ui); }
 .adm-people li.adm-row.open { border-color: var(--accent, #f0a020); box-shadow: 0 0 0 2px rgb(240 160 32 / .25); }
 .adm-top { display: flex; gap: 10px; align-items: center; }
 .adm-av { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: #fff; flex: none; }
-.adm-av.r-admin { background: #7c3aed; } .adm-av.r-office { background: #2563eb; } .adm-av.r-field { background: #16a34a; }
+.adm-av { background: #64748b; } .adm-av.r-admin { background: #7c3aed; } .adm-av.r-estimator, .adm-av.r-office { background: #2563eb; } .adm-av.r-pm { background: #0d9488; } .adm-av.r-super { background: #ea580c; } .adm-av.r-foreman, .adm-av.r-field { background: #16a34a; }
 .adm-top input.adm-nm { flex: 1 1 auto; min-width: 0; font-weight: 600; }
 .adm-sub { font-size: 13px; color: var(--muted, #667); }
 .adm-picks { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -436,10 +450,9 @@ html.look-new body { font-family: var(--font-ui); }
 .cnt-div::after { content: ""; flex: 1; height: 1px; background: var(--line); order: 1; }
 .cnt-div .sn { order: 2; font-weight: 600; }
 /* Field login (Jonathan 2026-10-30): the PM and super look, measure and print; the estimate is locked */
-.role-field :is(#uploadBtn, #bgLoad, #newJobBtn, #bidBtn, #trkBtn, #coBtn, #clearBtn, #replBtn, #lblBtn, #symBtn, #pnlBtn, #schedBtn, #impBtn, #addCountBtn, #addWireBtn,
-  #scaleBtn, #hlYBtn, #hlRBtn, #roomBtn, #fileBtn, #histUndo, #histRedo, #tsBidTab, #tsRateTab, #tsPropTab, #tsAsmTab, #tsDbo, #tsRomex, #tsAllBox,
+.role-field :is(#uploadBtn, #bgLoad, #newJobBtn, #coBtn, #clearBtn, #replBtn, #lblBtn, #symBtn, #pnlBtn, #schedBtn, #impBtn, #addCountBtn, #addWireBtn,
+  #scaleBtn, #hlYBtn, #hlRBtn, #roomBtn, #fileBtn, #histUndo, #histRedo, #tsDbo, #tsRomex, #tsAllBox,
   #jobForm, #teamWhoBox, #jobsOpenFile, #labelForm, .cnt-edit, .psec[data-fold="toolbox"], .tool-sub, .feed-edit) { display: none !important; }
-.role-field .brand small::after { content: " · Field"; }
 .role-field #runList :is(input, select, button) { pointer-events: none; }
 .mk-ghost { stroke-dasharray: 10 7; opacity: .6; }
 .mk-ghost-ring { fill: none; stroke: #7048e8; stroke-width: 1.5; stroke-dasharray: 4 3; }
@@ -727,7 +740,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v119</small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v120<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
@@ -882,6 +895,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
           <button class="btn tool hl-r" id="hlRBtn" type="button" aria-pressed="false" title="Red highlighter: drag over a note to save it to your Notes page, count sheet and supplier sheet">Red note</button>
           <button class="btn tool hl-room" id="roomBtn" type="button" aria-pressed="false" title="Typical room: drag a box around one room you marked up, then say how many of that room the job has">Typical room</button>
           <button class="btn tool" id="ghostBtn" type="button" aria-pressed="true" hidden title="Show or hide the marks and runs the field added. They never change your estimate.">Field marks</button>
+          <button class="btn tool" id="officeMkBtn" type="button" hidden title="Show the office mark-ups faded, or hide them. Nothing changes in the estimate.">Office mark-ups: faded</button>
           <button class="btn tool" id="replBtn" type="button" title="Addendum: swap this sheet for a revised drawing and keep your markups">Replace sheet</button>
           <button class="btn tool" id="replOld" type="button" aria-pressed="false" title="Flip between the old and new drawing" hidden>Show old</button>
           <button class="btn tool" id="replAlign" type="button" aria-pressed="false" title="Click 2 spots on the old drawing and the same 2 on the new one, and your markups move to match" hidden>Line up</button>
@@ -1099,11 +1113,16 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <p class="adm-me"><span id="admMe"></span> <a class="btn sm" id="admOut" href="/api/logout">Sign out</a></p>
     <div id="admBody">
       <p class="adm-warn" id="admSignin" hidden></p>
-      <div class="adm-tabs" role="tablist"><button type="button" role="tab" data-at="people" aria-selected="true">People</button><button type="button" role="tab" data-at="company" aria-selected="false">Company &amp; settings</button><button type="button" role="tab" data-at="approve" aria-selected="false">Changes to approve</button><button type="button" role="tab" data-at="backup" aria-selected="false">Backup</button></div>
+      <div class="adm-tabs" role="tablist"><button type="button" role="tab" data-at="people" aria-selected="true">People</button><button type="button" role="tab" data-at="positions" aria-selected="false">Positions</button><button type="button" role="tab" data-at="company" aria-selected="false">Company &amp; settings</button><button type="button" role="tab" data-at="approve" aria-selected="false">Changes to approve</button><button type="button" role="tab" data-at="backup" aria-selected="false">Backup</button></div>
       <section class="adm-sec" data-sec="people">
-        <p class="hint">Tap <b>Edit</b> on a person to change their access or password. <b>Field</b>: looks, measures, field marks and the Order page, no prices. <b>Office</b>: everything except this page. <b>Admin</b>: everything.</p>
+        <p class="hint">Tap <b>Edit</b> on a person to change their position or password. What each position can use is on the <b>Positions</b> tab.</p>
         <ul class="adm-people" id="admPeople"></ul>
         <button class="btn primary adm-addbtn" type="button" id="admAddBtn">+ Add a person</button>
+      </section>
+      <section class="adm-sec" data-sec="positions" hidden>
+        <p class="hint">Check what each position can use. People in that position get the change the next time the app checks (within 10 minutes, or when they reopen it). Admin always has everything.</p>
+        <div class="adm-people" id="admPos"></div>
+        <button class="btn primary adm-addbtn" type="button" id="admPosAdd">+ Add a position</button>
       </section>
       <section class="adm-sec" data-sec="company" hidden>
         <div class="adm-co" id="admCo"></div>
@@ -1273,6 +1292,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <button class="btn" type="button" id="tsOrderTab" aria-pressed="false" hidden>Order</button>
       <button class="btn" type="button" id="tsAsmTab" aria-pressed="false">Parts lists</button>
       <button class="btn" type="button" id="tsBidTab" aria-pressed="false">Bid sheet</button>
+      <button class="btn" type="button" id="tsHoursTab" aria-pressed="false">Man hours</button>
       <button class="btn" type="button" id="tsRateTab" aria-pressed="false">Labor rates</button>
       <button class="btn" type="button" id="tsPropTab" aria-pressed="false">Proposal</button>
       <button class="btn ts-dbo" type="button" id="tsDbo" aria-pressed="false" title="Adds a breaker for every dedicated item, plus one 20A breaker per 5 lights and per 6 receptacles">Design build options</button>
@@ -3544,6 +3564,18 @@ function bidTotals(rows) {
 }
 const fmtH = h => (Math.round(h * 100) / 100).toLocaleString(undefined, { maximumFractionDigits: 2 });
 const fmt$ = v => "$" + Math.round(v).toLocaleString();
+// Man hours by category, no dollars (Jonathan 2026-10-30: the super sees the hours allotted to each category)
+function renderHours() {
+  const rows = bidRows(), lines = bidOf().lines || [], by = new Map();
+  rows.forEach(r => by.set(r.sec, (by.get(r.sec) || 0) + r.hrs));
+  const other = lines.reduce((t, l) => t + (+l.qty || 0) * (+l.h || 0), 0);
+  if (other) by.set("Other lines", other);
+  const tot = [...by.values()].reduce((a, x) => a + x, 0);
+  $("tsEmpty").hidden = true;
+  $("tsTable").innerHTML = `<thead><tr><th>Category</th><th class="n">Man hours</th><th class="n">Share</th></tr></thead><tbody>`
+    + [...by].map(([sec, h]) => `<tr><td>${esc(sec)}</td><td class="n">${fmtH(h)}</td><td class="n">${tot ? Math.round(h / tot * 100) : 0}%</td></tr>`).join("")
+    + `<tr class="bid-tot grand"><td>Total man hours</td><td class="n"><b>${fmtH(tot)}</b></td><td></td></tr></tbody>`;
+}
 function renderBid() {
   const t = $("tsTable"), rows = bidRows(), b = bidOf(), tot = bidTotals(rows);
   $("tsEmpty").hidden = true;
@@ -4464,7 +4496,13 @@ function renderTakeoff() {
   const t = $("tsTable"), sup = tsView === "sup", notes = tsView === "notes";
   $("tsCountTab").setAttribute("aria-pressed", tsView === "count"); $("tsSupTab").setAttribute("aria-pressed", sup); $("tsNotesTab").setAttribute("aria-pressed", notes); $("tsAsmTab").setAttribute("aria-pressed", tsView === "asm");
   $("tsBidTab").setAttribute("aria-pressed", tsView === "bid"); $("tsRateTab").setAttribute("aria-pressed", tsView === "rate"); $("tsPropTab").setAttribute("aria-pressed", tsView === "prop"); $("tsDbo").setAttribute("aria-pressed", dboOn()); $("tsRomex").setAttribute("aria-pressed", romexOn()); $("tsRomex").textContent = romexOn() ? "Back to MC" : "All Romex"; $("tsRomex").hidden = tsView !== "count";
-  $("tsOrderTab").setAttribute("aria-pressed", tsView === "order");
+  $("tsOrderTab").setAttribute("aria-pressed", tsView === "order"); $("tsHoursTab").setAttribute("aria-pressed", tsView === "hours");
+  if (tsView === "hours") {
+    $("tsTitle").textContent = "Man hours"; $("tsAllBox").hidden = true;
+    $("tsJob").innerHTML = `<b>${esc(job ? job.name : "Example job")}</b> · ${new Date().toLocaleDateString()}<br>AJ Electrical`;
+    $("tsHint").textContent = "The man hours the estimate allots to each part of the job.";
+    return renderHours();
+  }
   if (tsView === "order") {
     $("tsTitle").textContent = "Order"; $("tsAllBox").hidden = true;
     $("tsJob").innerHTML = `<b>${esc(job ? job.name : "Example job")}</b> · ${new Date().toLocaleDateString()}<br>AJ Electrical`;
@@ -4851,7 +4889,7 @@ function takeoffText() {
 function openTakeoff(view) {
   if (tool) setTool(null);
   tsView = view || tsView;
-  if (fieldMode && FIELD_NO_TABS.includes(tsView)) tsView = "count";
+  if (!tabOk(tsView)) tsView = ["count", "order", "hours", "notes"].find(tabOk);
   renderTakeoff();
   $("takeoffModal").hidden = false; tsTop(); $("tsCloseTop").focus({ preventScroll: true });
 }
@@ -4872,6 +4910,7 @@ $("tsUgTab").onclick = () => { tsView = "ug"; renderTakeoff(); };
 $("tsNotesTab").onclick = () => { tsView = "notes"; renderTakeoff(); };
 $("tsAsmTab").onclick = () => { tsView = "asm"; renderTakeoff(); };
 $("tsBidTab").onclick = () => { tsView = "bid"; renderTakeoff(); };
+$("tsHoursTab").onclick = () => { tsView = "hours"; renderTakeoff(); };
 $("tsRateTab").onclick = () => { tsView = "rate"; renderTakeoff(); };
 $("tsPropTab").onclick = () => { tsView = "prop"; renderTakeoff(); };
 $("tsOrderTab").onclick = () => { tsView = "order"; renderTakeoff(); tsTop(); };
@@ -5034,8 +5073,8 @@ function setTool(t, dev) {
   if (t && hlMode) setHl(hlMode);
   const p = pages[current];
   if (t && t !== "calibrate" && !p) return;
-  if (fieldMode && t && !["measure", "place", "run", "erase"].includes(t)) return fieldNo();
-  if (fieldMode && t === "measure" && !p.ftPerPx) return toast("This sheet has no scale set yet, so it can't be measured.");
+  if (fieldMode && t && ![...(can("scale") ? ["measure", "calibrate"] : []), ...(can("marks") ? ["place", "run", "erase"] : [])].includes(t)) return fieldNo();
+  if (fieldMode && t === "measure" && !p.ftPerPx && !can("scale")) return toast("This sheet has no scale set yet, so it can't be measured.");
   if ((t === "measure" || t === "run") && !p.ftPerPx) { openScale(t); return; }
   if (t && tool === t && t !== "calibrate" && (t !== "place" || placeType === dev)) t = null; // clicking the active tool turns it off
   tool = t; draft = []; hover = null; placed = []; hoverDev = null; contRun = null;
@@ -5137,6 +5176,7 @@ function drawOverlay() {
     g.appendChild(e);
     if (d.tag || d.label) g.appendChild(svgEl("text", { x: v.x + 10 / k, y: v.y - 6 / k, class: "mk-tag", "font-size": 11 / k, "stroke-width": 3 / k }, d.tag || d.label));
   }
+  { const off = svgEl("g", { class: "mk-office" }); while (g.firstChild) off.appendChild(g.firstChild); g.appendChild(off); } // faded for the field
   drawGhost(g, p, ns, ptsAttr);
   if (tool === "place" && hover) {
     const e = shapeEl(devInfo(placeType), hover[0], hover[1], 8 / k, "mk-dev");
@@ -6068,6 +6108,7 @@ $("scaleForm").addEventListener("submit", e => {
     const [l, ftPerIn] = SCALES[+$("scaleSelect").value];
     ftPerPx = ftPerIn / p.pxPerInch; lbl = l; pxPerInchNeeded = true;
   } else { toast("Choose a scale or pick two points on a known dimension."); return; }
+  if (fieldMode) return fieldScale(p, ftPerPx, lbl, pxPerInchNeeded);
   remember($("applyAll").checked ? pages : [p]);
   p.ftPerPx = ftPerPx; p.scaleLabel = lbl; saveMeta(p);
   if ($("applyAll").checked) {
@@ -6254,7 +6295,7 @@ $("labelForm").addEventListener("submit", e => {
 /* Quick search (Jonathan 2026-10-29: "easy to use like Amazon"): one box at the top of the right panel finds anything.
    This job's counts and run types (click to place or draw), every toolbox type (opens its pop-up with that type picked),
    the tools, the sheets (count, bid, proposal…) and the plan sheets by name. "/" jumps to it from anywhere. */
-const QS_TABS = [["order", "Order", "supplier order approve field"], ["count", "Count sheet", "quantities count"], ["sup", "Supplier sheet", "material list order quote vendor"], ["bid", "Bid sheet", "labor hours price money estimate"],
+const QS_TABS = [["order", "Order", "supplier order approve field"], ["hours", "Man hours", "labor hours category super"], ["count", "Count sheet", "quantities count"], ["sup", "Supplier sheet", "material list order quote vendor"], ["bid", "Bid sheet", "labor hours price money estimate"],
   ["prop", "Proposal", "quote send customer price"], ["rate", "Labor rates", "hours table"], ["asm", "Parts lists", "assemblies boxes rings"], ["ug", "Underground sub", "trench ditch"], ["notes", "Notes list", "highlights"]];
 const QS_BTNS = [["uploadBtn", "pdf plans add sheets"], ["fileBtn", "save open file email drive"], ["newJobBtn", "start"], ["jobBtn", "jobs open switch"], ["notesBtn", "highlights"], ["coBtn", "co extra"], ["trkBtn", "tracker won lost"],
   ["cmpBtn", "compare"], ["rsBtn", "second screen monitor"], ["tabPin", "pin tab"], ["measureBtn", "distance ruler"], ["runBtn", "conduit wire footage draw"], ["scaleBtn", "scale"], ["eraseBtn", "delete remove"],
@@ -6274,7 +6315,7 @@ function qsAll() {
     out.push({ ico: "count", color: d.color, label: nameOf(d), sub: [d.kindName || d.kind, specOf(d)].filter(Boolean).join(" · "), t: `${n} counted`, k: `${d.tag} ${d.label} ${d.desc}`, rank: 4, go: () => setTool("place", c.id) }); });
   wiresList().forEach(w => out.push({ ico: "run", color: w.color, label: wireLabel(w), sub: "Draw runs of it", t: "Run type", k: `${w.size || ""} ${w.conduit || ""} conduit wire`, rank: 4, go: () => startRunType(w.id) }));
   if (!fieldMode) CATS.forEach(c => c.types.forEach(t => out.push({ ico: "new", label: t, sub: c.name, t: "Toolbox", k: c.key === "misc" ? "other" : "", rank: 2, go: () => qsPickType(c.key, t) })));
-  QS_TABS.filter(([v]) => !fieldMode || !FIELD_NO_TABS.includes(v)).forEach(([v, label, k]) => out.push({ ico: "sheet", label, sub: "Open it", t: "Sheet", k, rank: 3, go: () => openTakeoff(v) }));
+  QS_TABS.filter(([v]) => tabOk(v)).forEach(([v, label, k]) => out.push({ ico: "sheet", label, sub: "Open it", t: "Sheet", k, rank: 3, go: () => openTakeoff(v) }));
   QS_BTNS.forEach(([id, k]) => { if (!on(id)) return; const b = $(id); out.push({ ico: "tool", label: b.textContent.replace(/\s+/g, " ").trim(), sub: b.title || "", t: "Tool", k, rank: 3, go: () => b.click() }); });
   pages.forEach((pg, i) => out.push({ ico: "page", label: sheetName(pg, i), sub: `Sheet ${i + 1} of ${pages.length}`, t: "Go to", k: "sheet page drawing", rank: 1, go: () => go(i) }));
   return out;
@@ -7209,12 +7250,17 @@ async function roleCheck() {
     if (r.ok) {
       const o = await r.json();
       role = window.AJ_ROLE || o.role; isAdmin = !!o.admin && role !== "field"; signedIn = !!o.signin;
+      if (Array.isArray(o.perms) && !window.AJ_ROLE) { myPerms = new Set(o.perms); posName = o.positionName || ""; lsSet("aj-perms", o.perms.join(",")); lsSet("aj-pos", posName || null); }
       if (signedIn && o.name) { teamWho = o.name.slice(0, 30); lsSet("aj-who", teamWho); }
       lsSet("aj-role", role); lsSet("aj-admin", isAdmin ? "1" : null); lsSet("aj-signed", signedIn ? "1" : null);
     }
-  } catch (e) { isAdmin = lsGet("aj-admin") === "1"; signedIn = lsGet("aj-signed") === "1"; }
-  meBtnShow();
-  if (role === "field" && !fieldMode) enterField();
+  } catch (e) {
+    isAdmin = lsGet("aj-admin") === "1"; signedIn = lsGet("aj-signed") === "1";
+    const pp = lsGet("aj-perms"); if (pp != null && !window.AJ_ROLE) { myPerms = new Set(pp.split(",").filter(Boolean)); posName = lsGet("aj-pos") || ""; }
+  }
+  if (window.AJ_ROLE === "field" || (role === "field" && !myPerms)) myPerms = new Set(["hours", "counts", "order", "marks", "scale"]);
+  applyPerms(); meBtnShow();
+  if (role === "field" && !fieldMode) { enterField(); applyPerms(); }
 }
 function enterField() {
   fieldMode = true;
@@ -7228,7 +7274,7 @@ function enterField() {
   toast("Field login: click a count, then the sheet, to add a field mark. Click a run type to draw a field run. They show faded and go on the Order page, never in the estimate.");
   renderCounts();
   // the count and supplier sheets show their numbers but nothing on them can be changed
-  new MutationObserver(() => $("tsTable").querySelectorAll("input:not(.no-lock), select, textarea:not(.no-lock), button:not(.no-lock)").forEach(e => { e.disabled = true; }))
+  new MutationObserver(() => (tsView === "rate" || tsView === "asm") && can("lists") ? null : $("tsTable").querySelectorAll("input:not(.no-lock), select, textarea:not(.no-lock), button:not(.no-lock)").forEach(e => { e.disabled = true; }))
     .observe($("tsTable"), { childList: true, subtree: true });
 }
 /* ---------- team jobs (Jonathan 2026-10-29: "when someone puts in a new job it saves it so everyone can see it") ----------
@@ -7481,6 +7527,36 @@ async function teamMoveUp() {
    opens without internet; changes made then stay on the device (aj-unsent-<job>, aj-fieldq-<job>) and go up when
    WiFi is back, after asking. */
 var teamOffline = false, isAdmin = false, signedIn = false;
+// what this person's position can do; everything until the website says otherwise (and always off the website)
+var myPerms = null, posName = "";
+const PERM_KEYS = ["edit", "cost", "hours", "tracker", "lists", "counts", "order", "marks", "scale"];
+const TAB_NEEDS = { bid: "cost", prop: "cost", rate: "lists", asm: "lists", count: "counts", sup: "counts", ug: "counts", order: "order", hours: "hours" };
+function can(k) { return !myPerms || myPerms.has(k); }
+function tabOk(v) { const n = TAB_NEEDS[v]; return !n || can(n); }
+function applyPerms() {
+  const de = document.documentElement;
+  PERM_KEYS.forEach(k => de.classList.toggle("no-" + k, !can(k)));
+  de.classList.toggle("can-scale", can("scale"));
+  de.classList.toggle("office-off", lsGet("aj-office-mk") === "off");
+  $("brandPos").textContent = posName && !isAdmin ? " · " + posName : "";
+  $("officeMkBtn").hidden = !fieldMode;
+  $("officeMkBtn").textContent = lsGet("aj-office-mk") === "off" ? "Office mark-ups: hidden" : "Office mark-ups: faded";
+  if (myPerms && !can("counts") && !can("order") && !can("hours")) $("takeoffBtn").hidden = true;
+}
+$("officeMkBtn").onclick = () => { lsSet("aj-office-mk", lsGet("aj-office-mk") === "off" ? null : "off"); applyPerms(); };
+// the field sets its own scale: kept in the field layer, used only on field logins, never in the estimate
+function fieldScale(p, ftPerPx, lbl, perInch) {
+  const sc = fieldLayer.scales || (fieldLayer.scales = {}), ftPerIn = perInch ? SCALES[+$("scaleSelect").value][1] : null;
+  const set = pg => { const f = perInch ? (pg.pxPerInch ? ftPerIn / pg.pxPerInch : null) : ftPerPx; if (!f) return false; pg.ftPerPx = f; pg.scaleLabel = lbl; pg.fieldScale = true; sc[pg.id] = [f, lbl]; return true; };
+  set(p);
+  let n = 0;
+  if ($("applyAll").checked) pages.forEach(pg => { if (pg !== p && (!pg.ftPerPx || pg.fieldScale) && set(pg)) n++; });
+  $("scaleModal").hidden = true;
+  const then = scaleDraft && scaleDraft.then; scaleDraft = null;
+  fieldTouch(); renderAll();
+  toast(`Scale set for the field${n ? ` (and ${n} other sheet${n > 1 ? "s" : ""})` : ""}. The office's estimate isn't changed.`);
+  if (then) setTool(then);
+}
 function meBtnShow() {
   const b = $("meBtn");
   b.hidden = !teamOn || (!isAdmin && !signedIn);
@@ -7492,7 +7568,7 @@ $("meBtn").onclick = () => showAdmin();
 $("admClose").onclick = () => { $("adminModal").hidden = true; };
 $("adminModal").addEventListener("keydown", e => { if (e.key === "Escape") $("adminModal").hidden = true; });
 let admInfo = null;
-const roleName = r => ({ admin: "Admin", office: "Office", field: "Field" })[r] || r;
+const roleName = r => ((admInfo && admInfo.positions || []).find(p => p.key === r) || {}).name || ({ admin: "Admin", office: "Estimator", field: "Superintendent" })[r] || r;
 function admSay(t, bad) { $("admMsg").textContent = t || ""; $("admMsg").className = "adm-msg" + (bad ? " bad" : ""); }
 async function admCall(body) {
   const r = await fetch("/api/admin", body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : { cache: "no-store" });
@@ -7501,7 +7577,7 @@ async function admCall(body) {
   return o;
 }
 async function showAdmin() {
-  $("admMe").textContent = signedIn ? `Signed in as ${teamWho || "you"} (${isAdmin ? "Admin" : fieldMode ? "Field" : "Office"}).` : "Everyone uses the shared app password for now.";
+  $("admMe").textContent = signedIn ? `Signed in as ${teamWho || "you"} (${isAdmin ? "Admin" : posName || (fieldMode ? "Field" : "Office")}).` : "Everyone uses the shared app password for now.";
   $("admOut").hidden = !signedIn;
   $("admBody").hidden = !isAdmin;
   $("admTitle").textContent = isAdmin ? "Admin" : "Signed in";
@@ -7514,7 +7590,7 @@ async function showAdmin() {
   settingsPull().then(drawSetNote);
 }
 let admOpen = null, admConfirm = null, admDraft = null;
-const ROLE_PICKS = [["field", "Field"], ["office", "Office"], ["admin", "Admin"]];
+const rolePicks = () => (admInfo && admInfo.positions || []).map(p => [p.key, p.name]);
 const initials = n => String(n || "?").trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
 const escH = t => String(t == null ? "" : t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 document.querySelectorAll(".adm-tabs [data-at]").forEach(b => b.onclick = () => {
@@ -7538,7 +7614,7 @@ function drawAdmin() {
       <input class="adm-nm" maxlength="30" value="${escH(u.name)}" placeholder="Their name" aria-label="Name">
       ${u.draft ? "" : `<button class="btn sm${open ? " primary" : ""}" type="button" data-a="open" aria-expanded="${open}">${open ? "Done" : "Edit"}</button>`}</div>
       <div class="adm-sub">${u.draft ? "New person" : `${roleName(u.role)} · 🔒 Has a password${u.off ? " · Turned off, can't sign in" : ""}`}</div>
-      ${open ? `<div class="adm-lbl">Access</div><div class="adm-picks">${ROLE_PICKS.map(([v, l]) => `<button type="button" data-role="${v}" aria-pressed="${u.role === v}">${l}</button>`).join("")}</div>
+      ${open ? `<div class="adm-lbl">Position</div><div class="adm-picks">${rolePicks().map(([v, l]) => `<button type="button" data-role="${v}" aria-pressed="${u.role === v}">${l}</button>`).join("")}</div>
       <div class="adm-lbl">${u.draft ? "Password" : "New password"}</div>
       <div class="adm-pwrow"><input class="adm-pw" value="${escH(u.draft ? u.pw : "")}" placeholder="Type a new password" autocomplete="off" aria-label="Password">
         <button class="btn sm" type="button" data-a="make">Make one up</button>
@@ -7572,6 +7648,7 @@ function drawAdmin() {
     ul.appendChild(li);
   });
   $("admAddBtn").hidden = !!admDraft;
+  drawPositions();
   const bk = $("admBackup");
   if (o.backupKey) {
     bk.innerHTML = `Daily Drive backup: at script.google.com open the backup project, then <b>Project Settings</b> (gear) → <b>Script properties</b>. Set <b>APP_PASSWORD</b> to <span class="adm-key"></span> and click Save.`;
@@ -7580,8 +7657,39 @@ function drawAdmin() {
 }
 $("admAddBtn").onclick = () => {
   admOpen = null; admConfirm = null; admSay("");
-  admDraft = { id: "new", draft: true, name: "", role: admInfo && admInfo.users.length ? "field" : "admin", pw: makePw() };
+  const pos = admInfo && admInfo.positions || [], def = (pos.find(p => p.key === "foreman") || pos[pos.length - 1] || {}).key || "admin";
+  admDraft = { id: "new", draft: true, name: "", role: admInfo && admInfo.users.length ? def : "admin", pw: makePw() };
   drawAdmin(); const n = $("admPeople").querySelector("li.open .adm-nm"); if (n) n.focus();
+};
+// Positions: a card each, with a check box for everything the app can do
+function drawPositions() {
+  const o = admInfo, box = $("admPos");
+  if (!o || !o.positions) return;
+  box.replaceChildren();
+  o.positions.forEach(pos => {
+    const card = document.createElement("div"), n = o.users.filter(u => u.role === pos.key).length, adm = pos.key === "admin";
+    card.className = "adm-row adm-pos";
+    card.innerHTML = `<div class="adm-top"><span class="adm-av r-${escH(pos.key)}" aria-hidden="true">${escH(initials(pos.name))}</span><input class="adm-nm" maxlength="40" value="${escH(pos.name)}"${adm ? " disabled" : ""} aria-label="Position name"><span class="adm-sub">${n} ${n === 1 ? "person" : "people"}</span></div>`
+      + (adm ? `<div class="adm-sub">Admin has everything, plus this Admin page.</div>`
+        : `<div class="adm-perms">${o.perms.map(([k, l, h]) => `<label class="adm-perm"><input type="checkbox" data-k="${k}"${pos.perms.includes(k) ? " checked" : ""}><span><b>${escH(l)}</b>${h ? `<small>${escH(h)}</small>` : ""}</span></label>`).join("")}</div>`
+        + (n ? "" : `<div><button class="btn sm warn" type="button" data-a="del">Remove this position</button></div>`));
+    const nm = card.querySelector(".adm-nm");
+    nm.onchange = () => { const v = nm.value.trim(); if (!v) { nm.value = pos.name; return; } pos.name = v; savePositions(`Renamed to ${v}.`); };
+    card.querySelectorAll("[data-k]").forEach(c => c.onchange = () => {
+      const k = c.dataset.k, l = (o.perms.find(x => x[0] === k) || [k, k])[1];
+      pos.perms = c.checked ? [...new Set([...pos.perms, k])] : pos.perms.filter(x => x !== k);
+      savePositions(`${pos.name}: ${c.checked ? "can now use" : "no longer has"} ${l}.`);
+    });
+    const del = card.querySelector('[data-a="del"]');
+    if (del) del.onclick = () => { o.positions = o.positions.filter(x => x !== pos); savePositions(`${pos.name} was removed.`); };
+    box.appendChild(card);
+  });
+}
+const savePositions = msg => admDo({ op: "positions", positions: admInfo.positions }, msg);
+$("admPosAdd").onclick = async () => {
+  if (!admInfo) return;
+  admInfo.positions.push({ key: "p" + Date.now().toString(36), name: "New position", perms: ["marks", "scale"] });
+  if (await savePositions("Added a position. Type its name and check what it can use.")) { const all = $("admPos").querySelectorAll(".adm-nm"); const last = all[all.length - 1]; if (last) { last.focus(); last.select(); } }
 };
 async function admDo(body, done) {
   admSay("Saving…");
@@ -7779,7 +7887,7 @@ function drawEditLinks() {
 /* Working without internet */
 function fieldKeep() {
   if (!job) return;
-  const out = { base: fieldUrl, order: fieldLayer.order, gone: fieldLayer.gone, pages: {} };
+  const out = { base: fieldUrl, order: fieldLayer.order, gone: fieldLayer.gone, scales: fieldLayer.scales || {}, pages: {} };
   pages.forEach(p => { if (p.ghost && (p.ghost.devices.length || p.ghost.runs.length)) out.pages[p.id] = p.ghost; });
   lsSet("aj-fieldq-" + job.id, JSON.stringify(out));
 }
@@ -7839,7 +7947,11 @@ function fieldApply(layer, url) {
   fieldLayer = { order: { qty: {}, note: "", approved: null }, gone: [], ...layer };
   fieldLayer.order = { qty: {}, note: "", approved: null, ...(layer.order || {}) };
   fieldUrl = url;
-  pages.forEach(p => { const g = (layer.pages || {})[p.id]; p.ghost = { devices: g && g.devices || [], runs: g && g.runs || [] }; });
+  pages.forEach(p => {
+    const g = (layer.pages || {})[p.id], sc = (layer.scales || {})[p.id];
+    p.ghost = { devices: g && g.devices || [], runs: g && g.runs || [] };
+    if (fieldMode && sc) { p.ftPerPx = sc[0]; p.scaleLabel = sc[1]; p.fieldScale = true; } // the field's own scale, for the field only
+  });
   ghostBtnShow(); drawOverlay(); renderCounts();
   if (!$("takeoffModal").hidden && tsView === "order") renderTakeoff();
 }
@@ -7880,7 +7992,8 @@ async function fieldPush() {
     if (cur && cur.url !== fieldUrl) theirs = await (await fetch(cur.url)).json();
     const gone = new Set([...(fieldLayer.gone || []), ...(theirs && theirs.gone || [])]);
     const out = { app: "aj-takeoff", kind: "field-layer", v: 1, savedAt: new Date().toISOString(), by: teamWho, gone: [...gone].slice(-2000), pages: {},
-      order: { ...(theirs && theirs.order || {}), ...fieldLayer.order, qty: { ...(theirs && theirs.order && theirs.order.qty || {}), ...fieldLayer.order.qty } } };
+      order: { ...(theirs && theirs.order || {}), ...fieldLayer.order, qty: { ...(theirs && theirs.order && theirs.order.qty || {}), ...fieldLayer.order.qty } },
+      scales: { ...(theirs && theirs.scales || {}), ...(fieldLayer.scales || {}) } };
     pages.forEach(p => {
       const mine = ghostOf(p), th = theirs && theirs.pages && theirs.pages[p.id] || { devices: [], runs: [] };
       const merge = (a, b) => [...new Map([...byId(b), ...byId(a)]).values()].filter(x => !gone.has(x.id));
@@ -7888,7 +8001,7 @@ async function fieldPush() {
       if (p.ghost.devices.length || p.ghost.runs.length) out.pages[p.id] = p.ghost;
     });
     if (theirs && theirs.pages) Object.keys(theirs.pages).forEach(id => { if (!out.pages[id] && !pages.some(p => p.id === id)) out.pages[id] = theirs.pages[id]; });
-    fieldLayer.order = out.order; fieldLayer.gone = out.gone;
+    fieldLayer.order = out.order; fieldLayer.gone = out.gone; fieldLayer.scales = out.scales;
     const details = b64url({ by: teamWho.slice(0, 30), u: out.savedAt });
     const url = await (window.AJ_TEAM_PUT ? window.AJ_TEAM_PUT(`team/field/${segId(j.id)}/m${details}.json`, new Blob([JSON.stringify(out)], { type: "application/json" }), "application/json")
       : (async () => { blobClient = blobClient || await import("./blob-client.js");

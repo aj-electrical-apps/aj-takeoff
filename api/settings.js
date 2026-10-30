@@ -1,5 +1,5 @@
 import { list, put, del } from "@vercel/blob";
-import { whoIs } from "../lib/session.js";
+import { whoIs, has } from "../lib/session.js";
 import { loadSettings, saveSettings } from "../lib/team-store.js";
 
 // Settings everyone shares: company details, labor hours, parts lists, standard exclusions and vendor lists.
@@ -63,7 +63,7 @@ export async function GET() {
 export async function POST(request) {
   try {
     const who = await whoIs(request);
-    if (!who || who.r === "field") return bad("The field login can't change settings.", 403);
+    if (!who || !(has(who, "lists") || has(who, "admin"))) return bad("Your position can't change these lists.", 403);
     const b = await request.json().catch(() => ({})), by = String(b.by || who.n || "").slice(0, 30);
     if (b.op === "suggest") {
       const diff = cleanDiff(b.diff);
@@ -73,7 +73,7 @@ export async function POST(request) {
       await put(`team/admin/suggest/${id}.json`, JSON.stringify({ by, diff }), { access: "public", addRandomSuffix: true, contentType: "application/json" });
       return Response.json({ id }, { headers: H });
     }
-    if (who.r !== "admin") return bad("Only an admin can change the shared settings. Your change was sent for approval instead.", 403);
+    if (!has(who, "admin")) return bad("Only an admin can change the shared settings. Your change was sent for approval instead.", 403);
     const s = await loadSettings(), wrap = s.data || {}, data = { ...(wrap.data || {}) }, decided = { ...(wrap.decided || {}) };
     if (b.op === "decide") {
       const f = (await suggestions()).find(x => x.id === b.id);

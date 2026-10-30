@@ -1,4 +1,4 @@
-import { secret, readSession, basicWho, norm, same } from "./lib/session.js";
+import { secret, readSession, basicWho, norm, same, has } from "./lib/session.js";
 
 // Who can open AJ Takeoff.
 // With SESSION_SECRET set (Vercel environment variable, any long random text): everyone signs in on /login.html
@@ -8,8 +8,17 @@ import { secret, readSession, basicWho, norm, same } from "./lib/session.js";
 // Without SESSION_SECRET it works the old way: a browser password box for APP_PASSWORD / FIELD_PASSWORD,
 // and if APP_PASSWORD isn't set either, the site stays open.
 const FIELD_BLOCKED = [/^\/api\/bids/, /^\/api\/team-upload/, /^\/api\/share-upload/, /^\/api\/admin/];
-const OPEN = [/^\/login\.html$/, /^\/sw\.js$/, /^\/api\/login$/, /^\/api\/logout$/, /^\/favicon/];
+const OPEN = [/^\/login\.html$/, /^\/sw\.js$/, /^\/manifest\.webmanifest$/, /^\/(icon-\d+|apple-touch-icon|favicon)\.png$/, /^\/mark\.svg$/, /^\/api\/login$/, /^\/api\/logout$/, /^\/favicon/];
 const json = (o, status) => new Response(JSON.stringify(o), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+function needs(path, method) {
+  const write = method !== "GET" && method !== "HEAD";
+  if (/^\/api\/admin/.test(path)) return ["admin"];
+  if (/^\/api\/bids/.test(path)) return ["tracker", "admin"];
+  if (/^\/api\/(team-upload|share-upload)/.test(path) || (path === "/api/jobs" && write)) return ["edit"];
+  if (path === "/api/settings" && write) return ["lists", "admin"];
+  if (/^\/api\/field/.test(path) && write) return ["marks", "order", "scale", "edit"];
+  return null;
+}
 const fieldBlocked = (path, method) => FIELD_BLOCKED.some(r => r.test(path)) || (["/api/jobs", "/api/settings"].includes(path) && method !== "GET");
 
 export default async function middleware(request) {
@@ -22,8 +31,10 @@ export default async function middleware(request) {
     const back = path + url.search;
     return Response.redirect(new URL("/login.html" + (back.length > 1 ? "?next=" + encodeURIComponent(back) : ""), url), 302);
   }
-  if (who.r === "field" && fieldBlocked(path, request.method)) return json({ error: "The field login can't change the estimate." }, 403);
   if (who.id === "backup" && request.method !== "GET") return json({ error: "The backup key can only read." }, 403);
+  // what each position can do is set on the Admin page; the sign-in cookie carries it
+  const need = needs(path, request.method);
+  if (need && !need.some(p => has(who, p))) return json({ error: "Your position doesn't have access to that. Ask an admin." }, 403);
 }
 
 function oldGate(request, path) {
