@@ -402,6 +402,9 @@ html.look-new body { font-family: var(--font-ui); }
   #scaleBtn, #hlYBtn, #hlRBtn, #roomBtn, #fileBtn, #histUndo, #histRedo, #tsBidTab, #tsRateTab, #tsPropTab, #tsAsmTab, #tsDbo, #tsRomex, #tsAllBox,
   #jobForm, #teamWhoBox, #jobsOpenFile, #labelForm, .cnt-edit, .psec[data-fold="toolbox"], .tool-sub, .feed-edit) { display: none !important; }
 .role-field .brand small::after { content: " · Field"; }
+.review-bar { position: fixed; left: 50%; top: 10px; transform: translateX(-50%); z-index: 60; max-width: min(760px, calc(100vw - 24px)); display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  padding: 10px 14px; border-radius: 10px; background: #f3efff; border: 1px solid #7048e8; color: #2b1a66; box-shadow: 0 6px 24px rgba(0,0,0,.15); font-size: 14px; }
+.review-bar a { color: #4b2bc4; font-weight: 600; }
 .role-field #runList :is(input, select, button) { pointer-events: none; }
 .mk-ghost { stroke-dasharray: 10 7; opacity: .6; }
 .mk-ghost-ring { fill: none; stroke: #7048e8; stroke-width: 1.5; stroke-dasharray: 4 3; }
@@ -689,7 +692,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand">AJ Takeoff <small>Commercial · v115</small></div>
+    <div class="brand">AJ Takeoff <small>Commercial · v116</small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
     <button class="btn jobbtn" id="jobBtn" type="button" title="Open, start or edit jobs"><span class="jl">Job</span><span class="jn" id="jobName">Example job</span></button>
@@ -767,6 +770,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <div class="drive" id="driveStatus" role="status"><span class="dot"></span><span class="t" id="driveText">Saved in this browser</span>
       <button class="btn sm" id="driveRetry" type="button" hidden>Try again</button>
       <button class="btn sm primary" id="teamLoad" type="button" hidden>Load it</button></div>
+    <div class="review-bar" id="reviewBar" role="status" hidden></div>
     <div class="group" id="clearGroup">
       <button class="btn" id="clearBtn">Delete job</button>
     </div>
@@ -843,6 +847,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
           <button class="btn tool hl-r" id="hlRBtn" type="button" aria-pressed="false" title="Red highlighter: drag over a note to save it to your Notes page, count sheet and supplier sheet">Red note</button>
           <button class="btn tool hl-room" id="roomBtn" type="button" aria-pressed="false" title="Typical room: drag a box around one room you marked up, then say how many of that room the job has">Typical room</button>
           <button class="btn tool" id="ghostBtn" type="button" aria-pressed="true" hidden title="Show or hide the marks and runs the field added. They never change your estimate.">Field marks</button>
+          <button class="btn tool primary" id="markupsBtn" type="button" hidden title="The drawings are marked up: save the field marks, copy a link that opens straight to them, and send it to the COO for approval in the leadership app">Mark-ups done: send to COO</button>
           <button class="btn tool" id="replBtn" type="button" title="Addendum: swap this sheet for a revised drawing and keep your markups">Replace sheet</button>
           <button class="btn tool" id="replOld" type="button" aria-pressed="false" title="Flip between the old and new drawing" hidden>Show old</button>
           <button class="btn tool" id="replAlign" type="button" aria-pressed="false" title="Click 2 spots on the old drawing and the same 2 on the new one, and your markups move to match" hidden>Line up</button>
@@ -7376,6 +7381,7 @@ const ghostQty = id => pages.reduce((t, pg) => t + (pg.ghost ? pg.ghost.devices.
 const ghostAny = () => pages.some(pg => pg.ghost && (pg.ghost.devices.length || pg.ghost.runs.length));
 function ghostBtnShow() {
   const n = pages.reduce((t, pg) => t + (pg.ghost ? pg.ghost.devices.length + pg.ghost.runs.length : 0), 0);
+  $("markupsBtn").hidden = !teamOn || !job;
   $("ghostBtn").hidden = !teamOn || fieldMode || !n;
   $("ghostBtn").setAttribute("aria-pressed", showGhost); $("ghostBtn").textContent = `Field marks (${n})`;
 }
@@ -7424,6 +7430,7 @@ async function fieldPush() {
     if (cur && cur.url !== fieldUrl) theirs = await (await fetch(cur.url)).json();
     const gone = new Set([...(fieldLayer.gone || []), ...(theirs && theirs.gone || [])]);
     const out = { app: "aj-takeoff", kind: "field-layer", v: 1, savedAt: new Date().toISOString(), by: teamWho, gone: [...gone].slice(-2000), pages: {},
+      markups: fieldLayer.markups || theirs && theirs.markups || null,
       order: { ...(theirs && theirs.order || {}), ...fieldLayer.order, qty: { ...(theirs && theirs.order && theirs.order.qty || {}), ...fieldLayer.order.qty } } };
     pages.forEach(p => {
       const mine = ghostOf(p), th = theirs && theirs.pages && theirs.pages[p.id] || { devices: [], runs: [] };
@@ -7529,6 +7536,45 @@ function orderText() {
 }
 setInterval(() => { if (!document.hidden) fieldLoad(); }, 60000);
 
+/* Mark-ups for COO approval (Jonathan 2026-10-30: "it needs to show the mark ups and a link to go straight to them
+   to get approval"). When the drawings are marked up, the field presses "Mark-ups done: send to COO": the field
+   marks are saved online, and a link that opens this job straight to them (?markups=<job>) is copied. The
+   leadership app opens on its mark-ups page with that link, the step "Drawings marked up?" is checked there, and
+   the COO gets an alert with a button that opens the link. */
+const LEADERSHIP_APP = "https://aj-pricing-bonuses.vercel.app";
+const markupsLink = j => `${location.origin}/?markups=${encodeURIComponent(segId(j.id))}`;
+$("markupsBtn").onclick = async () => {
+  if (!job || !teamOn) return;
+  const j = job, link = markupsLink(j);
+  // open the window now (before any waiting) so the browser doesn't block it as a pop-up
+  const w = window.open("about:blank", "_blank");
+  fieldLayer.markups = { sentBy: teamWho || (fieldMode ? "Field" : "Office"), sentAt: new Date().toISOString() };
+  fieldDirty = true; clearTimeout(fieldTimer);
+  for (let i = 0; fieldSaving && i < 40; i++) await new Promise(r => setTimeout(r, 300));
+  await fieldPush();
+  try { await navigator.clipboard.writeText(link); } catch (e) {}
+  const to = `${LEADERSHIP_APP}/#/markups?${new URLSearchParams({ link, name: j.name || "", takeoff: segId(j.id), by: fieldLayer.markups.sentBy })}`;
+  if (w) w.location = to; else location.href = to;
+  toast(fieldDirty ? "The field marks didn't save online yet. Check the internet, then press it again." : "Field marks saved. The link to them is copied, and the leadership app is open to send them to the COO.");
+};
+// ?markups=<job>: open that job straight to its field marks, with a note on who sent them
+async function openMarkups(id) {
+  if (!(await teamReady)) return toast("The mark-ups link works on the AJ Takeoff website.");
+  const f = teamIndex[id];
+  if (!f || f.deleted) return toast("That job isn't in the online job list any more.");
+  const mine = jobs.find(x => segId(x.id) === id);
+  if (mine && mine.teamUrl === f.url) await openJob(mine); else await pullTeam(f);
+  showGhost = true; lsSet("aj-ghost", null);
+  await fieldLoad();
+  ghostBtnShow(); drawOverlay();
+  const m = fieldLayer.markups, n = pages.reduce((t, pg) => t + (pg.ghost ? pg.ghost.devices.length + pg.ghost.runs.length : 0), 0);
+  const bar = $("reviewBar");
+  bar.innerHTML = `<span><b>Mark-ups for ${esc(f.name)}</b> · ${n} field mark${n === 1 ? "" : "s"} (faded and dashed)${m && m.sentAt ? ` · sent by ${esc(m.sentBy || "the field")} ${esc(whenSaved(m.sentAt))}` : ""}. Flip through the sheets on the left.</span>
+    <a href="${LEADERSHIP_APP}/#/markups?${esc(new URLSearchParams({ takeoff: id, name: f.name || "" }).toString())}" target="_blank" rel="noopener">Approve in the leadership app</a><button class="btn sm" type="button" id="reviewClose">Close</button>`;
+  bar.hidden = false;
+  $("reviewClose").onclick = () => { bar.hidden = true; };
+}
+
 /* Delete the open job, with an in-page confirm (the viewer blocks confirm()) */
 function askClear() {
   if (!job) return;
@@ -7620,6 +7666,7 @@ async function loadExamples() {
     const q = new URLSearchParams(location.search);
     if (q.get("job")) { const u = q.get("job"); history.replaceState(null, "", location.pathname); openSharedJob(u); return; }
     if (q.get("open") === "job") { showFiles(true); history.replaceState(null, "", location.pathname); return; }
+    if (q.get("markups")) { const id = q.get("markups"); history.replaceState(null, "", location.pathname); openMarkups(segId(id)); return; }
   } catch (e) {}
   showStart();
 })();
