@@ -22,6 +22,8 @@ button { height: 46px; border: 0; border-radius: 8px; background: var(--acc); co
 button:disabled { opacity: .6; cursor: default; }
 .err { color: var(--bad); font-weight: 600; }
 [hidden] { display: none !important; }
+details { font-size: 14px; color: var(--mut); }
+summary { cursor: pointer; color: var(--fg); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -36,6 +38,10 @@ button:disabled { opacity: .6; cursor: default; }
     <label id="appBox" hidden>The app's current password (APP_PASSWORD)<input id="app" type="password" autocomplete="off"></label>
     <p class="err" id="err" role="alert" hidden></p>
     <button id="go" type="submit">Sign in</button>
+    <details id="forgot"><summary>Forgot your password?</summary>
+      <p style="margin-top:8px">Ask an admin in the office. They can set a new one on the app's Admin page in a few seconds.</p>
+      <p style="margin-top:8px"><b>Admin locked out?</b> In Vercel, open the aj-commercial-takeoff project, then Settings, then Environment Variables. Add <b>APP_PASSWORD</b> with a new password and redeploy. Sign in here with your name and that password, set your own new password on the Admin page, then delete APP_PASSWORD in Vercel again.</p>
+    </details>
   </form>
 </main>
 <script>
