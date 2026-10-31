@@ -625,7 +625,7 @@ tr.ex-off .ex-row span { color: var(--muted); text-decoration: line-through; }
 .mk-note.focus { stroke-width: 3; fill: rgb(234 88 12 / .18); }
 .mk-note-n { fill: #fff; stroke: none; font-weight: 700; }
 .mk-note-dot { fill: #ea580c; }
-#sendBtn { border-color: #ea580c; color: #c2410c; font-weight: 600; }
+#sendBtn, #askPhotoBtn { border-color: #ea580c; color: #c2410c; font-weight: 600; }
 #sendBtn[aria-pressed="true"] { background: #ea580c; color: #fff; }
 #msgBtn .me-dot { background: #ea580c; }
 .msg-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
@@ -641,6 +641,10 @@ tr.ex-off .ex-row span { color: var(--muted); text-decoration: line-through; }
 .msg-b p { margin: 3px 0 0; white-space: pre-wrap; font-size: 15px; }
 .msg-b p:empty { display: none; }
 .msg-photo { display: block; margin-top: 6px; } .msg-photo img { max-width: 100%; max-height: 320px; border-radius: 6px; border: 1px solid var(--line); }
+#pmModal { z-index: 60; } .pm-card { max-width: 900px; }
+.pm-wrap { display: flex; justify-content: center; } #pmCanvas { max-width: 100%; max-height: 62vh; touch-action: none; border-radius: 6px; border: 1px solid var(--line); cursor: crosshair; }
+.pm-colors { display: inline-flex; gap: 4px; } .pm-colors [data-c="#e03131"] { color: #e03131; } .pm-colors [data-c="#f59f00"] { color: #f59f00; } .pm-colors [data-c="#1c7ed6"] { color: #1c7ed6; }
+.pm-colors .on { outline: 2px solid var(--accent); }
 .photo-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .photo-row label.btn { cursor: pointer; }
 .photo-prev { display: inline-flex; gap: 6px; align-items: center; } .photo-prev img { height: 56px; border-radius: 4px; border: 1px solid var(--line); }
@@ -822,7 +826,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v134<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v135<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
@@ -975,6 +979,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
           <button class="btn tool" id="scaleBtn" type="button" title="Set the drawing scale for this sheet">Set scale</button>
           <button class="btn tool erase" id="eraseBtn" type="button" aria-pressed="false" title="Click a symbol, or inside a yellow or red note box, to remove it (E)">Erase</button>
           <button class="btn tool hl-send" id="sendBtn" type="button" aria-pressed="false" hidden title="Drag a box around part of the drawing and send it to the people you pick. They can answer back.">Highlight &amp; send</button>
+          <button class="btn tool hl-send" id="askPhotoBtn" type="button" hidden title="Take a picture, draw on it to show what you mean, and send your question to the people you pick">📷 Ask with a photo</button>
           <p class="tool-sub">Mark up</p>
           <button class="btn tool hl-y" id="hlYBtn" type="button" aria-pressed="false" title="Yellow highlighter: drag over a note to save it to your Notes page">Yellow note</button>
           <button class="btn tool hl-r" id="hlRBtn" type="button" aria-pressed="false" title="Red highlighter: drag over a note to save it to your Notes page, count sheet and supplier sheet">Red note</button>
@@ -1199,6 +1204,15 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
   </div>
 </div>
 
+<div class="modal" id="pmModal" hidden role="dialog" aria-modal="true" aria-labelledby="pmTitle">
+  <div class="modal-card wide pm-card">
+    <h2 id="pmTitle">Draw on the photo</h2>
+    <p class="msg-meta" id="pmHint">Circle or point at what your question is about.</p>
+    <div class="pm-wrap"><canvas id="pmCanvas"></canvas></div>
+    <div class="row"><span class="pm-colors" id="pmColors"><button class="btn sm on" type="button" data-c="#e03131" aria-label="Red">●</button><button class="btn sm" type="button" data-c="#f59f00" aria-label="Yellow">●</button><button class="btn sm" type="button" data-c="#1c7ed6" aria-label="Blue">●</button></span>
+      <button class="btn sm" type="button" id="pmUndo">Undo</button><button class="btn sm" type="button" id="pmClear">Clear</button><button class="btn primary" type="button" id="pmDone">Done</button></div>
+  </div>
+</div>
 <div class="modal" id="hlsModal" hidden role="dialog" aria-modal="true" aria-labelledby="hlsTitle">
   <form class="modal-card" id="sendForm">
     <h2 id="hlsTitle">Send this part of the drawing</h2>
@@ -8049,7 +8063,7 @@ var ES_MAP = {
   "Send": "Enviar", "Cancel": "Cancelar", "Close": "Cerrar", "Back": "Atrás", "Answer": "Responder", "Show on the drawing": "Ver en el plano", "Language": "Idioma",
   "What do you need them to look at?": "¿Qué necesitas que revisen?", "Write your answer": "Escribe tu respuesta",
   "Write in English or Spanish. Each person reads it in their own language.": "Escribe en español o en inglés. Cada persona lo lee en su idioma.",
-  "Pick who it goes to.": "Elige a quién se envía.", "Take photo": "Tomar foto", "Remove photo": "Quitar foto", "Photo": "Foto", "Getting the photo ready…": "Preparando la foto…", "Type a message or add a photo.": "Escribe un mensaje o agrega una foto.", "Type a message first.": "Escribe un mensaje primero.",
+  "Pick who it goes to.": "Elige a quién se envía.", "Draw on the photo": "Dibuja en la foto", "Circle or point at what your question is about.": "Encierra o señala lo que quieres preguntar.", "Undo": "Deshacer", "Clear": "Borrar", "Done": "Listo", "Draw on it": "Dibujar", "📷 Ask with a photo": "📷 Preguntar con foto", "Take photo": "Tomar foto", "Remove photo": "Quitar foto", "Photo": "Foto", "Getting the photo ready…": "Preparando la foto…", "Type a message or add a photo.": "Escribe un mensaje o agrega una foto.", "Type a message first.": "Escribe un mensaje primero.",
   "Sending…": "Enviando…", "Sent.": "Enviado.", "No messages yet. Use Highlight & send on a drawing to start one.": "Todavía no hay mensajes. Usa Marcar y enviar en un plano para empezar.",
   "Translated from Spanish": "Traducido del inglés", "Show original": "Ver original", "Translate": "Traducir", "you": "tú", "to": "para", "Sheet": "Hoja",
   "No internet right now. Messages send once WiFi is back.": "No hay internet ahora. Los mensajes se envían cuando vuelva el WiFi.",
@@ -8069,6 +8083,7 @@ function setLabel(el, t) {
 }
 function applyLang() {
   ["measureBtn", "scaleBtn", "eraseBtn", "ghostBtn", "fullBtn", "runBtn", "sendBtn"].forEach(id => setLabel($(id), null));
+  $("askPhotoBtn").textContent = L("📷 Ask with a photo");
   setLabel(document.querySelector("#jobBtn .jl"));
   document.querySelectorAll("#sendPhotoL span, #replyPhotoL span").forEach(e => e.textContent = L("Take photo"));
   ["hlsTitle", "sendToL", "sendCancel", "sendGo", "msgTitle", "msgLangL", "msgBack", "msgShow", "msgSend", "msgClose"].forEach(id => setLabel($(id)));
@@ -8086,36 +8101,68 @@ function markSeen(n) { const s = noteSeen(); s[n.id] = n.msgs.length; lsSet("aj-
 const noteText = m => m[myLang()] || m.text || (m.photo ? "📷 " + L("Photo") : "");
 /* Photos in messages (Jonathan 2026-10-31): taken with the phone camera, made smaller, and stamped with the date, time, who took it and the job */
 let sendPhoto = null, replyPhoto = null;
-async function stampPhoto(file) {
+// load the picture at up to 1600px; the stamp goes on last, over any drawing
+async function loadPhoto(file) {
   const url = URL.createObjectURL(file);
   try {
     const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
     const max = 1600, sc = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
-    const w = Math.round(img.naturalWidth * sc), h = Math.round(img.naturalHeight * sc), cv = document.createElement("canvas");
-    cv.width = w; cv.height = h; const x = cv.getContext("2d"); x.drawImage(img, 0, 0, w, h);
+    const cv = document.createElement("canvas"); cv.width = Math.round(img.naturalWidth * sc); cv.height = Math.round(img.naturalHeight * sc);
+    cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
     const at = new Date(file.lastModified && Math.abs(Date.now() - file.lastModified) < 864e5 * 365 ? file.lastModified : Date.now());
-    const line1 = at.toLocaleString([], { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
-    const line2 = [typeof teamWho === "string" ? teamWho : "", job ? job.name : ""].filter(Boolean).join(" · ");
-    const fs = Math.max(16, Math.round(w / 40)), pad = Math.round(fs * .5), bh = (line2 ? 2 : 1) * fs * 1.25 + pad * 2;
-    x.fillStyle = "rgba(0,0,0,.6)"; x.fillRect(0, h - bh, w, bh);
-    x.fillStyle = "#fff"; x.font = `600 ${fs}px sans-serif`; x.textBaseline = "top";
-    x.fillText(line1, pad, h - bh + pad); if (line2) { x.font = `${Math.round(fs * .85)}px sans-serif`; x.fillText(line2, pad, h - bh + pad + fs * 1.25); }
-    return { data: cv.toDataURL("image/jpeg", .8), at: at.toISOString() };
+    return { base: cv, strokes: [], at: at.toISOString() };
   } finally { URL.revokeObjectURL(url); }
+}
+function paintStrokes(x, strokes, w) {
+  x.lineCap = x.lineJoin = "round";
+  strokes.forEach(st => { x.strokeStyle = st.c; x.lineWidth = Math.max(4, w / 160); x.beginPath(); st.p.forEach(([a, b], i) => i ? x.lineTo(a, b) : x.moveTo(a, b)); if (st.p.length === 1) x.lineTo(st.p[0][0] + .1, st.p[0][1]); x.stroke(); });
+}
+function finishPhoto(ph) {
+  const w = ph.base.width, h = ph.base.height, cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+  const x = cv.getContext("2d"); x.drawImage(ph.base, 0, 0); paintStrokes(x, ph.strokes, w);
+  const at = new Date(ph.at), line1 = at.toLocaleString([], { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+  const line2 = [typeof teamWho === "string" ? teamWho : "", job ? job.name : ""].filter(Boolean).join(" · ");
+  const fs = Math.max(16, Math.round(w / 40)), pad = Math.round(fs * .5), bh = (line2 ? 2 : 1) * fs * 1.25 + pad * 2;
+  x.fillStyle = "rgba(0,0,0,.6)"; x.fillRect(0, h - bh, w, bh);
+  x.fillStyle = "#fff"; x.font = `600 ${fs}px sans-serif`; x.textBaseline = "top";
+  x.fillText(line1, pad, h - bh + pad); if (line2) { x.font = `${Math.round(fs * .85)}px sans-serif`; x.fillText(line2, pad, h - bh + pad + fs * 1.25); }
+  ph.data = cv.toDataURL("image/jpeg", .8);
+  return ph;
+}
+// Draw on the photo (Jonathan 2026-10-31: foremen and subs ask questions on a marked-up picture)
+function markupPhoto(ph) {
+  return new Promise(done => {
+    const cv = $("pmCanvas"), x = cv.getContext("2d"), strokes = ph.strokes.map(s => ({ c: s.c, p: s.p.slice() }));
+    let color = "#e03131", cur = null;
+    cv.width = ph.base.width; cv.height = ph.base.height;
+    const paint = () => { x.clearRect(0, 0, cv.width, cv.height); x.drawImage(ph.base, 0, 0); paintStrokes(x, strokes, cv.width); };
+    const at = e => { const r = cv.getBoundingClientRect(); return [(e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height]; };
+    cv.onpointerdown = e => { e.preventDefault(); try { cv.setPointerCapture(e.pointerId); } catch (_) {} cur = { c: color, p: [at(e)] }; strokes.push(cur); paint(); };
+    cv.onpointermove = e => { if (!cur) return; cur.p.push(at(e)); paint(); };
+    cv.onpointerup = cv.onpointercancel = () => { cur = null; };
+    $("pmColors").querySelectorAll("button").forEach(b => b.onclick = () => { color = b.dataset.c; $("pmColors").querySelectorAll("button").forEach(o => o.classList.toggle("on", o === b)); });
+    $("pmUndo").onclick = () => { strokes.pop(); paint(); };
+    $("pmClear").onclick = () => { strokes.length = 0; paint(); };
+    $("pmDone").onclick = () => { $("pmModal").hidden = true; ph.strokes = strokes; done(finishPhoto(ph)); };
+    $("pmTitle").textContent = L("Draw on the photo"); $("pmHint").textContent = L("Circle or point at what your question is about."); $("pmUndo").textContent = L("Undo"); $("pmClear").textContent = L("Clear"); $("pmDone").textContent = L("Done");
+    paint(); $("pmModal").hidden = false;
+  });
 }
 function photoPicker(inId, prevId, errId, set) {
   $(inId).onchange = async e => {
     const f = e.target.files[0]; e.target.value = ""; if (!f) return;
     $(errId).textContent = L("Getting the photo ready…");
-    try { const p = await stampPhoto(f); set(p); $(errId).textContent = ""; showPrev(); }
+    try { const p = await markupPhoto(await loadPhoto(f)); set(p); $(errId).textContent = ""; showPrev(); }
     catch (err) { $(errId).textContent = "That picture couldn't be opened."; }
   };
   const showPrev = () => {
     const box = $(prevId), p = set(); box.replaceChildren(); if (!p) return;
     const im = document.createElement("img"); im.src = p.data; im.alt = L("Photo");
+    const ed = document.createElement("button"); ed.type = "button"; ed.className = "btn sm"; ed.textContent = L("Draw on it"); ed.onclick = async () => { set(await markupPhoto(p)); showPrev(); };
     const x = document.createElement("button"); x.type = "button"; x.className = "btn sm"; x.textContent = L("Remove photo"); x.onclick = () => { set(null, true); showPrev(); };
-    box.append(im, x);
+    box.append(im, ed, x);
   };
+  showPrev.pick = () => $(inId).click();
   return showPrev;
 }
 const sendPrev = photoPicker("sendPhotoIn", "sendPhotoPrev", "sendMsg", (p, clear) => p || clear ? (sendPhoto = p || null) : sendPhoto);
@@ -8140,7 +8187,7 @@ async function notesLoad() {
 }
 function drawNotes(g, p, ns) {
   const k0 = jobKey();
-  notes.filter(n => n.job === k0 && n.page === p.id).forEach((n, i) => {
+  notes.filter(n => n.job === k0 && n.page === p.id && n.rect.w > 0).forEach((n, i) => { // a photo question with no box has nothing to draw
     const r = svgEl("rect", { x: n.rect.x, y: n.rect.y, width: n.rect.w, height: n.rect.h, class: "mk-note" + (n.id === noteFocus ? " focus" : ""), ...ns });
     r.appendChild(svgEl("title", {}, `${n.from.name}: ${noteText(n.msgs[0])}`));
     g.appendChild(r);
@@ -8149,6 +8196,12 @@ function drawNotes(g, p, ns) {
   });
   if (sendDraft && sendPage === p.id) g.appendChild(svgEl("rect", { x: sendDraft.x, y: sendDraft.y, width: sendDraft.w, height: sendDraft.h, class: "mk-hl send", ...ns }));
 }
+$("askPhotoBtn").onclick = () => {
+  if (!job || !teamOn) return toast(L("Messages can only be sent once this job is saved online."));
+  if (tool) setTool(null);
+  const pg = pages[current]; if (!pg) return;
+  sendDraft = null; openSend(pg, null); sendPrev.pick(); // straight to the camera
+};
 $("sendBtn").onclick = () => {
   if (!job || !teamOn) return toast(L("Messages can only be sent once this job is saved online."));
   if (tool) setTool(null);
@@ -8275,6 +8328,7 @@ async function showNote(n) {
   noteFocus = n.id;
   requestAnimationFrame(() => {
     if (!fit) return drawOverlay();
+    if (!n.rect.w) return drawOverlay(); // a photo question without a box: just its sheet
     const r = n.rect, s0 = fit.s, z = Math.min(ZMAX, Math.max(1, Math.min(fit.W / (Math.max(r.w, 40) * s0), fit.H / (Math.max(r.h, 40) * s0)) * 0.55));
     setView({ z, tx: fit.W / 2 - fit.left - (r.x + r.w / 2) * s0 * z, ty: fit.H / 2 - fit.top - (r.y + r.h / 2) * s0 * z });
     drawOverlay();
@@ -8282,7 +8336,7 @@ async function showNote(n) {
 }
 teamReady.then(on => {
   if (!on) return;
-  $("sendBtn").hidden = false; applyLang();
+  $("sendBtn").hidden = false; $("askPhotoBtn").hidden = false; applyLang();
   notesLoad(); setInterval(() => { if (!document.hidden) notesLoad(); }, 60000);
   const m = new URLSearchParams(location.search).get("msg");
   if (m) setTimeout(() => openMsgs(m), 1500);
