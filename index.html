@@ -817,7 +817,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v130<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v131<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
@@ -1657,10 +1657,12 @@ let dbp = null;
 function db() {
   if (!dbp) dbp = new Promise((res, rej) => {
     try {
-      const r = indexedDB.open("aj-takeoff", 3);
+      const r = indexedDB.open("aj-takeoff", 4);
       r.onupgradeneeded = () => {
         const d = r.result;
         if (!d.objectStoreNames.contains("pages")) d.createObjectStore("pages", { keyPath: "id" });
+        // v4: sheets are looked up by job, so opening one job doesn't read every job's sheets (phone froze on a 159-sheet job, 2026-10-30)
+        const ps = r.transaction.objectStore("pages"); if (!ps.indexNames.contains("jobId")) ps.createIndex("jobId", "jobId");
         if (!d.objectStoreNames.contains("jobs")) d.createObjectStore("jobs", { keyPath: "id" });
         if (!d.objectStoreNames.contains("appx")) d.createObjectStore("appx", { keyPath: "id" });
       };
@@ -1680,9 +1682,15 @@ async function getAll(name) {
   const d = await db();
   return new Promise((res, rej) => { const g = d.transaction(name).objectStore(name).getAll(); g.onsuccess = () => res(g.result); g.onerror = rej; });
 }
+// one job's sheets only
+async function pagesOf(jobId) {
+  const d = await db(), os = d.transaction("pages").objectStore("pages");
+  if (!os.indexNames.contains("jobId")) return (await getAll("pages")).filter(r => r.jobId === jobId);
+  return new Promise((res, rej) => { const g = os.index("jobId").getAll(jobId); g.onsuccess = () => res(g.result); g.onerror = rej; });
+}
 async function loadSaved(jobId) {
   try {
-    const all = (await getAll("pages")).filter(r => r.jobId === jobId);
+    const all = await pagesOf(jobId);
     return all.sort((a, b) => a.order - b.order).map(r => ({ id: r.id, name: r.name || "", zoom: r.zoom || "FULL", blob: r.blob, url: URL.createObjectURL(r.blob), thumb: r.thumb || null, thumbUrl: r.thumb ? URL.createObjectURL(r.thumb) : null,
       pxPerInch: r.pxPerInch || null, ftPerPx: r.ftPerPx || null, scaleLabel: r.scaleLabel || "", runs: r.runs || [], devices: r.devices || [], hl: r.hl || [], rooms: r.rooms || [], fileId: r.fileId || null, words: r.words || null, add: r.add || "", prevAdd: r.prevAdd || "", prevBlob: r.prevBlob || null, cloud: r.cloud || null }))
       .map((p, i, all) => ({ ...p, zoom: all[0].zoom === "FREE" ? "FULL" : all[0].zoom })); // every sheet shares one zoom
@@ -6874,7 +6882,7 @@ async function pullJob(f) {
     const raw = await drv("download_file_content", { fileId: f.fileId });
     const data = JSON.parse(new TextDecoder().decode(b64ToBytes(raw.content || "")));
     if (data.app !== "aj-takeoff") throw { code: "tool_error", message: "That file isn't an AJ Takeoff job" };
-    const have = new Map((await getAll("pages")).filter(r => r.jobId === data.job.id).map(r => [r.id, r]));
+    const have = new Map((await pagesOf(data.job.id)).map(r => [r.id, r]));
     const j = { ...newJobRecord({}), ...(jobs.find(x => x.id === data.job.id) || {}), ...data.job, driveJsonId: f.fileId };
     const rows = [];
     for (let i = 0; i < data.pages.length; i++) {
@@ -6934,7 +6942,7 @@ async function importProject(file, folderAt) {
   $("fileModal").hidden = true; $("jobsModal").hidden = true;
   try {
     if (tool) setTool(null);
-    const old = (await getAll("pages")).filter(r => r.jobId === head.job.id);
+    const old = await pagesOf(head.job.id);
     const was = new Map(old.map(r => [r.id, r]));
     const j = { ...newJobRecord({}), ...(jobs.find(x => x.id === head.job.id) || {}), ...head.job };
     if (folderAt) j.folderAt = folderAt;
@@ -7410,7 +7418,11 @@ function newJobRecord(fields) {
 }
 async function sheetCounts() {
   const c = {};
-  try { (await getAll("pages")).forEach(r => { c[r.jobId] = (c[r.jobId] || 0) + 1; }); } catch (e) {}
+  try { // counts from the job index keys, without reading any sheet
+    const d = await db(), os = d.transaction("pages").objectStore("pages");
+    if (!os.indexNames.contains("jobId")) (await getAll("pages")).forEach(r => { c[r.jobId] = (c[r.jobId] || 0) + 1; });
+    else await new Promise((res, rej) => { const q = os.index("jobId").openKeyCursor(); q.onsuccess = () => { const k = q.result; if (!k) return res(); c[k.key] = (c[k.key] || 0) + 1; k.continue(); }; q.onerror = rej; });
+  } catch (e) {}
   return c;
 }
 let editingJob = null; // the job the form edits, or null for a new job
@@ -7684,7 +7696,7 @@ async function pullTeam(f, { keepOnly } = {}) {
     if (!r.ok) throw new Error("job");
     const data = await r.json();
     if (data.app !== "aj-takeoff" || !data.job) throw new Error("job");
-    const have = new Map((await getAll("pages")).filter(x => x.jobId === data.job.id).map(x => [x.id, x]));
+    const have = new Map((await pagesOf(data.job.id)).map(x => [x.id, x]));
     const j = { ...newJobRecord({}), ...(jobs.find(x => x.id === data.job.id) || {}), ...data.job, teamUrl: f.url };
     delete j.teamForce;
     const get = async (c, old, size) => {
@@ -7705,7 +7717,12 @@ async function pullTeam(f, { keepOnly } = {}) {
       }
     };
     await Promise.all([worker(), worker(), worker(), worker()]);
-    await store(s => { have.forEach((_, id) => s.delete(id)); rows.filter(x => x.blob).forEach(x => s.put(x)); });
+    // only rewrite sheets that changed: rewriting all of a big job at once froze phones (2026-10-30)
+    const same = (x, h) => h && x.blob === h.blob && x.thumb === (h.thumb || null) && x.prevBlob === (h.prevBlob || null) && x.words === (h.words || null) && x.order === h.order
+      && JSON.stringify(meta(x)) === JSON.stringify(meta({ ...h, name: h.name || "" }));
+    const keep = new Set(rows.map(x => x && x.id)), changed = rows.filter(x => x && x.blob && !same(x, have.get(x.id)));
+    await store(s => { have.forEach((_, id) => { if (!keep.has(id)) s.delete(id); }); });
+    for (let i = 0; i < changed.length; i += 10) { const part = changed.slice(i, i + 10); await store(s => part.forEach(x => s.put(x))); await new Promise(r => setTimeout(r)); }
     await putJobLocal(j);
     jobs = jobs.filter(x => x.id !== j.id).concat(j);
     busy(null, null);
@@ -8754,7 +8771,10 @@ async function loadExamples() {
   setRail(lsGet("aj-rail-hidden") !== "1");
   try {
     jobs = await getAll("jobs");
-    const orphans = (await getAll("pages")).filter(r => !r.jobId);
+    // sheets without a job are rare (saved before jobs existed); only read them all when the job index says some are missing
+    const loose = await (async () => { const d = await db(), os = d.transaction("pages").objectStore("pages"); if (!os.indexNames.contains("jobId")) return true;
+      const n = q => new Promise(r => { q.onsuccess = () => r(q.result); q.onerror = () => r(0); }); return (await n(os.count())) !== (await n(os.index("jobId").count())); })().catch(() => false);
+    const orphans = loose ? (await getAll("pages")).filter(r => !r.jobId) : [];
     if (orphans.length) { // sheets saved before jobs existed
       const j = newJobRecord({ name: "My first job" });
       await saveJob(j); jobs.push(j);
