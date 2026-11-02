@@ -475,6 +475,12 @@ html.look-new body { font-family: var(--font-ui); }
 .mk-pin.field .mk-pin-dot { fill: #7048e8; }
 .mk-pin-lbl { font-weight: 700; paint-order: stroke; stroke: #fff; stroke-linejoin: round; fill: #b01e1e; }
 .mk-pin.field .mk-pin-lbl { fill: #4b2bc4; }
+.mk-pin { cursor: pointer; }
+.mk-pin.done .mk-pin-dot { fill: #2f9e44; }
+.mk-pin.done .mk-pin-lbl { fill: #1b6e2f; }
+.pin-picks { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.pin-picks .btn[aria-pressed="true"] { background: #ffe3e3; border-color: #e03131; }
+.btn.pin-done { width: 100%; justify-content: center; background: #2f9e44; border-color: #2f9e44; color: #fff; font-weight: 700; padding: 12px; margin-bottom: 10px; }
 .btn.tool.pin-tool[aria-pressed="true"] { background: #ffe3e3; border-color: #e03131; color: #5a0000; }
 .cnt-n .gq { color: #7048e8; font-weight: 600; }
 #tsTable tr.ord-add td:first-child { box-shadow: inset 3px 0 0 #7048e8; }
@@ -846,7 +852,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v147<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v148<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
@@ -1563,6 +1569,23 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
   </form>
 </div>
 
+<div class="modal" id="pinModal" hidden role="dialog" aria-modal="true" aria-labelledby="pinTitle">
+  <form class="modal-card" id="pinForm" autocomplete="off">
+    <h2 id="pinTitle">Location pin</h2>
+    <p class="hint" id="pinWho"></p>
+    <button class="btn pin-done" type="button" id="pinDoneBtn" hidden>✓ Marked in the field (turn it green)</button>
+    <div id="pinEdit">
+      <div class="pin-picks" id="pinPicks"></div>
+      <div class="opt"><label for="pinText">Not on the list? Type it</label><input id="pinText" maxlength="80" placeholder="e.g. 18&quot; off the wall, top of slab"></div>
+    </div>
+    <div class="actions">
+      <button class="btn danger" type="button" id="pinDel" hidden>Remove pin</button>
+      <span class="spacer"></span>
+      <button class="btn" type="button" id="pinCancel">Close</button>
+      <button class="btn primary" type="submit" id="pinSave">Save</button>
+    </div>
+  </form>
+</div>
 <div class="modal" id="hlModal" hidden role="dialog" aria-modal="true" aria-labelledby="hlTitle">
   <form class="modal-card" id="hlForm" autocomplete="off">
     <h2 id="hlTitle">Note</h2>
@@ -5604,7 +5627,7 @@ function updateHint() {
     t.innerHTML = `Placing <b></b>. Click the sheet to drop one. <b>${countOn(p, d.id)}</b> on this sheet. Right-click one to delete it.`;
     t.querySelector("b").textContent = nameOf(d);
   } else if (tool === "erase") t.textContent = "Click a symbol, a pin, or inside a yellow or red note box, to remove it.";
-  else if (tool === "pin") t.textContent = "Click the spot on the drawing, then type its label. Click a pin to change its label or remove it.";
+  else if (tool === "pin") t.textContent = "Click the spot on the drawing, then pick what it is. Click any pin to change it or mark it done in the field.";
   else if (tool === "calibrate") t.textContent = draft.length ? "Now click the other end of the known dimension." : "Click one end of a dimension you know.";
   else if (tool === "measure") {
     const m = lastMeasure && lastMeasure.pageId === p.id && !draft.length ? lastMeasure.pts : live;
@@ -5720,6 +5743,12 @@ function imgPoint(e) {
 }
 $("overlay").addEventListener("pointermove", e => { if (!tool) return; hover = imgPoint(e); hoverDev = tool === "erase" ? symbolAt(e) : null; drawOverlay(); updateHint(); });
 $("overlay").addEventListener("pointerleave", () => { hover = null; hoverDev = null; drawOverlay(); });
+// one click on a pin (no tool picked) opens it: change it, or the foreman turns it green
+$("sheet").addEventListener("click", e => {
+  if (tool || longPressed || hlMode || cmp || alignPts || !pages[current]) return;
+  const hit = pinFind(pages[current], imgPoint(e));
+  if (hit) { e.stopImmediatePropagation(); openPin(pages[current], hit.m, hit.ghost, null); }
+}, true);
 $("overlay").addEventListener("click", e => {
   if (!tool || longPressed) { longPressed = false; return; }
   const q = imgPoint(e), p = pages[current];
@@ -7509,8 +7538,8 @@ async function sheetCanvas(pg, only) { // only: draw just the runs it passes, no
     x.beginPath(); r.pts.forEach((q, i) => i ? x.lineTo(q[0], q[1]) : x.moveTo(q[0], q[1])); x.stroke();
   });
   (only ? [] : pg.pins || []).forEach(m => {
-    x.beginPath(); x.arc(m.x, m.y, 6 * u, 0, Math.PI * 2); x.fillStyle = "#e03131"; x.fill(); x.lineWidth = 1.5 * u; x.strokeStyle = "#fff"; x.stroke();
-    x.font = `700 ${11 * u}px sans-serif`; x.lineWidth = 3.5 * u; x.strokeText(m.label, m.x + 9 * u, m.y + 4 * u); x.fillStyle = "#b01e1e"; x.fillText(m.label, m.x + 9 * u, m.y + 4 * u);
+    const dn = pinDoneOf(m).d; x.beginPath(); x.arc(m.x, m.y, 6 * u, 0, Math.PI * 2); x.fillStyle = dn ? "#2f9e44" : "#e03131"; x.fill(); x.lineWidth = 1.5 * u; x.strokeStyle = "#fff"; x.stroke();
+    x.font = `700 ${11 * u}px sans-serif`; x.lineWidth = 3.5 * u; x.strokeText(m.label, m.x + 9 * u, m.y + 4 * u); x.fillStyle = dn ? "#1b6e2f" : "#b01e1e"; x.fillText(m.label, m.x + 9 * u, m.y + 4 * u);
   });
   (only ? [] : pg.devices).forEach(v => {
     const d = devInfo(v.t); if (!d) return;
@@ -9086,7 +9115,8 @@ async function fieldPush() {
     const out = { app: "aj-takeoff", kind: "field-layer", v: 1, savedAt: new Date().toISOString(), by: teamWho, gone: [...gone].slice(-2000), pages: {},
       markups: fieldLayer.markups || theirs && theirs.markups || null,
       order: { ...(theirs && theirs.order || {}), ...fieldLayer.order, qty: { ...(theirs && theirs.order && theirs.order.qty || {}), ...fieldLayer.order.qty } },
-      scales: { ...(theirs && theirs.scales || {}), ...(fieldLayer.scales || {}) } };
+      scales: { ...(theirs && theirs.scales || {}), ...(fieldLayer.scales || {}) }, pinDone: { ...(theirs && theirs.pinDone || {}) } };
+    Object.entries(fieldLayer.pinDone || {}).forEach(([id, r]) => { const o = out.pinDone[id]; if (!o || r.at > o.at) out.pinDone[id] = r; });
     pages.forEach(p => {
       const mine = ghostOf(p), th = theirs && theirs.pages && theirs.pages[p.id] || { devices: [], runs: [], pins: [] };
       const merge = (a, b) => [...new Map([...byId(b), ...byId(a)]).values()].filter(x => !gone.has(x.id));
@@ -9094,7 +9124,7 @@ async function fieldPush() {
       if (p.ghost.devices.length || p.ghost.runs.length || p.ghost.pins.length) out.pages[p.id] = p.ghost;
     });
     if (theirs && theirs.pages) Object.keys(theirs.pages).forEach(id => { if (!out.pages[id] && !pages.some(p => p.id === id)) out.pages[id] = theirs.pages[id]; });
-    fieldLayer.order = out.order; fieldLayer.gone = out.gone; fieldLayer.scales = out.scales;
+    fieldLayer.order = out.order; fieldLayer.gone = out.gone; fieldLayer.scales = out.scales; fieldLayer.pinDone = out.pinDone;
     const details = b64url({ by: teamWho.slice(0, 30), u: out.savedAt });
     const url = await (window.AJ_TEAM_PUT ? window.AJ_TEAM_PUT(`team/field/${segId(j.id)}/m${details}.json`, new Blob([JSON.stringify(out)], { type: "application/json" }), "application/json")
       : (async () => { blobClient = blobClient || await import("./blob-client.js");
@@ -9130,34 +9160,83 @@ function ghostErase(p, q) {
 }
 /* Location pins (Jonathan 2026-11-02): a dot with a label dropped on the drawing so the guys can find a spot in the field.
    Office pins are part of the job (p.pins); a field login's pins go in the field layer (p.ghost.pins). Not counted, not priced. */
-const pinAt = (list, q) => (list || []).slice().reverse().find(m => dist([m.x, m.y], q) < 16 / k);
+const pinHit = (m, q) => { const w = (11 + 8 * (m.label || "").length) / k, h = 11 / k; return dist([m.x, m.y], q) < 16 / k || (q[0] > m.x && q[0] < m.x + w && Math.abs(q[1] - m.y) < h); };
+const pinAt = (list, q) => (list || []).slice().reverse().find(m => pinHit(m, q));
+// done = turned green by the foreman once it's marked out; the newest of the pin's own flag and the field layer's wins
+const pinDoneOf = m => { const f = (fieldLayer.pinDone || {})[m.id], a = m.doneAt || 0; return f && f.at > a ? f : { d: !!m.done, by: m.doneBy || "", at: a }; };
+const PIN_PICKS = ["Inside corner", "Outside corner", "Center line", "Stub up", "Floor box", "Sleeve / core drill", "J-box", "Panel / gear", "Pull box", "Start of run", "End of run", "Wall penetration", "Light pole base", "Ground rod"];
+let pinEd = null; // { p, m, ghost, q }
+function pinRecent() { try { return JSON.parse(lsGet("aj-pin-recent") || "[]"); } catch (e) { return []; } }
+// find the pin under a click: this login's own pins first, then the others it can see
+function pinFind(p, q) {
+  const own = fieldMode ? ghostOf(p).pins : p.pins || [], other = fieldMode ? p.pins || [] : (showGhost && p.ghost ? p.ghost.pins || [] : []);
+  let m = pinAt(own, q); if (m) return { m, ghost: fieldMode };
+  m = pinAt(other, q); return m ? { m, ghost: !fieldMode } : null;
+}
 function pinClick(p, q) {
-  const field = fieldMode, list = field ? ghostOf(p).pins : (p.pins || (p.pins = []));
-  const hit = pinAt(list, q);
-  const t = prompt(hit ? "Change this pin's label. Clear it to remove the pin." : "Label for this spot (like “Stub up here” or “J-box above ceiling”):", hit ? hit.label : "");
-  if (t === null) return;
-  const v = t.trim().slice(0, 80);
-  if (field) {
-    if (hit && !v) { ghostOf(p).pins = list.filter(x => x !== hit); fieldLayer.gone = [...(fieldLayer.gone || []), hit.id]; }
-    else if (hit) { hit.label = v; hit.at = Date.now(); }
-    else if (v) list.push({ id: uid(), x: Math.round(q[0]), y: Math.round(q[1]), label: v, by: teamWho || "", at: Date.now() });
-    else return;
+  const hit = pinFind(p, q);
+  openPin(p, hit ? hit.m : null, hit ? hit.ghost : fieldMode, q);
+}
+function openPin(p, m, ghost, q) {
+  const mine = ghostOrMine(ghost); // can change the label and remove it
+  pinEd = { p, m, ghost, q };
+  $("pinTitle").textContent = m ? (mine ? "Change this pin" : m.label) : "Drop a location pin";
+  const dn = m && pinDoneOf(m);
+  $("pinWho").textContent = m ? [`${ghost ? "Field pin" : "Office pin"}${m.by ? " by " + m.by : ""}`, dn.d ? `Marked in the field${dn.by ? " by " + dn.by : ""}${dn.at ? " " + new Date(dn.at).toLocaleDateString() : ""}` : ""].filter(Boolean).join(" · ") : "Pick what it is, or type your own.";
+  $("pinEdit").hidden = !mine;
+  const box = $("pinPicks"); box.replaceChildren();
+  const rec = pinRecent().filter(x => !PIN_PICKS.includes(x));
+  [...PIN_PICKS, ...rec].forEach(t => { const b = document.createElement("button"); b.type = "button"; b.className = "btn sm"; b.textContent = t; b.setAttribute("aria-pressed", !!m && m.label === t); b.onclick = () => pinSave(t); box.appendChild(b); });
+  $("pinText").value = m && !PIN_PICKS.includes(m.label) ? m.label : "";
+  $("pinDel").hidden = !(m && mine);
+  $("pinSave").hidden = !mine;
+  const db = $("pinDoneBtn"); db.hidden = !m || !can("pins"); // only positions given "Turn location pins green" in Admin
+  if (m) { db.textContent = dn.d ? "Not marked yet (turn it back to red)" : "✓ Marked in the field (turn it green)"; db.className = "btn " + (dn.d ? "" : "pin-done"); }
+  $("pinModal").hidden = false;
+  if (mine && !m) setTimeout(() => $("pinText").focus(), 50);
+}
+function ghostOrMine(ghost) { return fieldMode ? ghost && can("marks") : !ghost && can("edit"); }
+function pinSave(label) {
+  const v = String(label || "").trim().slice(0, 80);
+  if (!v || !pinEd) return;
+  const { p, m, ghost, q } = pinEd;
+  if (!PIN_PICKS.includes(v)) lsSet("aj-pin-recent", JSON.stringify([v, ...pinRecent().filter(x => x !== v)].slice(0, 6)));
+  $("pinModal").hidden = true; pinEd = null;
+  if (fieldMode) {
+    if (m) { m.label = v; m.at = Date.now(); } else ghostOf(p).pins.push({ id: uid(), x: Math.round(q[0]), y: Math.round(q[1]), label: v, by: teamWho || "", at: Date.now() });
     fieldTouch(); drawOverlay(); return;
   }
-  if (!hit && !v) return;
   remember();
-  if (hit && !v) p.pins = list.filter(x => x !== hit);
-  else if (hit) { hit.label = v; hit.at = Date.now(); }
-  else list.push({ id: uid(), x: Math.round(q[0]), y: Math.round(q[1]), label: v, by: teamWho || "", at: Date.now() });
+  if (m) { m.label = v; m.at = Date.now(); } else (p.pins || (p.pins = [])).push({ id: uid(), x: Math.round(q[0]), y: Math.round(q[1]), label: v, by: teamWho || "", at: Date.now() });
   saveMeta(p); drawOverlay();
 }
+function pinRemove() {
+  if (!pinEd || !pinEd.m) return;
+  const { p, m } = pinEd; $("pinModal").hidden = true; pinEd = null;
+  if (fieldMode) { ghostOf(p).pins = ghostOf(p).pins.filter(x => x !== m); fieldLayer.gone = [...(fieldLayer.gone || []), m.id]; fieldTouch(); }
+  else { remember(); p.pins = (p.pins || []).filter(x => x !== m); saveMeta(p); toast(`Pin “${m.label}” removed. Undo brings it back.`); }
+  drawOverlay();
+}
+function pinToggleDone() {
+  if (!pinEd || !pinEd.m || !can("pins")) return;
+  const { p, m, ghost } = pinEd, rec = { d: !pinDoneOf(m).d, by: teamWho || "", at: Date.now() };
+  $("pinModal").hidden = true; pinEd = null;
+  if (ghostOrMine(ghost)) { m.done = rec.d; m.doneBy = rec.by; m.doneAt = rec.at; if (fieldMode) fieldTouch(); else saveMeta(p); }
+  if (teamOn && job) { fieldLayer.pinDone = { ...(fieldLayer.pinDone || {}), [m.id]: rec }; fieldTouch(); }
+  drawOverlay();
+  toast(rec.d ? `“${m.label}” is marked in the field.` : `“${m.label}” is back to not marked.`);
+}
+$("pinForm").onsubmit = e => { e.preventDefault(); pinSave($("pinText").value); };
+$("pinCancel").onclick = () => { $("pinModal").hidden = true; pinEd = null; };
+$("pinDel").onclick = pinRemove;
+$("pinDoneBtn").onclick = pinToggleDone;
 function drawPins(g0, p) {
   const one = (m, field) => {
-    const gp = svgEl("g", { class: "mk-pin" + (field ? " field" : "") });
+    const dn = pinDoneOf(m).d, gp = svgEl("g", { class: "mk-pin" + (field ? " field" : "") + (dn ? " done" : "") });
     gp.appendChild(svgEl("circle", { cx: m.x, cy: m.y, r: 7 / k, class: "mk-pin-dot", "stroke-width": 2 / k }));
     gp.appendChild(svgEl("circle", { cx: m.x, cy: m.y, r: 2 / k, class: "mk-pin-c" }));
-    gp.appendChild(svgEl("text", { x: m.x + 11 / k, y: m.y + 5 / k, class: "mk-pin-lbl", "font-size": 14 / k, "stroke-width": 4 / k }, m.label));
-    gp.appendChild(svgEl("title", {}, `📍 ${m.label}${m.by ? " · by " + m.by : ""}${field ? " (field)" : ""}`));
+    gp.appendChild(svgEl("text", { x: m.x + 11 / k, y: m.y + 5 / k, class: "mk-pin-lbl", "font-size": 14 / k, "stroke-width": 4 / k }, (dn ? "✓ " : "") + m.label));
+    gp.appendChild(svgEl("title", {}, `📍 ${m.label}${m.by ? " · by " + m.by : ""}${field ? " (field)" : ""}${dn ? " · marked in the field" : ""}. Click to open it.`));
     g0.appendChild(gp);
   };
   (p.pins || []).forEach(m => one(m, false));
