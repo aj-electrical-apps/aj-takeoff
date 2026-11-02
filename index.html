@@ -857,7 +857,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v149<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v150<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
@@ -1577,6 +1577,15 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
   </form>
 </div>
 
+<div class="modal" id="sharpModal" hidden role="dialog" aria-modal="true" aria-labelledby="sharpTitle">
+  <div class="modal-card">
+    <h2 id="sharpTitle">Make zoom sharp</h2>
+    <p class="hint">This job's sheets were added before the app kept the plan PDF. Add it once and every phone, tablet and computer zooms sharp.</p>
+    <button class="btn primary" type="button" id="sharpDrive" style="width:100%;justify-content:center;padding:12px;margin-bottom:8px">🔎 Find it in Google Drive<small style="display:block;font-weight:400">The app looks for this job's plans by the sheet numbers</small></button>
+    <button class="btn" type="button" id="sharpPick" style="width:100%;justify-content:center;padding:12px">Pick the PDF file</button>
+    <div class="actions"><span class="spacer"></span><button class="btn" type="button" id="sharpCancel">Cancel</button></div>
+  </div>
+</div>
 <div class="modal" id="pfModal" hidden role="dialog" aria-modal="true" aria-labelledby="pfTitle">
   <div class="modal-card trk-card">
     <h2 id="pfTitle">Find pins</h2>
@@ -2259,7 +2268,70 @@ function sharpBtnShow() {
   const p = pages[current], b = $("sharpBtn"); if (!b) return;
   try { b.hidden = !p || p.example || hasVec(p) || !!cmp || !can("edit") || blurAt(p, viewOf(p)) < 1.15; } catch (e) { b.hidden = true; }
 }
-$("sharpBtn").onclick = () => $("sharpFile").click();
+$("sharpBtn").onclick = () => { if (!GDRIVE_ID) return $("sharpFile").click(); $("sharpModal").hidden = false; };
+/* Find the plan PDF in Google Drive (Jonathan 2026-11-02: "really annoying to have to go to the drive").
+   One Google sign-in, then the app searches Drive (shared drives too) for PDFs with this job's sheet numbers in them,
+   downloads the best ones and matches them to the sheets the same way as picking the file. Read only. */
+const GDRIVE_ID = window.AJ_GDRIVE_ID || "";
+let gisLoad = null, gTok = null;
+const loadGis = () => gisLoad || (gisLoad = new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = "https://accounts.google.com/gsi/client"; sc.onload = () => res(window.google); sc.onerror = () => { gisLoad = null; rej(new Error("gis")); }; document.head.appendChild(sc); }));
+function driveToken() {
+  if (gTok && gTok.exp > Date.now() + 60000) return Promise.resolve(gTok.t);
+  return loadGis().then(g => new Promise((res, rej) => {
+    const c = g.accounts.oauth2.initTokenClient({ client_id: GDRIVE_ID, scope: "https://www.googleapis.com/auth/drive.readonly",
+      callback: r => r && r.access_token ? (gTok = { t: r.access_token, exp: Date.now() + (r.expires_in || 3600) * 1000 }, res(r.access_token)) : rej(new Error(r && r.error || "no token")),
+      error_callback: e => rej(new Error(e && e.type || "closed")) });
+    c.requestAccessToken({ prompt: "" });
+  }));
+}
+// sheet numbers worth searching for: names with a digit, longest first (A14.0 beats E1)
+function driveTerms() {
+  const left = pages.filter(p => !p.example && !hasVec(p) && p.blob);
+  const names = [...new Set(left.map(p => String(p.name || "").trim().split(/\s+/)[0]).filter(t => /\d/.test(t) && t.length >= 3 && t.length <= 12))];
+  return names.sort((a, b) => b.length - a.length).slice(0, 6);
+}
+async function driveFind() {
+  $("sharpModal").hidden = true;
+  let tok;
+  try { busy("Signing in to Google Drive…", 0.05); tok = await driveToken(); }
+  catch (e) { busy(null, null); return toast("Google Drive didn't sign in. Try again, or use Pick the PDF file."); }
+  const terms = driveTerms(), hits = new Map(), q = t => t.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  if (!terms.length) { busy(null, null); return toast("Name the sheets first (like A14.0), so the app knows what to look for. Auto-name sheets does it in one go."); }
+  try {
+    for (let i = 0; i < terms.length; i++) {
+      busy("Looking in Google Drive for the plans…", 0.1 + 0.4 * i / terms.length, `Searching for ${terms[i]}`);
+      const u = "https://www.googleapis.com/drive/v3/files?" + new URLSearchParams({ q: `mimeType='application/pdf' and trashed=false and fullText contains '${q(terms[i])}'`,
+        corpora: "allDrives", includeItemsFromAllDrives: "true", supportsAllDrives: "true", pageSize: "20", fields: "files(id,name,size,modifiedTime)" });
+      const r = await fetch(u, { headers: { Authorization: "Bearer " + tok } });
+      if (r.status === 401) { gTok = null; throw new Error("auth"); }
+      if (!r.ok) throw new Error("search " + r.status);
+      ((await r.json()).files || []).forEach(f => { const o = hits.get(f.id) || { ...f, n: 0 }; o.n++; hits.set(f.id, o); });
+    }
+    // the job's name in the title block counts a lot: sheet numbers like A1.0 are on every job's plans
+    const jn = String(job && job.name || "").replace(/\(.*?\)/g, " ").replace(/[^A-Za-z0-9 ]/g, " ").trim().split(/\s+/).filter(w => w.length > 2).slice(0, 3).join(" ");
+    if (jn) { try {
+      const r = await fetch("https://www.googleapis.com/drive/v3/files?" + new URLSearchParams({ q: `mimeType='application/pdf' and trashed=false and (fullText contains '"${q(jn)}"' or name contains '${q(jn.split(" ")[0])}')`,
+        corpora: "allDrives", includeItemsFromAllDrives: "true", supportsAllDrives: "true", pageSize: "50", fields: "files(id,name,size,modifiedTime)" }), { headers: { Authorization: "Bearer " + tok } });
+      if (r.ok) ((await r.json()).files || []).forEach(f => { const o = hits.get(f.id); if (o) o.n += 3; });
+    } catch (e) {} }
+    const need = Math.min(2, terms.length), best = [...hits.values()].filter(f => f.n >= need && +f.size < 400e6)
+      .sort((a, b) => b.n - a.n || String(b.modifiedTime).localeCompare(String(a.modifiedTime))).slice(0, 3);
+    if (!best.length) { busy(null, null); return toast("Couldn't find this job's plan PDF in Google Drive. Use Pick the PDF file instead."); }
+    const files = [];
+    for (let i = 0; i < best.length; i++) {
+      const f = best[i]; busy("Downloading the plans from Google Drive…", 0.5 + 0.5 * i / best.length, f.name);
+      const r = await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&supportsAllDrives=true`, { headers: { Authorization: "Bearer " + tok } });
+      if (r.ok) files.push(new File([await r.blob()], f.name, { type: "application/pdf" }));
+    }
+    busy(null, null);
+    if (!files.length) return toast("The plans were found but didn't download. Check the internet and try again.");
+    toast(`Found ${files.map(f => f.name).join(", ")} in Google Drive. Matching it to the sheets…`);
+    await sharpAttach(files);
+  } catch (e) { busy(null, null); toast(e.message === "auth" ? "Google Drive signed out. Tap Find it in Google Drive again." : "Google Drive search didn't work. Check the internet, or use Pick the PDF file."); }
+}
+$("sharpDrive").onclick = driveFind;
+$("sharpPick").onclick = () => { $("sharpModal").hidden = true; $("sharpFile").click(); };
+$("sharpCancel").onclick = () => { $("sharpModal").hidden = true; };
 $("sharpFile").onchange = e => { const f = [...e.target.files]; e.target.value = ""; if (f.length) sharpAttach(f); };
 const wordBag = list => { const m = new Map(); (list || []).forEach(w => { const t = String(w[0] || "").trim().toLowerCase(); if (t.length > 1) m.set(t, (m.get(t) || 0) + 1); }); return m; };
 function bagLike(a, b) {
