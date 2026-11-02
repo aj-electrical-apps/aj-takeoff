@@ -476,6 +476,11 @@ html.look-new body { font-family: var(--font-ui); }
 .mk-pin-lbl { font-weight: 700; paint-order: stroke; stroke: #fff; stroke-linejoin: round; fill: #b01e1e; }
 .mk-pin.field .mk-pin-lbl { fill: #4b2bc4; }
 .mk-pin { cursor: pointer; }
+.pin-split { grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.pin-find b { margin-left: 4px; background: #e03131; color: #fff; border-radius: 9px; padding: 0 6px; font-size: 11px; }
+.fw-list .pf-n { float: right; font-weight: 700; } .fw-list .pf-n.left { color: #c92a2a; } .fw-list .pf-n.ok { color: #2b8a3e; }
+.fw-list .pf-pin.done { color: #2b8a3e; } .fw-list .pf-pin:not(.done)::before { content: "● "; color: #e03131; } .fw-list .pf-pin.done::before { content: "✓ "; }
+.mk-pin.focus .mk-pin-dot { stroke: #ffd43b; }
 .mk-pin.done .mk-pin-dot { fill: #2f9e44; }
 .mk-pin.done .mk-pin-lbl { fill: #1b6e2f; }
 .pin-picks { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
@@ -852,7 +857,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v148<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v149<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
@@ -1013,7 +1018,10 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
             Linear run</button>
           <button class="btn tool" id="scaleBtn" type="button" title="Set the drawing scale for this sheet">Set scale</button>
           <button class="btn tool erase" id="eraseBtn" type="button" aria-pressed="false" title="Click a symbol, or inside a yellow or red note box, to remove it (E)">Erase</button>
-          <button class="btn tool pin-tool" id="pinBtn" type="button" aria-pressed="false" title="Location pin: click a spot on the drawing and type a label (like “Stub up here”), so the guys can find it. Click a pin again to change or remove its label (P)">📍 Location pin</button>
+          <div class="pin-split">
+            <button class="btn tool pin-tool" id="pinBtn" type="button" aria-pressed="false" title="Location pin: click a spot on the drawing and type a label (like “Stub up here”), so the guys can find it. Click a pin again to change or remove its label (P)">📍 Drop pin</button>
+            <button class="btn tool pin-find" id="pinFindBtn" type="button" title="Find pins: every sheet with pins on it, and how many aren't marked in the field yet. Click one to go to it.">Find pins</button>
+          </div>
           <button class="btn tool hl-send" id="sendBtn" type="button" aria-pressed="false" hidden title="Drag a box around part of the drawing and send it to the people you pick. They can answer back.">Highlight &amp; send</button>
           <button class="btn tool hl-send" id="askPhotoBtn" type="button" hidden title="Take a picture, draw on it to show what you mean, and send your question to the people you pick">📷 Ask with a photo</button>
           <p class="tool-sub">Mark up</p>
@@ -1569,6 +1577,15 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
   </form>
 </div>
 
+<div class="modal" id="pfModal" hidden role="dialog" aria-modal="true" aria-labelledby="pfTitle">
+  <div class="modal-card trk-card">
+    <h2 id="pfTitle">Find pins</h2>
+    <p class="hint" id="pfSum" aria-live="polite"></p>
+    <label style="display:flex;gap:8px;align-items:center;font-weight:600"><input type="checkbox" id="pfOpen"> Only pins not marked yet</label>
+    <div class="trk-wrap"><ul class="fw-list" id="pfList"></ul></div>
+    <div class="actions"><button class="btn" type="button" id="pfClose">Close</button></div>
+  </div>
+</div>
 <div class="modal" id="pinModal" hidden role="dialog" aria-modal="true" aria-labelledby="pinTitle">
   <form class="modal-card" id="pinForm" autocomplete="off">
     <h2 id="pinTitle">Location pin</h2>
@@ -7002,7 +7019,7 @@ $("labelForm").addEventListener("submit", e => {
 const QS_TABS = [["order", "Order", "supplier order approve field"], ["hours", "Man hours", "labor hours category super"], ["count", "Count sheet", "quantities count"], ["sup", "Supplier sheet", "material list order quote vendor"], ["bid", "Bid sheet", "labor hours price money estimate"],
   ["prop", "Proposal", "quote send customer price"], ["rate", "Labor rates", "hours table"], ["asm", "Parts lists", "assemblies boxes rings"], ["ug", "Underground sub", "trench ditch"], ["notes", "Notes list", "highlights"]];
 const QS_BTNS = [["uploadBtn", "pdf plans add sheets"], ["fileBtn", "save open file email drive"], ["newJobBtn", "start"], ["jobBtn", "jobs open switch"], ["notesBtn", "highlights"], ["coBtn", "co extra"], ["trkBtn", "tracker won lost"],
-  ["cmpBtn", "compare"], ["rsBtn", "second screen monitor"], ["tabPin", "pin tab"], ["measureBtn", "distance ruler"], ["runBtn", "conduit wire footage draw"], ["scaleBtn", "scale"], ["eraseBtn", "delete remove"], ["pinBtn", "pin point dot location label spot"],
+  ["cmpBtn", "compare"], ["rsBtn", "second screen monitor"], ["tabPin", "pin tab"], ["measureBtn", "distance ruler"], ["runBtn", "conduit wire footage draw"], ["scaleBtn", "scale"], ["eraseBtn", "delete remove"], ["pinBtn", "pin point dot location label spot"], ["pinFindBtn", "find pins marked field list"],
   ["hlYBtn", "highlight"], ["hlRBtn", "highlight supplier"], ["roomBtn", "typical repeat"], ["replBtn", "addendum revision revised"], ["lblBtn", "name sheets title block"], ["symBtn", "auto count symbols"],
   ["pnlBtn", "breakers panel schedule"], ["schedBtn", "fixture schedule lights"], ["impBtn", "import excel csv other app"], ["addCountBtn", "new count fixture type"], ["addWireBtn", "new conduit wire type"]];
 const QS_ICO = { count: '<svg viewBox="-10 -10 20 20"><circle r="6" fill="currentColor"/></svg>', new: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3v10M3 8h10"/></svg>',
@@ -9230,9 +9247,54 @@ $("pinForm").onsubmit = e => { e.preventDefault(); pinSave($("pinText").value); 
 $("pinCancel").onclick = () => { $("pinModal").hidden = true; pinEd = null; };
 $("pinDel").onclick = pinRemove;
 $("pinDoneBtn").onclick = pinToggleDone;
+/* Find pins (Jonathan 2026-11-02): every sheet with pins, how many aren't marked in the field yet, click to go to one */
+let pinFocus = null;
+function pinsOf(pg) { return [...(pg.pins || []).map(m => ({ m, ghost: false })), ...((fieldMode || showGhost) && pg.ghost ? pg.ghost.pins || [] : []).map(m => ({ m, ghost: true }))]; }
+function pinCount() {
+  let all = 0, left = 0;
+  pages.forEach(pg => pinsOf(pg).forEach(x => { all++; if (!pinDoneOf(x.m).d) left++; }));
+  const b = $("pinFindBtn"); b.innerHTML = "Find pins"; if (left) { const n = document.createElement("b"); n.textContent = left; b.appendChild(n); }
+  b.title = all ? `${all} pin${all === 1 ? "" : "s"}, ${left} not marked in the field yet. Click to see which sheets.` : "No pins yet. Use Drop pin to add one.";
+  return { all, left };
+}
+function drawPinFind() {
+  const only = $("pfOpen").checked, ul = $("pfList"), { all, left } = pinCount();
+  $("pfSum").textContent = all ? `${all} pin${all === 1 ? "" : "s"} on ${pages.filter(pg => pinsOf(pg).length).length} sheet(s). ${left ? left + " not marked in the field yet." : "All marked in the field. ✓"}` : "No pins yet. Click Drop pin, then the spot on a drawing.";
+  ul.replaceChildren();
+  pages.forEach((pg, i) => {
+    const list = pinsOf(pg).filter(x => !only || !pinDoneOf(x.m).d); if (!list.length) return;
+    const n = list.filter(x => !pinDoneOf(x.m).d).length, li = document.createElement("li"), b = document.createElement("button");
+    b.type = "button"; b.innerHTML = `<b></b> <span class="pf-n ${n ? "left" : "ok"}"></span>`;
+    b.querySelector("b").textContent = `Sheet ${i + 1}${pg.name ? " · " + pg.name : ""}`;
+    b.querySelector(".pf-n").textContent = n ? `${n} not marked` : "all marked ✓";
+    b.onclick = () => { $("pfModal").hidden = true; go(i); };
+    li.appendChild(b); ul.appendChild(li);
+    list.forEach(x => { const l2 = document.createElement("li"), c = document.createElement("button"), dn = pinDoneOf(x.m);
+      c.type = "button"; c.className = "pf-pin" + (dn.d ? " done" : ""); c.style.paddingLeft = "18px";
+      c.textContent = x.m.label + (x.ghost ? " (field)" : "") + (dn.d && dn.by ? ` · marked by ${dn.by}` : "");
+      c.onclick = () => { $("pfModal").hidden = true; pinGo(i, x.m); };
+      l2.appendChild(c); ul.appendChild(l2); });
+  });
+}
+function pinGo(i, m) {
+  if (i !== current) go(i);
+  pinFocus = m.id;
+  const img = $("sheetImg"), zoomIn = () => {
+    if (!fit || !img.naturalWidth) return;
+    const sc = fit.dw / img.naturalWidth, z = Math.min(ZMAX, 3);
+    setView({ z, tx: fit.W / 2 - fit.left - m.x * sc * z, ty: fit.H / 2 - fit.top - m.y * sc * z });
+    drawOverlay();
+  };
+  if (img.complete && img.getAttribute("src") === pages[current].url) zoomIn(); else img.addEventListener("load", () => setTimeout(zoomIn), { once: true });
+  drawOverlay(); setTimeout(() => { if (pinFocus === m.id) { pinFocus = null; drawOverlay(); } }, 4000);
+}
+$("pinFindBtn").onclick = () => { if (tool === "pin") setTool(null); drawPinFind(); $("pfModal").hidden = false; };
+$("pfOpen").onchange = drawPinFind;
+$("pfClose").onclick = () => { $("pfModal").hidden = true; };
 function drawPins(g0, p) {
   const one = (m, field) => {
-    const dn = pinDoneOf(m).d, gp = svgEl("g", { class: "mk-pin" + (field ? " field" : "") + (dn ? " done" : "") });
+    const dn = pinDoneOf(m).d, gp = svgEl("g", { class: "mk-pin" + (field ? " field" : "") + (dn ? " done" : "") + (m.id === pinFocus ? " focus" : "") });
+    if (m.id === pinFocus) gp.appendChild(svgEl("circle", { cx: m.x, cy: m.y, r: 18 / k, class: "mk-find" }));
     gp.appendChild(svgEl("circle", { cx: m.x, cy: m.y, r: 7 / k, class: "mk-pin-dot", "stroke-width": 2 / k }));
     gp.appendChild(svgEl("circle", { cx: m.x, cy: m.y, r: 2 / k, class: "mk-pin-c" }));
     gp.appendChild(svgEl("text", { x: m.x + 11 / k, y: m.y + 5 / k, class: "mk-pin-lbl", "font-size": 14 / k, "stroke-width": 4 / k }, (dn ? "✓ " : "") + m.label));
@@ -9241,6 +9303,7 @@ function drawPins(g0, p) {
   };
   (p.pins || []).forEach(m => one(m, false));
   if ((fieldMode || showGhost) && p.ghost) (p.ghost.pins || []).forEach(m => one(m, true));
+  clearTimeout(drawPins.t); drawPins.t = setTimeout(pinCount, 300); // the red number on Find pins
 }
 function drawGhost(g0, p, ns, ptsAttr) {
   if (!(fieldMode || showGhost) || !p.ghost) return;
