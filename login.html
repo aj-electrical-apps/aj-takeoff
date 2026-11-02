@@ -41,7 +41,8 @@ summary { cursor: pointer; color: var(--fg); font-weight: 600; }
     <h1 id="title">Sign in</h1>
     <p id="intro">Use the name and password the office gave you.</p>
     <label>Your name<input id="name" name="username" autocomplete="username" required maxlength="30" autocapitalize="words"></label>
-    <label>Password<input id="pw" name="password" type="password" autocomplete="current-password" required></label>
+    <label>Password<input id="pw" name="password" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" required></label>
+    <label style="display:flex;flex-direction:row;align-items:center;gap:8px;font-weight:400"><input id="showPw" type="checkbox" style="width:18px;height:18px"> Show the password</label>
     <label id="pw2Box" hidden>Type the password again<input id="pw2" type="password" autocomplete="new-password"></label>
     <label id="appBox" hidden>The app's current password (APP_PASSWORD)<input id="app" type="password" autocomplete="off"></label>
     <p class="err" id="err" role="alert" hidden></p>
@@ -67,6 +68,7 @@ fetch("/api/login", { cache: "no-store" }).then(r => r.json()).then(s => {
     $("go").textContent = "Set up and sign in";
   }
 }).catch(() => {});
+$("showPw").onchange = () => { $("pw").type = $("pw2").type = $("showPw").checked ? "text" : "password"; };
 $("f").addEventListener("submit", async e => {
   e.preventDefault();
   $("err").hidden = true;

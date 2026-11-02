@@ -32,8 +32,15 @@ export async function POST(request) {
       await saveUsers([u], name, positions);
       who = { n: u.name, r: "admin", id: u.id, v: 0 };
     } else {
-      const u = users.find(x => x.login === loginOf(name) && !x.off);
-      if (u && checkPassword(u, pw)) who = { n: u.name, r: roleKey(u.role), id: u.id, v: u.v || 0 };
+      // forgiving (2026-11-02, guys couldn't sign in): the name can be just the first name when only one person has it,
+      // and an iPad/phone capitalizing the first letter of a password (when it was typed, or now) still matches
+      const plain = t => loginOf(t).replace(/[^a-z0-9 ]/g, "");
+      const on = users.filter(x => !x.off);
+      let u = on.find(x => x.login === loginOf(name)) || on.find(x => plain(x.name) === plain(name));
+      if (!u) { const first = on.filter(x => plain(x.name).split(" ")[0] === plain(name)); if (first.length === 1) u = first[0]; }
+      const flip = t => t ? (t[0] === t[0].toUpperCase() ? t[0].toLowerCase() : t[0].toUpperCase()) + t.slice(1) : t;
+      const tries = [...new Set([pw, pw.trim(), flip(pw.trim())])];
+      if (u && tries.some(t => checkPassword(u, t))) who = { n: u.name, r: roleKey(u.role), id: u.id, v: u.v || 0 };
       else if (norm(process.env.APP_PASSWORD) && same(norm(pw), norm(process.env.APP_PASSWORD))) who = { n: name || "Office", r: "admin", id: "app" };
       else if (norm(process.env.FIELD_PASSWORD) && same(norm(pw), norm(process.env.FIELD_PASSWORD))) who = { n: name || "Field", r: "super", id: "field" };
     }
