@@ -828,7 +828,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v139<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v140<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
@@ -5605,7 +5605,6 @@ function drawOverlay() {
     const w = wireOf(r.typeId), col = w ? { style: `stroke:${w.color}${inScope(r) ? "" : ";opacity:.3"}` } : inScope(r) ? {} : { style: "opacity:.3" };
     if (sel.has(r)) g.appendChild(svgEl("polyline", { points: ptsAttr(r.pts), class: "mk-glow-run", ...ns }));
     const line = svgEl("polyline", { points: ptsAttr(r.pts), class: "mk-run", ...col, ...ns });
-    if (p.ftPerPx) line.appendChild(svgEl("title", {}, `${r.name} · ${w ? wireLabel(w) + " · " : ""}${fmtLF(r.px * p.ftPerPx)}`));
     g.appendChild(line);
     dots(g, [r.pts[0], r.pts[r.pts.length - 1]]);
     // a highlighted run shows a handle on every point: drag one to stretch the run, drag the line to slide it
@@ -5735,7 +5734,38 @@ function symbolAt(e) {
 // hovering (or tapping on a phone) a panel or disconnect on the drawing shows what it is and its amps (Jonathan 2026-10-30)
 const TIP_GROUPS = ["gr", "gear"];
 let markTipT = null;
+// hovering (or tapping) a linear run shows everything put in for its type (Jonathan 2026-11-02)
+function runTipHtml(r) {
+  const p = pages[current]; if (!p || !p.runs.includes(r)) return "";
+  const w = wireOf(r.typeId), L = [`<b>${esc(r.name || "Run")}${w && w.label ? " · " + esc(w.label) : ""}</b>`];
+  const len = p.ftPerPx ? r.px * p.ftPerPx : 0;
+  let par = 1;
+  if (!w) L.push("No run type picked");
+  else {
+    const pipe = NOPIPE.includes(w.conduit) ? (w.conduit === "No conduit" ? "" : w.conduit) : `${w.size} ${w.conduit}`;
+    if (isDitch(w)) L.push("Open and close ditch, no conduit");
+    else if (isJH(w)) L.push(`J-hook run, a hook every ${w.interval || 5}'`);
+    else if (isUG(w)) L.push(`Conduit only, underground${pipe ? ": " + esc(pipe) : ""}`);
+    else if (isPull(w)) L.push(`Conduit with pull string${pipe ? ": " + esc(pipe) : ""}`);
+    else {
+      if (w.amps) L.push(`${w.amps} amp · ${w.mat === "AL" ? "aluminum" : "copper"}`);
+      if (pipe) L.push(`Conduit: ${esc(pipe)}`);
+      L.push(`Wire: ${w.count}x ${esc(gaugeTxt(w.gauge))} ${esc(w.ins)}${w.ground ? ` + ${esc(gaugeTxt(w.ground))} ground` : ""}`);
+    }
+    par = isUG(w) || isPull(w) ? w.runs || 1 : isDitch(w) || isJH(w) ? 1 : w.sets || 1;
+    if (par > 1) L.push(isUG(w) || isPull(w) ? `${par} conduit runs side by side` : `${par} parallel sets`);
+    if (w.for) L.push(`For: ${esc(w.for)}`);
+    if (hasTrench(w)) {
+      L.push(`Ditch: ${w.depth || 24}" deep × ${w.width || 30}" wide`);
+      L.push(!w.backfill || w.backfill === "None" ? "Backfill: dirt back in" : `Backfill: ${esc(w.backfill)}, ${w.fillDepth && w.fillDepth !== "full" ? `bottom ${w.fillDepth}"` : "whole ditch"}`);
+      if (w.spacer && !isDitch(w)) L.push(`Duct bank spacers every ${w.spacer}'`);
+    }
+  }
+  L.push(!len ? "Set the scale to see its length" : par > 1 ? `This run: ${fmtLF(len)} × ${par} = ${fmtLF(len * par)} of conduit` : `This run: ${fmtLF(len)}`);
+  return L.filter(Boolean).join("<br>");
+}
 function markTipHtml(v) {
+  if (v && v.pts) return runTipHtml(v);
   const d = devInfo(v.t); if (!d || !TIP_GROUPS.includes(d.group)) return "";
   const kind = d.kindName || d.kind || "Panel";
   const amps = [d.amps ? `${d.amps} amp` : "Amps not set", d.sVolts && `${d.sVolts}${/v$/i.test(d.sVolts) ? "" : " V"}`].filter(Boolean).join(" · ");
@@ -5759,10 +5789,11 @@ const hideMarkTip = () => { const t = $("markTip"); if (t) t.hidden = true; };
 $("sheet").addEventListener("pointermove", e => {
   if (e.pointerType === "touch") return;
   if (tool || cmp || hlMode || e.buttons) return hideMarkTip();
-  showMarkTip(e, symbolAt(e));
+  const v = symbolAt(e);
+  showMarkTip(e, v && markTipHtml(v) ? v : runAt(e) || v);
 });
 $("sheet").addEventListener("pointerleave", e => { if (e.pointerType !== "touch") hideMarkTip(); });
-$("sheet").addEventListener("pointerdown", e => { if (e.pointerType !== "touch") hideMarkTip(); else { const v = !tool && !cmp && !hlMode ? symbolAt(e) : null; if (v) { const at = [e.clientX, e.clientY]; const up = ev => { removeEventListener("pointerup", up); if (Math.hypot(ev.clientX - at[0], ev.clientY - at[1]) < 10) showMarkTip(ev, v, true); }; addEventListener("pointerup", up); } else hideMarkTip(); } });
+$("sheet").addEventListener("pointerdown", e => { if (e.pointerType !== "touch") hideMarkTip(); else { let v = !tool && !cmp && !hlMode ? symbolAt(e) : null; if (!(v && markTipHtml(v)) && !tool && !cmp && !hlMode) v = runAt(e) || v; if (v) { const at = [e.clientX, e.clientY]; const up = ev => { removeEventListener("pointerup", up); if (Math.hypot(ev.clientX - at[0], ev.clientY - at[1]) < 10) showMarkTip(ev, v, true); }; addEventListener("pointerup", up); } else hideMarkTip(); } });
 $("stage").addEventListener("wheel", hideMarkTip, { passive: true });
 function openCtx(e) {
   if (cmp) return;
