@@ -11,3 +11,11 @@ A Google Apps Script (drive-backup/AJ-Takeoff-daily-backup.gs) copies the app, t
 Live site updates automatically from this repo through Vercel (project aj-commercial-takeoff).
 
 Live app: https://aj-commercial-takeoff.vercel.app
+
+## Sign-in and the Admin page (v116)
+- Add `SESSION_SECRET` in Vercel (any long random text) and redeploy. After that everyone signs in on `/login.html` with their own name and password.
+- People, their access (Admin / Office / Field), password resets and turning someone off are on the app's **Admin** button (admins only). The first person added is always an Admin. Passwords are saved only as PBKDF2 hashes in Blob (`team/admin/users-*.json`).
+- Company details, labor hours, parts lists, standard exclusions and vendor lists are shared through `api/settings` (`team/admin/settings-*.json`).
+- `APP_PASSWORD` (admin) and `FIELD_PASSWORD` (field) still work as shared logins if set. The Drive backup script uses the backup key from the Admin page as its `APP_PASSWORD` Script property.
+- Without `SESSION_SECRET` the site works the old way (browser password box, or open if `APP_PASSWORD` isn't set).
+- `sw.js` keeps the app on the device so it opens without internet. Changes made offline stay on the device and are saved online after a "You're back online" prompt.

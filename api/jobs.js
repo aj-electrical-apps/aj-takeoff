@@ -1,4 +1,6 @@
 import { list, put, del } from "@vercel/blob";
+import { whoIs } from "../lib/session.js";
+import { loadTeam, jobsFor } from "../lib/team-store.js";
 
 // The team's jobs, kept in Vercel Blob so everyone using the app sees the same list.
 // Every save of a job is its own JSON file at team/data/<job id>/m<details>-<random>.json, uploaded straight
@@ -33,14 +35,15 @@ const okId = id => typeof id === "string" && /^[\w-]{1,80}$/.test(id);
 export async function GET(request) {
   try {
     const q = new URL(request.url).searchParams, id = q.get("id");
+    const who = await whoIs(request), mine = who && who.r === "sub" ? jobsFor((await loadTeam()).users, who) : null; // a sub sees only the jobs shared with them
     if (id) {
-      if (!okId(id)) return Response.json({ error: "Bad job" }, { status: 400 });
+      if (!okId(id) || (mine && !mine.has(id))) return Response.json({ error: "Bad job" }, { status: 400 });
       const [current] = await jobFiles(id);
       return Response.json({ current: current || null }, { headers: { "Cache-Control": "no-store" } });
     }
     const newest = new Map();
     (await files("team/data/")).forEach(f => { if (!newest.has(f.id)) newest.set(f.id, f); });
-    const jobs = [...newest.values()].filter(f => q.get("all") === "1" || !f.deleted).sort((a, b) => String(b.updated).localeCompare(String(a.updated)));
+    const jobs = [...newest.values()].filter(f => (q.get("all") === "1" || !f.deleted) && (!mine || mine.has(f.id))).sort((a, b) => String(b.updated).localeCompare(String(a.updated)));
     return Response.json({ jobs }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500 });
