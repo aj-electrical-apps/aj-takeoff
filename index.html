@@ -136,6 +136,8 @@ button { cursor: pointer; }
 .sheet svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .sheet.tooling svg { pointer-events: all; cursor: crosshair; }
 .sheet.free { transition: none; }
+.sheet canvas.sharp { inset: auto; pointer-events: none; }
+.sharp-btn { position: absolute; top: 44px; right: 12px; font-size: 12px; }
 .stage.panning, .stage.panning * { cursor: grabbing !important; }
 .stage.can-pan, .stage.can-pan * { cursor: grab !important; }
 @media (prefers-reduced-motion: reduce) { .sheet { transition: none; } }
@@ -826,7 +828,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v135<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v136<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
@@ -949,6 +951,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       </div>
       <span class="example-tag" id="exampleTag" hidden>Example sheet · upload your plans to replace</span>
       <span class="zoom-tag" id="zoomTag">Full sheet</span>
+      <button class="btn sm sharp-btn" id="sharpBtn" type="button" hidden title="Blurry up close? Add this job's plan PDF once and zoomed sheets draw sharp">Make zoom sharp</button><input type="file" id="sharpFile" accept="application/pdf,.pdf" multiple hidden>
       <div class="drop" id="drop" hidden>Drop PDFs or images</div>
     </section>
     </div>
@@ -1698,7 +1701,8 @@ async function store(fn, name = "pages") {
   try { const d = await db(); const tx = d.transaction(name, "readwrite"); fn(tx.objectStore(name)); await new Promise(r => { tx.oncomplete = tx.onerror = tx.onabort = r; }); } catch (e) {}
 }
 const meta = p => ({ fileId: p.fileId || null, name: p.name, zoom: p.zoom, pxPerInch: p.pxPerInch || null, ftPerPx: p.ftPerPx || null, scaleLabel: p.scaleLabel || "", runs: p.runs, devices: p.devices, hl: p.hl || [], rooms: p.rooms || [], add: p.add || "", prevAdd: p.prevAdd || "", cloud: p.cloud || null });
-const savePage = (p, i) => p.example ? null : (scheduleSync(), store(s => s.put({ id: p.id, jobId: job.id, order: i, blob: p.blob, thumb: p.thumb || null, words: p.words || null, prevBlob: p.prevBlob || null, ...meta(p) })));
+// vec = that sheet's own one-page PDF, so zooming in draws it sharp (v136)
+const savePage = (p, i) => p.example ? null : (scheduleSync(), store(s => s.put({ id: p.id, jobId: job.id, order: i, blob: p.blob, thumb: p.thumb || null, words: p.words || null, prevBlob: p.prevBlob || null, vec: p.vec || null, ...meta(p) })));
 const saveMeta = (p, quiet) => p.example ? null : (quiet || scheduleSync(), store(s => { const g = s.get(p.id); g.onsuccess = () => g.result && s.put({ ...g.result, ...meta(p) }); }));
 async function getAll(name) {
   const d = await db();
@@ -1714,7 +1718,7 @@ async function loadSaved(jobId) {
   try {
     const all = await pagesOf(jobId);
     return all.sort((a, b) => a.order - b.order).map(r => ({ id: r.id, name: r.name || "", zoom: r.zoom || "FULL", blob: r.blob, url: URL.createObjectURL(r.blob), thumb: r.thumb || null, thumbUrl: r.thumb ? URL.createObjectURL(r.thumb) : null,
-      pxPerInch: r.pxPerInch || null, ftPerPx: r.ftPerPx || null, scaleLabel: r.scaleLabel || "", runs: r.runs || [], devices: r.devices || [], hl: r.hl || [], rooms: r.rooms || [], fileId: r.fileId || null, words: r.words || null, add: r.add || "", prevAdd: r.prevAdd || "", prevBlob: r.prevBlob || null, cloud: r.cloud || null }))
+      pxPerInch: r.pxPerInch || null, ftPerPx: r.ftPerPx || null, scaleLabel: r.scaleLabel || "", runs: r.runs || [], devices: r.devices || [], hl: r.hl || [], rooms: r.rooms || [], fileId: r.fileId || null, words: r.words || null, add: r.add || "", prevAdd: r.prevAdd || "", prevBlob: r.prevBlob || null, vec: r.vec || null, cloud: r.cloud || null }))
       .map((p, i, all) => ({ ...p, zoom: all[0].zoom === "FREE" ? "FULL" : all[0].zoom })); // every sheet shares one zoom
   } catch (e) { return []; }
 }
@@ -1780,9 +1784,9 @@ async function addFiles(files) {
     $("bgLoad").hidden = !shown; $("bgLoadBar").style.width = `${total ? done / total * 100 : 0}%`; $("bgLoadText").textContent = `Adding sheets ${done} of ${total}`;
     if (!shown) busy("Reading plans…", total ? done / total : 0, `Sheet ${done + 1} of ${total || "…"}`);
   };
-  const add = (blob, pxPerInch, thumb, words) => {
+  const add = (blob, pxPerInch, thumb, words, vec) => {
     if (me.stop || job !== myJob) return;
-    pushPage(blob, "", pxPerInch, thumb); if (words && words.length) pages[pages.length - 1].words = words; savePage(pages[pages.length - 1], pages.length - 1); done++;
+    pushPage(blob, "", pxPerInch, thumb); if (words && words.length) pages[pages.length - 1].words = words; if (vec) pages[pages.length - 1].vec = vec; savePage(pages[pages.length - 1], pages.length - 1); done++;
     if (!shown) { shown = true; busy(null, null); current = startCount; renderAll(); $("nameInput").focus(); }
     else if (performance.now() - lastPaint > 700) { lastPaint = performance.now(); renderRail(); renderSheet(); }
     progress();
@@ -1810,9 +1814,10 @@ async function addFiles(files) {
     skipped = Math.max(0, total - room); total = Math.min(total, room);
     progress();
     const inFlight = [];
-    const drain = async max => { while (inFlight.length > max) { const r = await inFlight.shift(); add(r[0], r[1], r[2], r[3]); } };
+    const drain = async max => { while (inFlight.length > max) { const r = await inFlight.shift(); add(r[0], r[1], r[2], r[3], r[4]); } };
     for (const { f, pdf, want } of docs) {
       if (me.stop || job !== myJob) break;
+      const lib = pdf ? await vecSource(f) : null;
       if (!pdf) { if (room-- <= 0) break; inFlight.push(Promise.resolve([f, null, null])); await drain(0); continue; }
       for (const n of want) {
         if (me.stop || job !== myJob) break;
@@ -1829,7 +1834,8 @@ async function addFiles(files) {
           // the JPEG and thumbnail are made while the next page draws; PDF points are 1/72 in
           let words = null;
           try { words = textWords((await page.getTextContent()).items, vp); } catch (e) {}
-          inFlight.push(encodeSheet(c).then(([big, small]) => [big, 72 * scale, small, words]));
+          const vec = lib ? await vecPage(lib, n) : null;
+          inFlight.push(encodeSheet(c).then(([big, small]) => [big, 72 * scale, small, words, vec]));
           await drain(n === want[0] && !shown ? 0 : 2);
         } catch (e) { bad = true; }
       }
@@ -2088,6 +2094,136 @@ function renderAll() { renderTabs(); renderRail(); renderSheet(); renderRuns(); 
 /* Corner zoom: the sheet (image + markup layer) is sized to fit the view, then scaled 2x and
    anchored on the chosen corner, so exactly that quarter of the sheet (50% wide x 50% tall) fills the view. */
 let k = 1; // screen px per image px, so markup stays a readable size at any zoom
+
+/* ---------- sharp zoom (v136) ----------
+   Sheets are kept as pictures (3200 px long side), which go soft past about 2x on an iPad or Samsung tablet.
+   Each PDF sheet also keeps its own one-page PDF (p.vec). When zoomed past what the picture can show,
+   just the part on screen is drawn again from the PDF at the screen's real pixel size, on top of the picture. */
+let pdfLibLoad = null;
+const loadPdfLib = () => pdfLibLoad || (pdfLibLoad = new Promise((res, rej) => {
+  const sc = document.createElement("script");
+  sc.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js";
+  sc.onload = () => res(window.PDFLib); sc.onerror = () => { pdfLibLoad = null; rej(new Error("pdf-lib")); };
+  document.head.appendChild(sc);
+}));
+// a PDF file ready to split into one-page PDFs; null if it can't be (then sheets just stay pictures)
+async function vecSource(f) {
+  try { if (!f || f.size > 400 * 1024 * 1024) return null; const L = await loadPdfLib(); return await L.PDFDocument.load(await f.arrayBuffer(), { ignoreEncryption: true, updateMetadata: false }); }
+  catch (e) { return null; }
+}
+async function vecPage(src, n) {
+  try { const L = window.PDFLib, d = await L.PDFDocument.create(), [pg] = await d.copyPages(src, [n - 1]); d.addPage(pg);
+    return new Blob([await d.save({ useObjectStreams: true })], { type: "application/pdf" }); }
+  catch (e) { return null; }
+}
+const SHARP_MAX = 8e6; // most device pixels in the sharp layer (iPad Safari tops out near 16.7M per canvas)
+const vecDocs = new Map(); // sheet id -> promise of { doc, page }, the last few opened
+let sharpT = 0, sharpSeq = 0, sharpTask = null;
+const hasVec = p => !!(p && (p.vec || (p.cloud && p.cloud.vec)));
+function sharpSoon() { clearTimeout(sharpT); sharpT = setTimeout(sharpRender, 320); sharpBtnShow(); }
+function sharpClear() { document.querySelectorAll("#sheet canvas.sharp").forEach(c => { c.width = c.height = 0; c.remove(); }); }
+function vecForget(p) { const e = vecDocs.get(p.id); vecDocs.delete(p.id); e && e.then(o => o && o.doc.destroy()).catch(() => {}); sharpClear(); }
+function vecDoc(p) {
+  if (vecDocs.has(p.id)) return vecDocs.get(p.id);
+  const pr = (async () => {
+    let blob = p.vec;
+    if (!blob && p.cloud && p.cloud.vec) {
+      const r = await fetch(p.cloud.vec[0]); if (!r.ok) throw new Error("vec");
+      blob = await r.blob(); if (blob.size !== p.cloud.vec[1]) throw new Error("vec size");
+      p.vec = blob; if (!p.example) store(s => { const g = s.get(p.id); g.onsuccess = () => g.result && s.put({ ...g.result, vec: blob }); });
+    }
+    if (!blob) return null;
+    const doc = await pdfjsLib.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
+    return { doc, page: await doc.getPage(1) };
+  })();
+  pr.catch(() => vecDocs.delete(p.id));
+  vecDocs.set(p.id, pr);
+  while (vecDocs.size > 3) { const [id, o] = vecDocs.entries().next().value; vecDocs.delete(id); o.then(x => x && x.doc.destroy()).catch(() => {}); }
+  return pr;
+}
+// how many screen pixels one picture pixel takes right now; over ~1.15 the picture looks soft
+const blurAt = (p, v) => fit ? fit.s * v.z * (window.devicePixelRatio || 1) : 0;
+async function sharpRender() {
+  const seq = ++sharpSeq; if (sharpTask) { try { sharpTask.cancel(); } catch (e) {} sharpTask = null; }
+  const p = pages[current], img = $("sheetImg"), sh = $("sheet");
+  if (!p || !fit || !img.naturalWidth || !window.pdfjsLib) return sharpClear();
+  const v = viewOf(p), dpr = window.devicePixelRatio || 1;
+  if (!hasVec(p) || cmp || (showOld && p.prevBlob) || blurAt(p, v) < 1.15) return sharpClear();
+  // the part of the sheet on screen (plus a little around it for panning), in the sheet's own unzoomed px
+  const vx0 = (-fit.left - v.tx) / v.z, vx1 = (fit.W - fit.left - v.tx) / v.z, vy0 = (-fit.top - v.ty) / v.z, vy1 = (fit.H - fit.top - v.ty) / v.z;
+  const mx = (vx1 - vx0) * .15, my = (vy1 - vy0) * .15;
+  const x0 = Math.max(0, vx0 - mx), x1 = Math.min(fit.dw, vx1 + mx), y0 = Math.max(0, vy0 - my), y1 = Math.min(fit.dh, vy1 + my);
+  if (x1 - x0 < 2 || y1 - y0 < 2) return sharpClear();
+  const key = [p.id, v.z.toFixed(3), x0 | 0, y0 | 0, x1 | 0, y1 | 0, fit.dw | 0, dpr].join(",");
+  const have = sh.querySelector("canvas.sharp"); if (have && have.dataset.key === key) return;
+  let e = null; try { e = await vecDoc(p); } catch (er) {}
+  if (seq !== sharpSeq) return;
+  if (!e) return sharpClear();
+  const v1 = e.page.getViewport({ scale: 1 });
+  if (Math.abs(v1.width / v1.height - img.naturalWidth / img.naturalHeight) > 0.02) return sharpClear(); // not the same drawing
+  let d = v.z * dpr; // device px per unzoomed sheet px
+  d *= Math.min(1, Math.sqrt(SHARP_MAX / ((x1 - x0) * (y1 - y0) * d * d)));
+  const vp = e.page.getViewport({ scale: fit.dw * d / v1.width, offsetX: -x0 * d, offsetY: -y0 * d });
+  const c = document.createElement("canvas"); c.className = "sharp"; c.width = Math.max(1, Math.round((x1 - x0) * d)); c.height = Math.max(1, Math.round((y1 - y0) * d));
+  // placed in % of the sheet, so a window resize doesn't knock it off
+  Object.assign(c.style, { left: x0 / fit.dw * 100 + "%", top: y0 / fit.dh * 100 + "%", width: (x1 - x0) / fit.dw * 100 + "%", height: (y1 - y0) / fit.dh * 100 + "%" });
+  const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+  const task = sharpTask = e.page.render({ canvasContext: ctx, viewport: vp });
+  try { await task.promise; } catch (er) { c.width = c.height = 0; return; }
+  if (seq !== sharpSeq || pages[current] !== p) { c.width = c.height = 0; return; }
+  sharpTask = null; sharpClear(); c.dataset.key = key; c.dataset.pid = p.id; sh.insertBefore(c, $("cmpCanvas"));
+}
+// old jobs (added before v136) have no PDF kept: offer to add the plan PDF once, matched to sheets by their words
+function sharpBtnShow() {
+  const p = pages[current], b = $("sharpBtn"); if (!b) return;
+  try { b.hidden = !p || p.example || hasVec(p) || !!cmp || !can("edit") || !p.words || !p.words.length || blurAt(p, viewOf(p)) < 1.5; } catch (e) { b.hidden = true; }
+}
+$("sharpBtn").onclick = () => $("sharpFile").click();
+$("sharpFile").onchange = e => { const f = [...e.target.files]; e.target.value = ""; if (f.length) sharpAttach(f); };
+const wordBag = list => { const m = new Map(); (list || []).forEach(w => { const t = String(w[0] || "").trim().toLowerCase(); if (t.length > 1) m.set(t, (m.get(t) || 0) + 1); }); return m; };
+function bagLike(a, b) {
+  let both = 0, na = 0, nb = 0; a.forEach(c => na += c); b.forEach(c => nb += c);
+  a.forEach((c, t) => { both += Math.min(c, b.get(t) || 0); });
+  return na && nb ? both / Math.max(na, nb) : 0;
+}
+async function sharpAttach(files) {
+  if (!window.pdfjsLib) return toast("The PDF reader didn't load. Check your connection and reload.");
+  const want = pages.map((p, i) => ({ p, i, bag: p.example || hasVec(p) ? null : wordBag(p.words) })).filter(x => x.bag && x.bag.size >= 5);
+  if (!want.length) return toast("These sheets already zoom sharp, or have no words to match a PDF to.");
+  const myJob = job, open = []; let n = 0, total = 0, matched = 0;
+  busy("Reading the plan PDF…", 0);
+  try {
+    for (const f of files) {
+      try { const pdf = await pdfjsLib.getDocument({ data: await f.arrayBuffer() }).promise; open.push({ f, pdf }); total += pdf.numPages; } catch (er) {}
+    }
+    for (const { f, pdf } of open) {
+      let lib = null;
+      for (let k = 1; k <= pdf.numPages; k++) {
+        if (job !== myJob) break;
+        busy("Matching the PDF to your sheets…", ++n / Math.max(1, total), `Page ${n} of ${total}`);
+        const page = await pdf.getPage(k), v1 = page.getViewport({ scale: 1 });
+        let bag; try { bag = wordBag((await page.getTextContent()).items.map(it => [it.str])); } catch (er) { continue; }
+        page.cleanup();
+        let best = null, bs = 0;
+        for (const x of want) {
+          if (x.done) continue;
+          const sc = bagLike(bag, x.bag); if (sc > bs) { bs = sc; best = x; }
+        }
+        if (!best || bs < 0.6) continue;
+        if (!best.aspect) { try { const bmp = await createImageBitmap(best.p.thumb || best.p.blob); best.aspect = bmp.width / bmp.height; bmp.close && bmp.close(); } catch (er) { best.aspect = 0; } }
+        if (best.aspect && Math.abs(best.aspect - v1.width / v1.height) > 0.03) continue;
+        if (!lib) lib = await vecSource(f);
+        const vec = lib && await vecPage(lib, k); if (!vec) continue;
+        best.done = true; best.p.vec = vec; matched++;
+        vecForget(best.p); savePage(best.p, best.i);
+      }
+      pdf.destroy();
+    }
+  } finally { busy(null, null); }
+  if (job !== myJob) return;
+  touchJob(); applyZoom();
+  toast(matched ? `Sharp zoom is on for ${matched} of ${want.length} sheet${want.length === 1 ? "" : "s"}.${matched < want.length ? " Add another PDF for the rest." : ""}` : "None of the PDF's pages matched these sheets. Check it's the same plan set.");
+}
 let fit = null; // the fitted sheet box inside the stage, from the last applyZoom
 // Corner zooms are fixed 2x views; "FREE" is wherever the wheel, pinch or + / − buttons left it.
 function viewOf(p) {
@@ -2111,6 +2247,8 @@ function applyZoom() {
   k = s * v.z;
   $("zoomTag").textContent = p.zoom === "FREE" ? `${Math.round(v.z * 100)}%` : ZOOM_LABEL[p.zoom];
   drawOverlay();
+  const sc = sh.querySelector("canvas.sharp"); if (sc && sc.dataset.pid !== p.id) sharpClear();
+  sharpSoon();
 }
 $("sheetImg").addEventListener("load", applyZoom);
 new ResizeObserver(applyZoom).observe($("stage"));
@@ -4504,6 +4642,7 @@ $("replForm").addEventListener("submit", async e => {
       await page.render({ canvasContext: ctx, viewport: vp }).promise;
       try { words = textWords((await page.getTextContent()).items, vp); } catch (er) {}
       pxPerInch = 72 * scale; replPdf.destroy(); replPdf = null;
+      const lib = await vecSource(replFile); p.vecNew = lib ? await vecPage(lib, n) : null;
     } else {
       const bmp = await createImageBitmap(replFile); canvas = document.createElement("canvas"); canvas.width = bmp.width; canvas.height = bmp.height;
       const ctx = canvas.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.drawImage(bmp, 0, 0); bmp.close && bmp.close();
@@ -4520,6 +4659,7 @@ $("replForm").addEventListener("submit", async e => {
     p.prevAdd = p.add || "original"; p.prevBlob = prevBlob; p.prevUrl = null;
     p.blob = big; p.url = URL.createObjectURL(big); p.thumb = small; p.thumbUrl = small ? URL.createObjectURL(small) : null;
     if (words && words.length) p.words = words; else p.words = null;
+    p.vec = p.vecNew || null; delete p.vecNew; vecForget(p);
     if (pxPerInch && !p.ftPerPx) p.pxPerInch = pxPerInch;
     p.add = label; if (label && !new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i").test(p.name)) p.name = `${p.name || sheetName(p, current)} (${label})`;
     showOld = false;
@@ -7608,7 +7748,7 @@ function enterField() {
    so the app keeps working when the internet drops and catches up when it's back. */
 let teamOn = false, teamJobs = [], teamIndex = {}, teamNewer = null, teamWho = lsGet("aj-who") || "";
 const segId = id => String(id).replace(/[^\w-]/g, "_").slice(0, 80);
-const TEAM_KEYS = [["img", "blob"], ["thumb", "thumb"], ["prev", "prevBlob"]];
+const TEAM_KEYS = [["img", "blob"], ["thumb", "thumb"], ["prev", "prevBlob"], ["vec", "vec"]];
 const wordsMark = w => w && w.length ? `${w.length}|${JSON.stringify(w[0]).slice(0, 60)}|${JSON.stringify(w[w.length - 1]).slice(0, 60)}` : "";
 const clockTime = t => new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 const whenSaved = t => { const d = new Date(t); return d.toDateString() === new Date().toDateString() ? clockTime(d) : d.toLocaleDateString([], { month: "short", day: "numeric" }) + " " + clockTime(d); };
@@ -7665,8 +7805,8 @@ async function teamPush(j, list, { force, progress } = {}) {
   let next = 0, sent = 0;
   const worker = async () => {
     while (next < todo.length) {
-      const [p, k, b, mark] = todo[next++], png = b.type === "image/png", json = k === "words";
-      const url = await teamPut(`team/sheet/${tid}/${segId(p.id)}-${k}.${json ? "json" : png ? "png" : "jpg"}`, b, json ? "application/json" : png ? "image/png" : "image/jpeg");
+      const [p, k, b, mark] = todo[next++], png = b.type === "image/png", json = k === "words", pdf = k === "vec";
+      const url = await teamPut(`team/sheet/${tid}/${segId(p.id)}-${k}.${json ? "json" : pdf ? "pdf" : png ? "png" : "jpg"}`, b, json ? "application/json" : pdf ? "application/pdf" : png ? "image/png" : "image/jpeg");
       p.cloud = { ...(p.cloud || {}), [k]: [url, json ? mark : b.size] };
       if (!p.example) saveMeta(p, true);
       if (progress) progress(++sent, todo.length);
@@ -7749,13 +7889,14 @@ async function pullTeam(f, { keepOnly } = {}) {
       while (next < data.pages.length) {
         const i = next++, pg = data.pages[i], h = have.get(pg.id) || {}, c = pg.cloud || {};
         const [blob, thumb, prevBlob, words] = await Promise.all([get(c.img, h.blob), get(c.thumb, h.thumb), get(c.prev, h.prevBlob), get(c.words, h.words, wordsMark)]);
-        rows[i] = { ...pg, jobId: j.id, order: i, blob, thumb, prevBlob, words: words || null, fileId: h.fileId || null };
+        const vec = h.vec && blob === h.blob && (!c.vec || h.vec.size === c.vec[1]) ? h.vec : null; // the sharp PDF is fetched only when someone zooms in
+        rows[i] = { ...pg, jobId: j.id, order: i, blob, thumb, prevBlob, words: words || null, vec, fileId: h.fileId || null };
         busy(title, ++done / data.pages.length, `Sheet ${done} of ${data.pages.length}`);
       }
     };
     await Promise.all([worker(), worker(), worker(), worker()]);
     // only rewrite sheets that changed: rewriting all of a big job at once froze phones (2026-10-30)
-    const same = (x, h) => h && x.blob === h.blob && x.thumb === (h.thumb || null) && x.prevBlob === (h.prevBlob || null) && x.words === (h.words || null) && x.order === h.order
+    const same = (x, h) => h && x.blob === h.blob && x.thumb === (h.thumb || null) && x.prevBlob === (h.prevBlob || null) && x.words === (h.words || null) && x.vec === (h.vec || null) && x.order === h.order
       && JSON.stringify(meta(x)) === JSON.stringify(meta({ ...h, name: h.name || "" }));
     const keep = new Set(rows.map(x => x && x.id)), changed = rows.filter(x => x && x.blob && !same(x, have.get(x.id)));
     await store(s => { have.forEach((_, id) => { if (!keep.has(id)) s.delete(id); }); });
