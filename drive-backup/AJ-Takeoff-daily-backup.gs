@@ -8,7 +8,7 @@
  *   <date>/Bid tracker.json        every row of the Bid tracker
  *   <date>/Job list.json           every job, including deleted ones
  *   <date>/Jobs/<job>.json         each job: counts, runs, bid, proposal, sheet names and markups
- *   Plan sheets/<job>/             every plan sheet image and its text, copied once (new sheets each night)
+ *   Plan sheets/<job>/             every plan sheet image, its text and its PDF, copied once (new sheets each night)
  * Keeps the last 7 nights, plus one backup a week for the 4 weeks before that; older dated folders go to the trash
  * (Drive keeps trash 30 days). About 1-3 MB a night, so roughly 10-35 MB in all. Plan sheets are copied once and kept.
  *
@@ -65,7 +65,7 @@ function backupNow() {
     let data; try { data = JSON.parse(text); } catch (e) { return; }
     const dir = byId[j.id.slice(0, 8)] || (byId[j.id.slice(0, 8)] = sheetsRoot.createFolder(clean(j.name + " (" + j.id.slice(0, 8) + ")")));
     const have = {}; const it = dir.getFiles(); while (it.hasNext()) have[it.next().getName()] = true;
-    (data.pages || []).forEach(p => ["img", "prev", "words"].forEach(k => {
+    (data.pages || []).forEach(p => ["img", "prev", "words", "vec"].forEach(k => {
       const c = p.cloud && p.cloud[k]; if (!c) return;
       const name = c[0].split("/").pop(); // the job's .json says which sheet each file is
       if (!have[name]) todo.push({ dir, name, url: c[0] });
