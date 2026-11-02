@@ -828,7 +828,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v137<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v138<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
@@ -1817,7 +1817,7 @@ async function addFiles(files) {
     const drain = async max => { while (inFlight.length > max) { const r = await inFlight.shift(); add(r[0], r[1], r[2], r[3], r[4]); } };
     for (const { f, pdf, want } of docs) {
       if (me.stop || job !== myJob) break;
-      const lib = pdf ? await vecSource(f) : null;
+      const libP = pdf ? vecSource(f) : null; // read in the background, so the first sheet still shows right away
       if (!pdf) { if (room-- <= 0) break; inFlight.push(Promise.resolve([f, null, null])); await drain(0); continue; }
       for (const n of want) {
         if (me.stop || job !== myJob) break;
@@ -1834,8 +1834,7 @@ async function addFiles(files) {
           // the JPEG and thumbnail are made while the next page draws; PDF points are 1/72 in
           let words = null;
           try { words = textWords((await page.getTextContent()).items, vp); } catch (e) {}
-          const vec = lib ? await vecPage(lib, n) : null;
-          inFlight.push(encodeSheet(c).then(([big, small]) => [big, 72 * scale, small, words, vec]));
+          inFlight.push(encodeSheet(c).then(async ([big, small]) => { const lib = libP && await libP; return [big, 72 * scale, small, words, lib ? await vecPage(lib, n) : null]; }));
           await drain(n === want[0] && !shown ? 0 : 2);
         } catch (e) { bad = true; }
       }
