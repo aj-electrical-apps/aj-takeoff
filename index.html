@@ -838,7 +838,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v143<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v144<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
@@ -4497,7 +4497,15 @@ async function trkAddJob(quiet) {
   let ours = 0, est = null;
   try {
     const t = propTotals(); ours = Math.round(t.total) || 0;
-    if (t.total > 0) est = { hrs: t.hrs, rate: t.rate, prod: t.prod, labor: t.labor, laborUp: t.laborUp, mat: t.mat, matUp: t.matUp, tax: t.tax, sub: t.sub, subUp: t.subUp, total: t.total, at: new Date().toISOString() };
+    if (t.total > 0 && !coCur()) {
+      // the counts with their man hours, and who is quoting the material and the sub work
+      const p = propOf(), r2 = v => Math.round(v * 1000) / 1000;
+      const items = bidRows().filter(r => r.qty).map(r => ({ sec: r.sec, name: r.name, qty: r.qty, unit: r.unit, hEach: r.h, hrs: r2(r.hrs) }))
+        .concat((bidOf().lines || []).filter(l => +l.qty).map(l => ({ sec: "Other lines", name: l.desc || "", qty: +l.qty, unit: "ea", hEach: +l.h || 0, hrs: r2((+l.qty || 0) * (+l.h || 0)) })));
+      const quotes = p.quotes.filter(q => qAmt(q) || q.vendor).map(q => ({ name: q.name, supplier: q.vendor || "", natl: q.natl || "", amount: qAmt(q) }));
+      const subs = p.subs.filter(x => +(x.useVe && +x.ve ? x.ve : x.amt) || x.vendor).map(x => ({ name: x.name, vendor: x.vendor || "", amount: +(x.useVe && +x.ve ? x.ve : x.amt) || 0 }));
+      est = { hrs: t.hrs, rate: t.rate, prod: t.prod, labor: t.labor, laborUp: t.laborUp, mat: t.mat, matUp: t.matUp, tax: t.tax, sub: t.sub, subUp: t.subUp, total: t.total, items, quotes, subs, at: new Date().toISOString() };
+    }
   } catch (e) {}
   const had = trkRows.find(r => r.jobId === job.id);
   const row = { ...(had || { id: uid(), jobId: job.id, place: "", result: "", win: "", notes: "", date: job.bidDate || trkToday() }), job: job.name, gc: job.customer || (had && had.gc) || "", at: new Date().toISOString() };
