@@ -357,6 +357,13 @@ html.look-new body { font-family: var(--font-ui); }
 #pnlModal .opt { min-width: 0; } #pnlModal .opt select, #pnlModal .opt input { width: 100%; min-width: 0; box-sizing: border-box; }
 #pnlModal .actions { flex-wrap: wrap; } #pnlTbl input { width: 70px; }
 .pnl-steps { margin: 0 0 8px; padding-left: 20px; }
+.fw-row { display: flex; gap: 8px; } .fw-row input { flex: 1; min-width: 0; height: 40px; font-size: 16px; padding: 0 10px; }
+.fw-ocr { display: flex; gap: 8px; align-items: center; flex-direction: row; font-size: 14px; } .fw-ocr input { width: 18px; height: 18px; margin: 0; }
+.fw-list { list-style: none; margin: 0; padding: 0; } .fw-list li.sh { font-weight: 700; margin-top: 10px; }
+.fw-list button { display: block; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line); padding: 6px 4px; color: inherit; font: inherit; cursor: pointer; }
+.fw-list button:hover { background: var(--accent-soft, rgb(255 212 59 / .15)); } .fw-list small { color: var(--muted); }
+.mk-fw { fill: rgb(255 212 59 / .35); stroke: #f08c00; stroke-width: 2; } .mk-fw.on { fill: rgb(255 146 43 / .45); stroke: #e8590c; stroke-width: 3; animation: mkfind 1.2s ease-in-out infinite alternate; }
+.selbar.fw-bar { top: 14px; bottom: auto; }
 .selbar.pnl-wiz { top: 14px; bottom: auto; max-width: min(720px, calc(100% - 24px)); font-size: 14px; border: 2px solid var(--accent); }
 .pnl-wiz #pnlWizT b { color: var(--accent); }
 .scan-cta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 10px; margin-bottom: 8px; background: var(--accent-soft); border-radius: 8px; }
@@ -828,7 +835,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v141<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v142<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
@@ -930,6 +937,13 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
         <button class="btn sm" id="pnlWizSkip" type="button">Skip</button>
         <button class="btn sm" id="pnlWizStop" type="button">Stop and review</button>
       </div>
+      <div class="selbar fw-bar" id="fwBar" hidden role="status">
+        <b id="fwBarT"></b>
+        <button class="btn sm" id="fwPrev" type="button" aria-label="Previous one">‹</button>
+        <button class="btn sm" id="fwNext" type="button" aria-label="Next one">›</button>
+        <button class="btn sm" id="fwList" type="button">List</button>
+        <button class="btn sm" id="fwClear" type="button">Done</button>
+      </div>
       <div class="selbar" id="selBar" hidden>
         <span id="selText"></span>
         <button class="btn sm warn" id="selDelete" type="button">Delete</button>
@@ -993,6 +1007,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
           <button class="btn tool" id="replOld" type="button" aria-pressed="false" title="Flip between the old and new drawing" hidden>Show old</button>
           <button class="btn tool" id="replAlign" type="button" aria-pressed="false" title="Click 2 spots on the old drawing and the same 2 on the new one, and your markups move to match" hidden>Line up</button>
           <p class="tool-sub">Let the app read it</p>
+          <button class="btn tool hl-sched" id="fwBtn" type="button" title="Find words: type a word (like GFCI, WP or LP-1) and every place it's written on every sheet gets highlighted, with a list to jump to each one">Find words</button>
           <button class="btn tool hl-sched" id="lblBtn" type="button" aria-pressed="false" title="Name every sheet: drag a box around the sheet number in the title block on one sheet, and every sheet gets named from that spot">Auto-name sheets</button>
           <button class="btn tool hl-sched" id="symBtn" type="button" aria-pressed="false" title="Find symbol: click an item in Counts, then drag a box around one of its symbols. Every match on the sheet gets a circle for you to check before adding dots.">Find symbol</button>
           <button class="btn tool hl-sched" id="pnlBtn" type="button" aria-pressed="false" title="Read a panel schedule: pick the size, box the panel name and the TRIP / POLES columns, and the breakers get counted for you">Read panel</button>
@@ -1348,6 +1363,19 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     </div>
   </div>
 </div>
+<div class="modal" id="fwModal" hidden role="dialog" aria-modal="true" aria-labelledby="fwTitle">
+  <form class="modal-card trk-card" id="fwForm" autocomplete="off">
+    <h2 id="fwTitle">Find words on the drawings</h2>
+    <p class="hint">Type a word or a few words, like <b>GFCI</b>, <b>WP</b>, <b>LP-1</b> or <b>EXISTING TO REMAIN</b>. Every place it's written on every sheet gets highlighted. It runs on this device and costs nothing.</p>
+    <div class="row fw-row"><input type="search" id="fwText" placeholder="What to look for" maxlength="80" enterkeyhint="search"><button class="btn primary" type="submit" id="fwGo">Find</button></div>
+    <label class="opt fw-ocr" id="fwOcrL" hidden><input type="checkbox" id="fwOcr"> <span id="fwOcrT"></span></label>
+    <label class="opt fw-ocr"><input type="checkbox" id="fwWhole"> Whole word only (so WP doesn't find WPS)</label>
+    <p class="hint" id="fwSum" aria-live="polite"></p>
+    <div class="trk-wrap"><ul class="fw-list" id="fwResults"></ul></div>
+    <div class="actions"><button class="btn" type="button" id="fwClose">Close</button></div>
+  </form>
+</div>
+
 <div class="modal" id="lblModal" hidden role="dialog" aria-modal="true" aria-labelledby="lblTitle">
   <div class="modal-card trk-card">
     <h2 id="lblTitle">Name the sheets</h2>
@@ -5584,6 +5612,8 @@ function drawOverlay() {
   const ptsAttr = pts => pts.map(q => q.join(",")).join(" ");
   const dots = (g, pts, cls) => pts.forEach(q => g.appendChild(svgEl("circle", { cx: q[0], cy: q[1], r: 1.5 / k, class: "mk-dot " + (cls || ""), ...ns })));
   const g = svgEl("g", {});
+  if (fw) fw.hits.forEach((h, i) => { if (h.pg !== p) return; const pad = Math.max(4, h.r[3] * .25);
+    g.appendChild(svgEl("rect", { x: h.r[0] - pad, y: h.r[1] - pad, width: h.r[2] + pad * 2, height: h.r[3] + pad * 2, rx: pad, class: "mk-fw" + (i === fw.at ? " on" : ""), ...ns })); });
   (p.hl || []).forEach(h => {
     const rc = svgEl("rect", { x: h.x, y: h.y, width: h.w, height: h.h, class: "mk-hl " + h.c, ...ns });
     rc.appendChild(svgEl("title", {}, (h.c === "r" ? "Red note" : "Yellow note") + (h.note ? ": " + h.note : "")));
@@ -6775,6 +6805,100 @@ addEventListener("keydown", e => {
 addEventListener("keyup", e => { if (e.code === "Space") { spaceDown = false; $("stage").classList.toggle("can-pan", panMode); } });
 addEventListener("blur", () => { spaceDown = false; $("stage").classList.toggle("can-pan", panMode); });
 
+
+/* ---------- Find words (Jonathan 2026-11-02: "scan the drawings for certain words and highlight them") ----------
+   Uses the text each PDF sheet already has (pg.words). Sheets drawn as lines or scanned can be read first with the
+   picture reader (the same free one Find symbol uses), once per sheet. Nothing leaves the device. */
+let fw = null; // { q, hits: [{ pg, r: [x, y, w, h], txt }], at }
+const fwNorm = t => String(t || "").toLowerCase().replace(/\s+/g, " ").trim();
+function fwFind(pg, q, whole) {
+  const words = pg.words || [], hits = [];
+  if (!words.length || !q) return hits;
+  // group the words into lines (straight ones by row, turned ones by column) so a phrase across words is found too
+  const rows = new Map();
+  words.forEach(w => { const rot = !!w[5], key = rot ? "c" + Math.round((w[1] + w[3] / 2) / Math.max(4, w[3] * .6)) : "r" + Math.round((w[2] + w[4] / 2) / Math.max(4, w[4] * .6)); (rows.get(key) || rows.set(key, []).get(key)).push(w); });
+  const ocr = words.some(w => w[6]), loose = t => ocr ? t.replace(/0/g, "o").replace(/[1l|]/g, "i").replace(/5/g, "s") : t, nq = loose(fwNorm(q));
+  const re = new RegExp((whole ? "(^|[^a-z0-9])" : "()") + nq.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + (whole ? "(?![a-z0-9])" : ""), "g");
+  rows.forEach(list => {
+    const rot = !!list[0][5]; list.sort((a, b) => rot ? b[2] - a[2] : a[1] - b[1]);
+    let line = "", orig = "", map = [];
+    list.forEach((w, i) => { const o = String(w[0] || "").replace(/\s+/g, " ").trim(), t = loose(o.toLowerCase()); if (i) { line += " "; orig += " "; map.push(null); } for (let c = 0; c < t.length; c++) map.push([w, c, t.length]); line += t; orig += o; });
+    let m; re.lastIndex = 0;
+    while ((m = re.exec(line))) {
+      const a = m.index + m[1].length, b = a + nq.length - 1; if (b < a) break;
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (let c = a; c <= b; c++) { const e = map[c]; if (!e) continue; const [w, ci, n] = e;
+        // a part of a longer piece of text: take its share of the width (or height, when turned)
+        const f0 = ci / n, f1 = (ci + 1) / n;
+        const r = w[5] ? [w[1], w[2] + w[4] * (1 - f1), w[3], w[4] * (f1 - f0)] : [w[1] + w[3] * f0, w[2], w[3] * (f1 - f0), w[4]];
+        x0 = Math.min(x0, r[0]); y0 = Math.min(y0, r[1]); x1 = Math.max(x1, r[0] + r[2]); y1 = Math.max(y1, r[1] + r[3]); }
+      if (x1 > x0) hits.push({ pg, r: [x0, y0, x1 - x0, y1 - y0], txt: (a > 30 ? "…" : "") + orig.slice(Math.max(0, a - 30), b + 31) + (b + 31 < orig.length ? "…" : "") });
+      re.lastIndex = m.index + Math.max(1, m[0].length);
+    }
+  });
+  return hits.sort((u, v) => u.r[1] - v.r[1] || u.r[0] - v.r[0]);
+}
+function fwOpen() {
+  if (!pages.length) return;
+  const none = pages.filter(p => !p.example && !(p.words || []).length).length;
+  $("fwOcrL").hidden = !none; $("fwOcrT").textContent = `Also read the ${none} sheet${none === 1 ? "" : "s"} with no text in them first (picture reader, about half a minute a sheet, once)`;
+  $("fwModal").hidden = false; $("fwText").value = fw ? fw.q : $("fwText").value; $("fwText").focus(); $("fwText").select();
+  if (fw) fwDrawList();
+}
+$("fwBtn").onclick = () => { if (tool) setTool(null); fwOpen(); };
+$("fwClose").onclick = () => { $("fwModal").hidden = true; };
+$("fwModal").addEventListener("keydown", e => { if (e.key === "Escape") $("fwModal").hidden = true; });
+$("fwForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const q = $("fwText").value.trim(); if (!q) return;
+  if ($("fwOcr").checked) {
+    const todo = pages.filter(p => !p.example && !(p.words || []).length);
+    for (let i = 0; i < todo.length; i++) { busy(`Reading sheet ${i + 1} of ${todo.length} with the picture reader…`, i / todo.length, sheetName(todo[i], pages.indexOf(todo[i]))); try { await symOcrSheet(todo[i]); } catch (er) {} }
+    busy(null, null); $("fwOcr").checked = false; fwOpen();
+  }
+  const hits = pages.flatMap(p => p.example ? [] : fwFind(p, q, $("fwWhole").checked));
+  fw = { q, hits, at: -1 };
+  fwDrawList(); drawOverlay(); fwBar();
+});
+function fwDrawList() {
+  const ul = $("fwResults"); ul.replaceChildren();
+  const noText = pages.filter(p => !p.example && !(p.words || []).length).length;
+  $("fwSum").textContent = !fw.hits.length ? `"${fw.q}" isn't written on any sheet${noText ? ` that has text. ${noText} sheet${noText === 1 ? " has" : "s have"} no text yet: check the box above to read them.` : "."}`
+    : `Found "${fw.q}" ${fw.hits.length} time${fw.hits.length === 1 ? "" : "s"} on ${new Set(fw.hits.map(h => h.pg)).size} sheet${new Set(fw.hits.map(h => h.pg)).size === 1 ? "" : "s"}. Tap one to go to it.${noText ? ` (${noText} sheet${noText === 1 ? "" : "s"} not searched: no text in ${noText === 1 ? "it" : "them"} yet.)` : ""}`;
+  let last = null;
+  fw.hits.forEach((h, i) => {
+    if (i >= 400) { if (i === 400) { const li = document.createElement("li"); li.className = "sh"; li.textContent = `…and ${fw.hits.length - 400} more. Use ‹ › on the drawing to step through them all, or type more of the words.`; ul.appendChild(li); } return; }
+    if (h.pg !== last) { last = h.pg; const li = document.createElement("li"); li.className = "sh"; const n = fw.hits.filter(x => x.pg === h.pg).length; li.textContent = `${sheetName(h.pg, pages.indexOf(h.pg))} · ${n}`; ul.appendChild(li); }
+    const li = document.createElement("li"), b = document.createElement("button"); b.type = "button";
+    const sm = document.createElement("small"); sm.textContent = h.txt; b.append(sm); b.onclick = () => { $("fwModal").hidden = true; fwGo(i); };
+    li.appendChild(b); ul.appendChild(li);
+  });
+}
+function fwGo(i) {
+  if (!fw || !fw.hits.length) return;
+  fw.at = (i + fw.hits.length) % fw.hits.length;
+  const h = fw.hits[fw.at], pi = pages.indexOf(h.pg); if (pi < 0) return;
+  if (pi !== current) go(pi);
+  const img = $("sheetImg"), zoomIn = () => {
+    if (!fit || !img.naturalWidth) return;
+    const sc = fit.dw / img.naturalWidth, cx = (h.r[0] + h.r[2] / 2) * sc, cy = (h.r[1] + h.r[3] / 2) * sc;
+    const z = Math.min(ZMAX, Math.max(2.5, Math.min(6, fit.W / Math.max(40, (h.r[2] + 200) * sc))));
+    setView({ z, tx: fit.W / 2 - fit.left - cx * z, ty: fit.H / 2 - fit.top - cy * z });
+    drawOverlay(); fwBar();
+  };
+  if (img.complete && img.getAttribute("src") === pages[current].url) zoomIn(); else img.addEventListener("load", () => setTimeout(zoomIn), { once: true });
+  fwBar(); drawOverlay();
+}
+function fwBar() {
+  const b = $("fwBar"); b.hidden = !fw || !fw.hits.length;
+  if (b.hidden) return;
+  const here = fw.hits.filter(h => h.pg === pages[current]).length;
+  $("fwBarT").textContent = `"${fw.q}": ${fw.at >= 0 ? `${fw.at + 1} of ${fw.hits.length}` : `${fw.hits.length} found`}${here ? ` · ${here} on this sheet` : ""}`;
+}
+$("fwPrev").onclick = () => fwGo((fw ? fw.at : 0) - 1);
+$("fwNext").onclick = () => fwGo((fw ? fw.at : -1) + 1);
+$("fwList").onclick = () => fwOpen();
+$("fwClear").onclick = () => { fw = null; fwBar(); drawOverlay(); };
 function go(i) {
   if (!pages.length) return;
   closeCtx(); dropCmp(); sel.clear(); hoverDev = null;
@@ -6784,7 +6908,7 @@ function go(i) {
   // the next sheet opens at the same zoom as the one you were on
   if (from && from !== pages[current]) { pages[current].zoom = from.zoom; pages[current].view = from.view ? { ...from.view } : null; }
   if (tool) setTool(null);
-  renderAll();
+  renderAll(); if (fw) fwBar();
 }
 function commitName() {
   const p = pages[current]; if (!p) return;
