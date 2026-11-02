@@ -828,7 +828,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v140<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v141<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
@@ -1222,7 +1222,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <p class="msg-meta" id="sendWhere"></p>
     <div><b id="sendToL">Send to</b><div class="send-to" id="sendTo"></div></div>
     <textarea id="sendText" maxlength="4000" placeholder="What do you need them to look at?"></textarea>
-    <div class="photo-row"><label class="btn sm" id="sendPhotoL">📷 <span>Take photo</span><input type="file" accept="image/*" capture="environment" id="sendPhotoIn" hidden></label><span class="photo-prev" id="sendPhotoPrev"></span></div>
+    <div class="photo-row"><label class="btn sm" id="sendPhotoL">📷 <span>Take photo</span><input type="file" accept="image/*" capture="environment" id="sendPhotoIn" hidden></label><label class="btn sm" id="sendShotL" title="Pick a screenshot or picture you already have. You can also paste one (Ctrl + V) into the message box.">🖼️ <span>Add screenshot</span><input type="file" accept="image/*" id="sendShotIn" hidden></label><span class="photo-prev" id="sendPhotoPrev"></span></div>
     <p class="msg-meta" id="sendLangNote"></p>
     <p class="adm-msg bad" id="sendMsg"></p>
     <div class="row"><button class="btn" type="button" id="sendCancel">Cancel</button><button class="btn primary" type="submit" id="sendGo">Send</button></div>
@@ -1238,7 +1238,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
       <div class="row"><button class="btn sm" type="button" id="msgBack">Back</button><button class="btn sm primary" type="button" id="msgShow">Show on the drawing</button></div>
       <div class="msg-thread" id="msgThread"></div>
       <textarea id="msgReply" maxlength="4000"></textarea>
-      <div class="photo-row"><label class="btn sm" id="replyPhotoL">📷 <span>Take photo</span><input type="file" accept="image/*" capture="environment" id="replyPhotoIn" hidden></label><span class="photo-prev" id="replyPhotoPrev"></span></div>
+      <div class="photo-row"><label class="btn sm" id="replyPhotoL">📷 <span>Take photo</span><input type="file" accept="image/*" capture="environment" id="replyPhotoIn" hidden></label><label class="btn sm" id="replyShotL" title="Pick a screenshot or picture you already have. You can also paste one (Ctrl + V) into the message box.">🖼️ <span>Add screenshot</span><input type="file" accept="image/*" id="replyShotIn" hidden></label><span class="photo-prev" id="replyPhotoPrev"></span></div>
       <p class="adm-msg bad" id="msgErr"></p>
       <div class="row"><button class="btn primary" type="button" id="msgSend">Answer</button></div>
     </div>
@@ -8271,7 +8271,7 @@ var ES_MAP = {
   "Send": "Enviar", "Cancel": "Cancelar", "Close": "Cerrar", "Back": "Atrás", "Answer": "Responder", "Show on the drawing": "Ver en el plano", "Language": "Idioma",
   "What do you need them to look at?": "¿Qué necesitas que revisen?", "Write your answer": "Escribe tu respuesta",
   "Write in English or Spanish. Each person reads it in their own language.": "Escribe en español o en inglés. Cada persona lo lee en su idioma.",
-  "Pick who it goes to.": "Elige a quién se envía.", "Draw on the photo": "Dibuja en la foto", "Circle or point at what your question is about.": "Encierra o señala lo que quieres preguntar.", "Undo": "Deshacer", "Clear": "Borrar", "Done": "Listo", "Draw on it": "Dibujar", "📷 Ask with a photo": "📷 Preguntar con foto", "Take photo": "Tomar foto", "Remove photo": "Quitar foto", "Photo": "Foto", "Getting the photo ready…": "Preparando la foto…", "Type a message or add a photo.": "Escribe un mensaje o agrega una foto.", "Type a message first.": "Escribe un mensaje primero.",
+  "Pick who it goes to.": "Elige a quién se envía.", "Draw on the photo": "Dibuja en la foto", "Circle or point at what your question is about.": "Encierra o señala lo que quieres preguntar.", "Undo": "Deshacer", "Clear": "Borrar", "Done": "Listo", "Draw on it": "Dibujar", "📷 Ask with a photo": "📷 Preguntar con foto", "Take photo": "Tomar foto", "Add screenshot": "Agregar captura de pantalla", "Remove photo": "Quitar foto", "Photo": "Foto", "Getting the photo ready…": "Preparando la foto…", "Type a message or add a photo.": "Escribe un mensaje o agrega una foto.", "Type a message first.": "Escribe un mensaje primero.",
   "Sending…": "Enviando…", "Sent.": "Enviado.", "No messages yet. Use Highlight & send on a drawing to start one.": "Todavía no hay mensajes. Usa Marcar y enviar en un plano para empezar.",
   "Translated from Spanish": "Traducido del inglés", "Show original": "Ver original", "Translate": "Traducir", "you": "tú", "to": "para", "Sheet": "Hoja",
   "No internet right now. Messages send once WiFi is back.": "No hay internet ahora. Los mensajes se envían cuando vuelva el WiFi.",
@@ -8294,6 +8294,7 @@ function applyLang() {
   $("askPhotoBtn").textContent = L("📷 Ask with a photo");
   setLabel(document.querySelector("#jobBtn .jl"));
   document.querySelectorAll("#sendPhotoL span, #replyPhotoL span").forEach(e => e.textContent = L("Take photo"));
+  document.querySelectorAll("#sendShotL span, #replyShotL span").forEach(e => e.textContent = L("Add screenshot"));
   ["hlsTitle", "sendToL", "sendCancel", "sendGo", "msgTitle", "msgLangL", "msgBack", "msgShow", "msgSend", "msgClose"].forEach(id => setLabel($(id)));
   $("sendText").placeholder = L("What do you need them to look at?"); $("msgReply").placeholder = L("Write your answer");
   $("sendLangNote").textContent = L("Write in English or Spanish. Each person reads it in their own language.");
@@ -8357,12 +8358,15 @@ function markupPhoto(ph) {
   });
 }
 function photoPicker(inId, prevId, errId, set) {
-  $(inId).onchange = async e => {
-    const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  // a camera photo, a screenshot or picture picked from the computer or phone, or one pasted in: all get the same draw-on box and stamp
+  const use = async f => {
     $(errId).textContent = L("Getting the photo ready…");
     try { const p = await markupPhoto(await loadPhoto(f)); set(p); $(errId).textContent = ""; showPrev(); }
     catch (err) { $(errId).textContent = "That picture couldn't be opened."; }
   };
+  const pick = async e => { const f = e.target.files[0]; e.target.value = ""; if (f) use(f); };
+  $(inId).onchange = pick;
+  const shot = $(inId.replace("Photo", "Shot")); if (shot) shot.onchange = pick;
   const showPrev = () => {
     const box = $(prevId), p = set(); box.replaceChildren(); if (!p) return;
     const im = document.createElement("img"); im.src = p.data; im.alt = L("Photo");
@@ -8371,10 +8375,17 @@ function photoPicker(inId, prevId, errId, set) {
     box.append(im, ed, x);
   };
   showPrev.pick = () => $(inId).click();
+  showPrev.use = use;
   return showPrev;
 }
 const sendPrev = photoPicker("sendPhotoIn", "sendPhotoPrev", "sendMsg", (p, clear) => p || clear ? (sendPhoto = p || null) : sendPhoto);
 const replyPrev = photoPicker("replyPhotoIn", "replyPhotoPrev", "msgErr", (p, clear) => p || clear ? (replyPhoto = p || null) : replyPhoto);
+// paste a screenshot (Ctrl + V, or the Windows Snipping Tool / Shift-Win-S copy) straight into either message box (Jonathan 2026-11-02)
+[["sendForm", sendPrev], ["msgThreadBox", replyPrev]].forEach(([id, pv]) => $(id).addEventListener("paste", e => {
+  const it = [...(e.clipboardData && e.clipboardData.items || [])].find(i => i.kind === "file" && i.type.startsWith("image/"));
+  const f = it && it.getAsFile(); if (!f) return;
+  e.preventDefault(); pv.use(f);
+}));
 const noteAt = (pg, q) => notes.find(n => n.job === jobKey() && n.page === pg.id && q[0] >= n.rect.x && q[0] <= n.rect.x + n.rect.w && q[1] >= n.rect.y && q[1] <= n.rect.y + n.rect.h);
 function msgBadge() {
   const b = $("msgBtn"); if (!b) return;
