@@ -1,6 +1,6 @@
 import { list, put, del } from "@vercel/blob";
 import { whoIs } from "../lib/session.js";
-import { loadTeam, jobsFor } from "../lib/team-store.js";
+import { loadTeam, jobsFor, jobNosFor } from "../lib/team-store.js";
 
 // The team's jobs, kept in Vercel Blob so everyone using the app sees the same list.
 // Every save of a job is its own JSON file at team/data/<job id>/m<details>-<random>.json, uploaded straight
@@ -43,6 +43,10 @@ export async function GET(request) {
     }
     const newest = new Map();
     (await files("team/data/")).forEach(f => { if (!newest.has(f.id)) newest.set(f.id, f); });
+    // job numbers: any job online without one gets the next number (it never changes after)
+    let nos = {};
+    try { nos = await jobNosFor([...newest.values()].filter(f => !f.deleted)); } catch (e) {}
+    newest.forEach(f => { if (nos[f.id]) f.no = nos[f.id]; });
     const jobs = [...newest.values()].filter(f => (q.get("all") === "1" || !f.deleted) && (!mine || mine.has(f.id))).sort((a, b) => String(b.updated).localeCompare(String(a.updated)));
     return Response.json({ jobs }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {

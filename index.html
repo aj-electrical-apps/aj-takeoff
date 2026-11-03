@@ -857,7 +857,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v150<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v151<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
@@ -4631,6 +4631,7 @@ async function trkAddJob(quiet) {
   const had = trkRows.find(r => r.jobId === job.id);
   const row = { ...(had || { id: uid(), jobId: job.id, place: "", result: "", win: "", notes: "", date: job.bidDate || trkToday() }), job: job.name, gc: job.customer || (had && had.gc) || "", at: new Date().toISOString() };
   if (job.bidDate) row.date = job.bidDate;
+  if (jobNoOf(job)) row.jobNo = jobNoOf(job);
   if (ours) row.ours = ours;
   if (est) row.est = est;
   await trkSend([row]);
@@ -7318,7 +7319,7 @@ async function runSync() {
     if (todo.length) { setDrive("busy", `Saving sheets to Drive… 0 of ${todo.length}`); await Promise.all([worker(), worker(), worker()]); }
     if (job !== j) return;
     setDrive("busy", "Saving to Drive…");
-    const data = { app: "aj-takeoff", v: 1, savedAt: new Date().toISOString(), job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, driveSheetsId: j.driveSheetsId, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [], extra: j.extra || {}, feed: j.feed || {}, supOver: j.supOver || {}, bid: j.bid || null, prop: j.prop || null, cos: j.cos || [], imports: j.imports || [] },
+    const data = { app: "aj-takeoff", v: 1, savedAt: new Date().toISOString(), job: { id: j.id, no: jobNoOf(j) || undefined, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, driveSheetsId: j.driveSheetsId, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [], extra: j.extra || {}, feed: j.feed || {}, supOver: j.supOver || {}, bid: j.bid || null, prop: j.prop || null, cos: j.cos || [], imports: j.imports || [] },
       pages: list.map(p => ({ id: p.id, fileId: p.fileId, ...meta(p) })) };
     const made = await drv("create_file", { title: `${safeName(j.name)} · ajjob ${j.id}.json`, parentId: root, textContent: JSON.stringify(data), contentMimeType: "application/json", disableConversionToGoogleType: true });
     const old = j.driveJsonId;
@@ -7433,7 +7434,7 @@ const APP_HOME = "https://aj-commercial-takeoff.vercel.app/";
 async function projectBlob() {
   const j = job, list = pages.filter(p => !p.example);
   const head = { app: "aj-takeoff", kind: "job-file", v: 1, savedAt: new Date().toISOString(),
-    job: { id: j.id, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [], extra: j.extra || {}, feed: j.feed || {}, supOver: j.supOver || {}, bid: j.bid || null, prop: j.prop || null, cos: j.cos || [], imports: j.imports || [] }, pages: [] };
+    job: { id: j.id, no: jobNoOf(j) || undefined, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [], extra: j.extra || {}, feed: j.feed || {}, supOver: j.supOver || {}, bid: j.bid || null, prop: j.prop || null, cos: j.cos || [], imports: j.imports || [] }, pages: [] };
   let at = 0;
   for (const p of list) {
     const { fileId, ...m } = meta(p);
@@ -7910,7 +7911,16 @@ const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return 
 const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} };
 const putJobLocal = j => store(s => s.put(j), "jobs");
 const saveJob = j => { if (job && j.id === job.id) scheduleSync(); return putJobLocal(j); };
-function showJobName() { $("jobName").textContent = job ? job.name : "Example job"; }
+// job number (Jonathan 2026-11-03): handed out online the first time a job is saved there, and shared with LA
+const jobNoOf = j => { if (!j) return ""; try { return (teamIndex[segId(j.id)] || {}).no || j.no || ""; } catch (e) { return j.no || ""; } };
+function showJobName() { const n = jobNoOf(job); $("jobName").textContent = job ? (n ? `#${n} · ` : "") + job.name : "Example job"; }
+// after a save, pick up the new job's number (and keep it on the job, so it shows offline too)
+async function jobNoRefresh() {
+  if (!teamOn || teamOffline) return;
+  try { const r = await fetch("/api/jobs", { cache: "no-store" }); if (!r.ok) return; teamJobs = (await r.json()).jobs || []; teamIndex = {}; teamJobs.forEach(f => teamIndex[f.id] = f); } catch (e) { return; }
+  for (const j of jobs) { const n = (teamIndex[segId(j.id)] || {}).no; if (n && j.no !== n) { j.no = n; try { await putJobLocal(j); } catch (e) {} } }
+  showJobName();
+}
 async function openJob(j) {
   if (tool) setTool(null);
   phPanel(null);
@@ -7949,7 +7959,7 @@ async function sheetCounts() {
 let editingJob = null; // the job the form edits, or null for a new job
 /* Job lists: the Jobs window and the Recent jobs part of Save / Open. Newest first; search looks at name, GC, address and bid date. */
 let jobCounts = {};
-const jobMatch = (j, q) => !q || q.toLowerCase().split(/\s+/).filter(Boolean).every(w => [j.name, j.customer, j.address, j.bidDate].join(" ").toLowerCase().includes(w));
+const jobMatch = (j, q) => !q || q.toLowerCase().split(/\s+/).filter(Boolean).every(w => [j.name, j.customer, j.address, j.bidDate, jobNoOf(j), j.no].join(" ").toLowerCase().includes(w));
 function jobRowsInto(list, arr, modalId) {
   list.replaceChildren();
   arr.forEach(j => {
@@ -7957,7 +7967,7 @@ function jobRowsInto(list, arr, modalId) {
     const b = document.createElement("button"); b.type = "button"; b.className = "job-row";
     b.setAttribute("aria-current", job && job.id === j.id ? "true" : "false");
     b.innerHTML = `<span><span class="jt"></span><br><span class="jm"></span></span><span class="js"></span>`;
-    b.querySelector(".jt").textContent = j.name;
+    b.querySelector(".jt").textContent = (jobNoOf(j) ? `#${jobNoOf(j)} · ` : "") + j.name;
     b.querySelector(".jm").textContent = [j.customer, j.created && "Started " + stampDate(j.created), j.bidDate && "Bid " + j.bidDate, j.updated && "Last worked " + stampDate(j.updated)].filter(Boolean).join(" · ") || "No details yet";
     b.querySelector(".js").textContent = `${jobCounts[j.id] || 0} sheets`;
     if (teamOn) { const off = document.createElement("span"); off.className = "off-tag"; off.textContent = "✓ On this device, works offline"; b.querySelector(".js").append(document.createElement("br"), off); }
@@ -8003,7 +8013,7 @@ async function showJobs(mode) {
 }
 function fillJobForm() {
   const j = editingJob || {};
-  $("jobFormTitle").textContent = editingJob ? "This job's details" : "New job";
+  $("jobFormTitle").textContent = editingJob ? `This job's details${jobNoOf(j) ? " · Job #" + jobNoOf(j) : ""}` : "New job";
   $("jobSave").textContent = editingJob ? "Save details" : "Start job";
   $("jobNewToggle").hidden = !editingJob;
   $("jobNameIn").value = editingJob ? j.name : "";
@@ -8166,6 +8176,7 @@ async function teamPush(j, list, { force, progress } = {}) {
   await putJobLocal(j);
   if (!(job === j && syncWanted)) lsSet("aj-unsent-" + j.id, null);
   teamIndex[tid] = { ...(teamIndex[tid] || {}), id: tid, name: j.name, customer: j.customer, bidDate: j.bidDate, updated: j.updated, sheets: list.length, by: teamWho, url, saved: data.savedAt };
+  if (!teamIndex[tid].no) setTimeout(jobNoRefresh, 500); // a new job gets its number on its first save online
   fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "tidy", id: tid }) }).catch(() => {});
   return { url };
 }
@@ -8279,7 +8290,7 @@ function drawTeamRemote(q) {
     const li = document.createElement("li");
     const b = document.createElement("button"); b.type = "button"; b.className = "job-row";
     b.innerHTML = `<span><span class="jt"></span><br><span class="jm"></span></span><span class="js"></span>`;
-    b.querySelector(".jt").textContent = f.name;
+    b.querySelector(".jt").textContent = (f.no ? `#${f.no} · ` : "") + f.name;
     b.querySelector(".jm").textContent = [f.customer, f.bidDate && "Bid " + f.bidDate, `Saved ${whenSaved(f.saved)}${f.by ? " by " + f.by : ""}`].filter(Boolean).join(" · ");
     b.querySelector(".js").textContent = `${f.sheets || 0} sheets`;
     b.onclick = () => { $("jobsModal").hidden = true; pullTeam(f); };

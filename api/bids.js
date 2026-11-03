@@ -1,4 +1,5 @@
 import { list, put, del } from "@vercel/blob";
+import { loadJobNos, jobKey } from "../lib/team-store.js";
 
 // The shared Bid tracker list: one JSON file in Vercel Blob. Each save writes a new copy
 // (random name, so the address can't be guessed) and removes the older ones.
@@ -17,7 +18,10 @@ const clean = row => row && typeof row === "object" && typeof row.id === "string
 export async function GET() {
   try {
     const { rows } = await readAll();
-    return Response.json({ rows }, { headers: { "Cache-Control": "no-store" } });
+    // each bid carries its job's number, so the leadership app (LA) gets it too
+    let nos = {}; try { nos = (await loadJobNos()).data?.byJob || {}; } catch (e) {}
+    const out = rows.map(r => r.jobId && nos[jobKey(r.jobId)] ? { ...r, jobNo: nos[jobKey(r.jobId)] } : r);
+    return Response.json({ rows: out }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500 });
   }
