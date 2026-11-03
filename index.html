@@ -909,7 +909,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v156<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v157<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="layBtn" type="button" hidden title="Tablets: switch between the phone layout (drawing fills the screen) and the full layout with every panel showing">🖥 Full layout</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
@@ -4778,8 +4778,16 @@ const trkResult = r => r.result || (+r.place === 1 ? "won" : +r.place > 1 ? "los
 // our price against the winning price, as a percent: + means we were high
 const trkOff = r => +r.ours && +r.win ? (r.ours - r.win) / r.win * 100 : null;
 // adds the open job, or updates its price, name, GC and bid date; results stay as they were
+/* the Bid tracker row for a job: same job (on any computer), same job number, or the same name. LDS Cookeville was in the
+   list twice (Jonathan 2026-11-03) because a second copy of the job had its own id. */
+const trkNorm = t => String(t || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+function trkRowOf(j, rows = trkRows) {
+  const id = segId(j.id), no = jobNoOf(j), nm = trkNorm(j.name);
+  return rows.find(r => r.jobId && (r.jobId === j.id || segId(r.jobId) === id)) || (no && rows.find(r => r.jobNo === no)) || (nm && rows.find(r => trkNorm(r.job) === nm)) || null;
+}
 async function trkAddJob(quiet) {
   if (!job) return quiet || toast("Open a job first.");
+  try { await trkFlush(); } catch (e) {} // the newest list first, so a row added on another computer is updated, not doubled
   // est: the estimate numbers the Pricing, Production & Bonuses app reads when a won bid becomes a job there
   let ours = 0, est = null;
   try {
@@ -4794,7 +4802,7 @@ async function trkAddJob(quiet) {
       est = { hrs: t.hrs, rate: t.rate, prod: t.prod, labor: t.labor, laborUp: t.laborUp, mat: t.mat, matUp: t.matUp, tax: t.tax, sub: t.sub, subUp: t.subUp, total: t.total, items, quotes, subs, at: new Date().toISOString() };
     }
   } catch (e) {}
-  const had = trkRows.find(r => r.jobId === job.id);
+  const had = trkRowOf(job);
   const row = { ...(had || { id: uid(), jobId: job.id, place: "", result: "", win: "", notes: "", date: job.bidDate || trkToday() }), job: job.name, gc: job.customer || (had && had.gc) || "", at: new Date().toISOString() };
   if (job.bidDate) row.date = job.bidDate;
   if (jobNoOf(job)) row.jobNo = jobNoOf(job);
@@ -4864,9 +4872,13 @@ $("trkModal").addEventListener("keydown", e => { if (e.key === "Escape") $("trkM
 $("trkAddJob").onclick = () => trkAddJob(false);
 // jobs on this computer that aren't in the list yet; the open job also brings its proposal price
 $("trkAll").onclick = async () => {
-  const have = new Set(trkRows.map(r => r.jobId).filter(Boolean)), now = new Date().toISOString();
-  const add = jobs.filter(j => !have.has(j.id) && !(job && j.id === job.id)).map(j => ({ id: uid(), jobId: j.id, date: j.bidDate || (j.created || now).slice(0, 10), job: j.name, gc: j.customer || "", ours: "", win: "", place: "", result: "", notes: "", at: now }));
-  const withOpen = job && !have.has(job.id);
+  try { await trkFlush(); } catch (e) {}
+  const now = new Date().toISOString(), seen = new Set();
+  // one row per job: skip jobs already listed (by job, number or name) and second copies of the same job on this computer
+  const fresh = j => { const k = trkNorm(j.name) || j.id; if (trkRowOf(j) || seen.has(k)) return false; seen.add(k); return true; };
+  if (job) seen.add(trkNorm(job.name) || job.id);
+  const withOpen = job && !trkRowOf(job);
+  const add = jobs.filter(j => !(job && j.id === job.id) && fresh(j)).map(j => ({ id: uid(), jobId: j.id, date: j.bidDate || (j.created || now).slice(0, 10), job: j.name, gc: j.customer || "", ours: "", win: "", place: "", result: "", notes: "", at: now }));
   if (!add.length && !withOpen) return toast("Every job on this computer is already in the Bid tracker.");
   if (add.length) await trkSend(add);
   if (withOpen) await trkAddJob(true);
