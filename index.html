@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
 <title>AJ Takeoff</title><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/favicon.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><meta name="theme-color" content="#1c2233"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="AJ Takeoff">
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -136,6 +136,8 @@ button { cursor: pointer; }
 .sheet svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .sheet.tooling svg { pointer-events: all; cursor: crosshair; }
 .sheet.free { transition: none; }
+.viewer, .stage { touch-action: none; -webkit-touch-callout: none; }
+html { touch-action: manipulation; } /* no double-tap page zoom on tablets */
 .sheet canvas.sharp { inset: auto; pointer-events: none; }
 .sharp-btn { position: absolute; top: 44px; right: 12px; font-size: 14px; padding: 8px 14px; box-shadow: 0 3px 12px rgb(0 0 0 / .25); z-index: 3; }
 .stage.panning, .stage.panning * { cursor: grabbing !important; }
@@ -857,7 +859,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v152<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v153<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
@@ -2210,7 +2212,11 @@ const SHARP_MAX = 8e6; // most device pixels in the sharp layer (iPad Safari top
 const vecDocs = new Map(); // sheet id -> promise of { doc, page }, the last few opened
 let sharpT = 0, sharpSeq = 0, sharpTask = null;
 const hasVec = p => !!(p && (p.vec || (p.cloud && p.cloud.vec)));
-function sharpSoon() { clearTimeout(sharpT); sharpT = setTimeout(sharpRender, 320); sharpBtnShow(); }
+// fingers or a drag are moving the sheet: the sharp layer waits until they stop (it made tablets jumpy, 2026-11-03)
+let gestureOn = false;
+const coarse = matchMedia("(pointer: coarse)").matches;
+function sharpSoon() { clearTimeout(sharpT); sharpT = setTimeout(sharpRender, coarse ? 450 : 320); sharpBtnShow(); }
+function sharpHold() { clearTimeout(sharpT); sharpSeq++; if (sharpTask) { try { sharpTask.cancel(); } catch (e) {} sharpTask = null; } }
 function sharpClear() { document.querySelectorAll("#sheet canvas.sharp").forEach(c => { c.width = c.height = 0; c.remove(); }); }
 function vecForget(p) { const e = vecDocs.get(p.id); vecDocs.delete(p.id); e && e.then(o => o && o.doc.destroy()).catch(() => {}); sharpClear(); }
 function vecDoc(p) {
@@ -2234,6 +2240,7 @@ function vecDoc(p) {
 // how many screen pixels one picture pixel takes right now; over ~1.15 the picture looks soft
 const blurAt = (p, v) => fit ? fit.s * v.z * (window.devicePixelRatio || 1) : 0;
 async function sharpRender() {
+  if (gestureOn) return sharpSoon();
   const seq = ++sharpSeq; if (sharpTask) { try { sharpTask.cancel(); } catch (e) {} sharpTask = null; }
   const p = pages[current], img = $("sheetImg"), sh = $("sheet");
   if (!p || !fit || !img.naturalWidth || !window.pdfjsLib) return sharpClear();
@@ -2246,6 +2253,11 @@ async function sharpRender() {
   if (x1 - x0 < 2 || y1 - y0 < 2) return sharpClear();
   const key = [p.id, v.z.toFixed(3), x0 | 0, y0 | 0, x1 | 0, y1 | 0, fit.dw | 0, dpr].join(",");
   const have = sh.querySelector("canvas.sharp"); if (have && have.dataset.key === key) return;
+  // a small pan inside the part already drawn sharp: keep it instead of drawing again
+  if (have && have.dataset.pid === p.id && have.dataset.at) {
+    const a = have.dataset.at.split(",").map(Number);
+    if (a[0] === +v.z.toFixed(3) && a[5] === (fit.dw | 0) && a[6] === dpr && a[1] <= Math.max(0, vx0) + .5 && a[2] <= Math.max(0, vy0) + .5 && a[3] >= Math.min(fit.dw, vx1) - .5 && a[4] >= Math.min(fit.dh, vy1) - .5) return;
+  }
   let e = null; try { e = await vecDoc(p); } catch (er) {}
   if (seq !== sharpSeq) return;
   if (!e) return sharpClear();
@@ -2261,7 +2273,7 @@ async function sharpRender() {
   const task = sharpTask = e.page.render({ canvasContext: ctx, viewport: vp });
   try { await task.promise; } catch (er) { c.width = c.height = 0; return; }
   if (seq !== sharpSeq || pages[current] !== p) { c.width = c.height = 0; return; }
-  sharpTask = null; sharpClear(); c.dataset.key = key; c.dataset.pid = p.id; sh.insertBefore(c, $("cmpCanvas"));
+  sharpTask = null; sharpClear(); c.dataset.key = key; c.dataset.pid = p.id; c.dataset.at = [+v.z.toFixed(3), x0, y0, x1, y1, fit.dw | 0, dpr].join(","); sh.insertBefore(c, $("cmpCanvas"));
 }
 // old jobs (added before v136) have no PDF kept: offer to add the plan PDF once, matched to sheets by their words
 function sharpBtnShow() {
@@ -2419,12 +2431,18 @@ function applyZoom() {
   if (p.zoom === "FREE" && !p.view) p.zoom = "FULL";
   const W = stage.clientWidth, H = stage.clientHeight;
   const iw = img.naturalWidth || 1, ih = img.naturalHeight || 1;
-  const s = Math.min(W / iw, H / ih), dw = iw * s, dh = ih * s;
-  fit = { s, dw, dh, left: (W - dw) / 2, top: (H - dh) / 2, W, H };
+  const s = Math.min(W / iw, H / ih), dw = iw * s, dh = ih * s, was = fit, fk = p.id + ":" + iw + "x" + ih;
+  fit = { s, dw, dh, left: (W - dw) / 2, top: (H - dh) / 2, W, H, fk };
+  // the drawing area changed size (phone panel, keyboard, turning the tablet): keep the same spot in the middle
+  // instead of letting the sheet jump (Jonathan 2026-11-03: "jumping around")
+  if (was && was.fk === fk && p.zoom === "FREE" && p.view && (was.dw !== dw || was.left !== fit.left || was.top !== fit.top) && was.dw > 0) {
+    const v0 = p.view, cx = (was.W / 2 - was.left - v0.tx) / (was.dw * v0.z), cy = (was.H / 2 - was.top - v0.ty) / (was.dh * v0.z);
+    p.view = { z: v0.z, tx: W / 2 - fit.left - cx * dw * v0.z, ty: H / 2 - fit.top - cy * dh * v0.z };
+  }
   Object.assign(sh.style, { left: fit.left + "px", top: fit.top + "px", width: dw + "px", height: dh + "px" });
   $("overlay").setAttribute("viewBox", `0 0 ${iw} ${ih}`);
   const v = viewOf(p);
-  sh.classList.toggle("free", p.zoom === "FREE");
+  sh.classList.toggle("free", p.zoom === "FREE" || gestureOn);
   sh.style.transform = v.z === 1 && !v.tx && !v.ty ? "none" : `translate(${v.tx}px, ${v.ty}px) scale(${v.z})`;
   k = s * v.z;
   $("zoomTag").textContent = p.zoom === "FREE" ? `${Math.round(v.z * 100)}%` : ZOOM_LABEL[p.zoom];
@@ -6882,18 +6900,24 @@ $("zoomFit").onclick = () => setZoom("FULL");
 
 let spaceDown = false, panMode = false, pan = null, panMoved = false, rightBtn = false;
 const touches = new Map();
+// iPad Safari pinch-zooms the whole app (toolbars and all) when fingers land off the sheet; the drawing does its own zoom
+["gesturestart", "gesturechange"].forEach(t => document.addEventListener(t, e => { if (!e.target.closest || !e.target.closest(".modal")) e.preventDefault(); }, { passive: false }));
 let pinch = null;
 function setPanMode(on) { panMode = on; $("panBtn").setAttribute("aria-pressed", on ? "true" : "false"); $("stage").classList.toggle("can-pan", on || spaceDown); }
 $("panBtn").onclick = () => setPanMode(!panMode);
 $("stage").addEventListener("pointerdown", e => {
   const p = pages[current]; if (!p) return;
   if (e.pointerType === "touch") {
+    // the first finger of a new touch: forget any finger whose lift was missed (it ended off the drawing), or the
+    // next tap became a pinch from that old spot and the sheet jumped
+    if (e.isPrimary) { touches.clear(); pinch = null; if (gestureOn && !pan) { gestureOn = false; } }
     touches.set(e.pointerId, [e.clientX, e.clientY]);
     if (touches.size === 1) panMoved = false;
     if (touches.size === 2) { // second finger: pinch and pan instead of whatever the first finger started
       boxDrag = null; cmpDrag = null; if (typeof pressT === "number") { clearTimeout(pressT); pressT = null; }
       const [a, b] = [...touches.values()], v = viewOf(p);
       pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], v: { ...v } };
+      gestureOn = true; sharpHold(); $("sheet").classList.add("free");
       panMoved = true; drawOverlay();
       e.stopPropagation();
     }
@@ -6905,6 +6929,7 @@ $("stage").addEventListener("pointerdown", e => {
   e.preventDefault(); e.stopPropagation();
   // a right-button press only counts as a pan once it moves; until then it may be a click for the menu
   pan = { id: e.pointerId, x: e.clientX, y: e.clientY, v: { ...viewOf(p) }, right: e.button === 2, moved: e.button !== 2 }; panMoved = e.button !== 2;
+  gestureOn = true; sharpHold(); $("sheet").classList.add("free");
   try { $("stage").setPointerCapture(e.pointerId); } catch (_) {}
   $("stage").classList.add("panning");
 }, true);
@@ -6931,6 +6956,7 @@ let lastRight = 0;
 function endPointer(e) {
   touches.delete(e.pointerId);
   if (pinch && touches.size < 2) { pinch = null; e.stopPropagation(); }
+  if (gestureOn && !pinch && !touches.size && !(pan && e.pointerId !== pan.id)) { gestureOn = false; const p = pages[current]; p && $("sheet").classList.toggle("free", p.zoom === "FREE"); sharpSoon(); }
   if (pan && e.pointerId === pan.id) {
     const still = pan.right && !pan.moved && e.type === "pointerup";
     pan = null; $("stage").classList.remove("panning"); e.stopPropagation();
@@ -6943,6 +6969,8 @@ function endPointer(e) {
 }
 $("stage").addEventListener("pointerup", endPointer, true);
 $("stage").addEventListener("pointercancel", endPointer, true);
+// a finger lifted over a toolbar or panel never reaches the stage: still count it as lifted
+["pointerup", "pointercancel"].forEach(t => addEventListener(t, e => { if (e.pointerType === "touch" && touches.has(e.pointerId) && !$("stage").contains(e.target)) endPointer({ pointerId: e.pointerId, type: e.type, clientX: e.clientX, clientY: e.clientY, stopPropagation() {} }); }, true));
 // a drag that moved the sheet isn't also a click on it
 $("stage").addEventListener("click", e => { if (panMoved) { panMoved = false; e.stopPropagation(); e.preventDefault(); } }, true);
 $("stage").addEventListener("auxclick", e => { if (e.button === 1) e.preventDefault(); });
