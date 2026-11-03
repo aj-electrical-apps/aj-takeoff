@@ -858,12 +858,60 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
   body.ph-sheets:not(.ph-named) .labelbar { display: flex !important; position: fixed; left: 0; right: 0; bottom: calc(var(--phbar-h, 56px) + var(--phrail-h, 120px)); z-index: 25; flex-wrap: wrap; }
   .ph-close { display: block; align-self: flex-end; }
 }
+
+@media (min-width: 761px) { /* on a tablet the toolbox slides up on the right, so the drawing still shows beside it */
+  html.ph-lay body.ph-tools .desk > .runs { left: auto !important; width: 460px; max-height: calc(100vh - var(--phbar-h, 56px) - 12px) !important; border-left: 1px solid var(--line); }
+}
+/* Tablets get the phone layout too (Jonathan 2026-11-03: "why cant we have the same view on the tablet that i have on my phone?").
+   html.ph-lay is set by the app on touch tablets unless the Full layout button was picked; same rules as the phone ones above. */
+html.ph-lay .toolbar > .group:has(#blankBtn) { flex: 1 1 100%; min-width: 0; flex-wrap: wrap; row-gap: 8px; }
+html.ph-lay .desk, html.ph-lay .desk.no-rail { grid-template-columns: minmax(0, 1fr); }
+html.ph-lay .desk.no-rail .rail { display: none; }
+html.ph-lay .desk { grid-template-rows: minmax(0, 1fr) auto auto; }
+html.ph-lay .runs { grid-row: 2; max-height: 26vh; border-left: 0; border-top: 1px solid var(--line); }
+html.ph-lay .panel-sec > p.empty { display: none; }
+html.ph-lay .btn.tool { min-height: 36px; }
+html.ph-lay .thumb { width: 90px; }
+html.ph-lay .tabs .railbtn { display: none; }
+html.ph-lay .rail { grid-row: 3; flex-direction: row; overflow-x: auto; overflow-y: hidden; border-right: 0; border-top: 1px solid var(--line); padding: 8px; }
+html.ph-lay .thumb { grid-template-columns: 1fr; width: 110px; flex: none; }
+html.ph-lay .thumb .num { display: none; }
+html.ph-lay .thumb .name { grid-column: 1; font-size: 12px; }
+html.ph-lay .group { border-left: 0; padding-left: 0; }
+html.ph-lay .hide-sm { display: none; }
+html.ph-lay .viewer { padding: 8px; }
+html.ph-lay .toolbar { flex-wrap: nowrap; overflow-x: auto; gap: 8px; padding-block: 6px; scrollbar-width: none; }
+html.ph-lay .toolbar > * { flex: none; }
+html.ph-lay .toolbar .brand { font-size: 0 !important; gap: 0; margin-right: 0; }
+html.ph-lay .brand small, html.ph-lay #lookBtn, html.ph-lay #pageCount, html.ph-lay #cmpBtn, html.ph-lay #driveText, html.ph-lay .tabs { display: none !important; }
+html.ph-lay .center { grid-template-rows: minmax(0, 1fr); }
+html.ph-lay .rail { padding: 4px 8px; }
+html.ph-lay .thumb { width: 84px; }
+html.ph-lay .runs { max-height: 30vh; }
+html.ph-lay .modal { padding: 8px; }
+html.ph-lay .modal-card { padding: 14px; }
+html.ph-lay .app { grid-template-rows: minmax(0, 1fr) auto; }
+html.ph-lay .app > .toolbar, html.ph-lay .labelbar, html.ph-lay .desk > .runs, html.ph-lay .desk > .rail { display: none !important; }
+html.ph-lay .desk { grid-template-rows: minmax(0, 1fr) !important; }
+html.ph-lay .phbar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: var(--panel); border-top: 1px solid var(--line); z-index: 26; }
+html.ph-lay .phbar .btn { min-height: 40px; }
+html.ph-lay .phbar #phSheet { flex: 1; min-width: 0; justify-content: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+html.ph-lay .phbar .on { background: var(--accent-soft); border-color: var(--accent); }
+html.ph-lay body.ph-menu .app > .toolbar { display: flex !important; position: fixed; top: 0; left: 0; right: 0; z-index: 27; flex-wrap: wrap; overflow: visible; box-shadow: 0 4px 16px rgba(0,0,0,.3); }
+html.ph-lay body.ph-menu .app > .toolbar .brand { display: none; }
+html.ph-lay body.ph-tools .desk > .runs { display: flex !important; position: fixed; left: 0; right: 0; bottom: var(--phbar-h, 56px); max-height: 68vh; z-index: 25; box-shadow: 0 -4px 16px rgba(0,0,0,.25); border-top: 1px solid var(--line); }
+html.ph-lay body.ph-sheets .desk > .rail { display: flex !important; position: fixed; left: 0; right: 0; bottom: var(--phbar-h, 56px); z-index: 25; max-height: 40vh; align-items: flex-start; box-shadow: 0 -4px 16px rgba(0,0,0,.25); }
+html.ph-lay body.ph-sheets.ph-named .labelbar { display: none !important; }
+html.ph-lay body.ph-sheets .rail .thumb .num { display: block; font-size: 11px; }
+html.ph-lay body.ph-sheets:not(.ph-named) .labelbar { display: flex !important; position: fixed; left: 0; right: 0; bottom: calc(var(--phbar-h, 56px) + var(--phrail-h, 120px)); z-index: 25; flex-wrap: wrap; }
+html.ph-lay .ph-close { display: block; align-self: flex-end; }
 </style>
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v154<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v155<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
+    <button class="btn sm look-btn" id="layBtn" type="button" hidden title="Tablets: switch between the phone layout (drawing fills the screen) and the full layout with every panel showing">🖥 Full layout</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
     <div class="ref-dock" id="refDock" aria-label="Reference sheets"></div>
@@ -8386,7 +8434,25 @@ function drawTeamRemote(q) {
   if (!q && !rest.length && !jobs.length) $("jobsEmpty").textContent = "No jobs yet, here or online. Start one below.";
 }
 /* Phone bottom bar: one panel open at a time; tapping the drawing closes it */
-const isPhone = () => matchMedia("(max-width: 760px)").matches;
+const isPhone = () => matchMedia("(max-width: 760px)").matches || document.documentElement.classList.contains("ph-lay");
+/* Tablets (Jonathan 2026-11-03: "why cant we have the same view on the tablet that i have on my phone?"): a touch
+   tablet gets the phone layout (html.ph-lay) unless "Full layout" was picked on this device (aj-layout = "full"). */
+const isTablet = () => matchMedia("(pointer: coarse)").matches && !matchMedia("(max-width: 760px)").matches;
+function layApply() {
+  let full = false; try { full = localStorage.getItem("aj-layout") === "full"; } catch (e) {}
+  const on = isTablet() && !full;
+  document.documentElement.classList.toggle("ph-lay", on);
+  const b = $("layBtn"); b.hidden = !isTablet(); b.textContent = on ? "🖥 Full layout" : "📱 Phone layout";
+  if (!on && !matchMedia("(max-width: 760px)").matches) ["menu", "tools", "sheets"].forEach(k => document.body.classList.remove("ph-" + k));
+}
+layApply();
+matchMedia("(max-width: 760px)").addEventListener && matchMedia("(max-width: 760px)").addEventListener("change", layApply);
+$("layBtn").onclick = () => {
+  const on = document.documentElement.classList.contains("ph-lay");
+  try { localStorage.setItem("aj-layout", on ? "full" : "phone"); } catch (e) {}
+  layApply(); phPanel(null);
+  toast(on ? "Full layout: every panel shows. Tap 📱 Phone layout at the top to go back." : "Phone layout: the drawing fills the screen. Menu and Tools are on the bottom bar.");
+};
 function phPanel(which) {
   ["menu", "tools", "sheets"].forEach(k => document.body.classList.toggle("ph-" + k, k === which));
   $("phMenu").setAttribute("aria-expanded", which === "menu"); $("phTools").setAttribute("aria-expanded", which === "tools"); $("phSheet").setAttribute("aria-expanded", which === "sheets");
