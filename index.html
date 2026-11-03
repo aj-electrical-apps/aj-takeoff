@@ -463,7 +463,7 @@ html.look-new body { font-family: var(--font-ui); }
 .cnt-div::after { content: ""; flex: 1; height: 1px; background: var(--line); order: 1; }
 .cnt-div .sn { order: 2; font-weight: 600; }
 /* Field login (Jonathan 2026-10-30): the PM and super look, measure and print; the estimate is locked */
-.role-field :is(#uploadBtn, #bgLoad, #newJobBtn, #coBtn, #clearBtn, #replBtn, #lblBtn, #symBtn, #pnlBtn, #schedBtn, #impBtn, #addCountBtn, #addWireBtn, #addDitchBtn,
+.role-field :is(#uploadBtn, #blankBtn, #photoBtn, #drawBtn, #bgLoad, #newJobBtn, #coBtn, #clearBtn, #replBtn, #lblBtn, #symBtn, #pnlBtn, #schedBtn, #impBtn, #addCountBtn, #addWireBtn, #addDitchBtn,
   #scaleBtn, #hlYBtn, #hlRBtn, #roomBtn, #fileBtn, #histUndo, #histRedo, #tsDbo, #tsRomex, #tsAllBox,
   #jobForm, #teamWhoBox, #jobsOpenFile, #labelForm, .cnt-edit, .psec[data-fold="toolbox"], .tool-sub, .feed-edit) { display: none !important; }
 .review-bar { position: fixed; left: 50%; top: 10px; transform: translateX(-50%); z-index: 60; max-width: min(760px, calc(100vw - 24px)); display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
@@ -478,6 +478,9 @@ html.look-new body { font-family: var(--font-ui); }
 .mk-pin-lbl { font-weight: 700; paint-order: stroke; stroke: #fff; stroke-linejoin: round; fill: #b01e1e; }
 .mk-pin.field .mk-pin-lbl { fill: #4b2bc4; }
 .mk-pin { cursor: pointer; }
+@media (max-width: 760px) { .toolbar > .group:has(#blankBtn) { flex: 1 1 100%; min-width: 0; flex-wrap: wrap; row-gap: 8px; } }
+.sk-col.on { outline: 2px solid currentColor; outline-offset: 1px; }
+.mk-sk { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .pin-split { grid-column: span 2; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .pin-find b { margin-left: 4px; background: #e03131; color: #fff; border-radius: 9px; padding: 0 6px; font-size: 11px; }
 .fw-list .pf-n { float: right; font-weight: 700; } .fw-list .pf-n.left { color: #c92a2a; } .fw-list .pf-n.ok { color: #2b8a3e; }
@@ -859,7 +862,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v153<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v154<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
@@ -880,6 +883,9 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
         Upload plans
       </button>
       <input type="file" id="fileInput" accept="application/pdf,image/*" multiple hidden>
+      <button class="btn" id="blankBtn" type="button" title="Add a blank grid sheet to sketch on and count on, in with the drawings (1 square = 1 ft)">＋ Blank sheet</button>
+      <button class="btn" id="photoBtn" type="button" title="Add photos or pictures as sheets, to mark up with counts, pins and sketches like the drawings">📷 Add photos</button>
+      <input type="file" id="photoInput" accept="image/*" multiple hidden>
       <span class="count" id="pageCount">0 / 200</span>
       <span class="bg-load" id="bgLoad" hidden><span class="bar"><i id="bgLoadBar"></i></span><span id="bgLoadText"></span></span>
     </div>
@@ -1024,6 +1030,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
             <button class="btn tool pin-tool" id="pinBtn" type="button" aria-pressed="false" title="Location pin: click a spot on the drawing and type a label (like “Stub up here”), so the guys can find it. Click a pin again to change or remove its label (P)">📍 Drop pin</button>
             <button class="btn tool pin-find" id="pinFindBtn" type="button" title="Find pins: every sheet with pins on it, and how many aren't marked in the field yet. Click one to go to it.">Find pins</button>
           </div>
+          <button class="btn tool sk-tool" id="drawBtn" type="button" aria-pressed="false" title="Sketch: draw freehand on any sheet, like a scratch sheet or a photo. Erase takes a line off (D)">✏️ Sketch</button>
           <button class="btn tool hl-send" id="sendBtn" type="button" aria-pressed="false" hidden title="Drag a box around part of the drawing and send it to the people you pick. They can answer back.">Highlight &amp; send</button>
           <button class="btn tool hl-send" id="askPhotoBtn" type="button" hidden title="Take a picture, draw on it to show what you mean, and send your question to the people you pick">📷 Ask with a photo</button>
           <p class="tool-sub">Mark up</p>
@@ -1793,7 +1800,7 @@ function db() {
 async function store(fn, name = "pages") {
   try { const d = await db(); const tx = d.transaction(name, "readwrite"); fn(tx.objectStore(name)); await new Promise(r => { tx.oncomplete = tx.onerror = tx.onabort = r; }); } catch (e) {}
 }
-const meta = p => ({ fileId: p.fileId || null, name: p.name, zoom: p.zoom, pxPerInch: p.pxPerInch || null, ftPerPx: p.ftPerPx || null, scaleLabel: p.scaleLabel || "", runs: p.runs, devices: p.devices, hl: p.hl || [], pins: p.pins || [], rooms: p.rooms || [], add: p.add || "", prevAdd: p.prevAdd || "", cloud: p.cloud || null });
+const meta = p => ({ fileId: p.fileId || null, name: p.name, zoom: p.zoom, pxPerInch: p.pxPerInch || null, ftPerPx: p.ftPerPx || null, scaleLabel: p.scaleLabel || "", runs: p.runs, devices: p.devices, hl: p.hl || [], pins: p.pins || [], sk: p.sk || [], kind: p.kind || "", rooms: p.rooms || [], add: p.add || "", prevAdd: p.prevAdd || "", cloud: p.cloud || null });
 // vec = that sheet's own one-page PDF, so zooming in draws it sharp (v136)
 const savePage = (p, i) => p.example ? null : (scheduleSync(), store(s => s.put({ id: p.id, jobId: job.id, order: i, blob: p.blob, thumb: p.thumb || null, words: p.words || null, prevBlob: p.prevBlob || null, vec: p.vec || null, ...meta(p) })));
 const saveMeta = (p, quiet) => p.example ? null : (quiet || scheduleSync(), store(s => { const g = s.get(p.id); g.onsuccess = () => g.result && s.put({ ...g.result, ...meta(p) }); }));
@@ -1811,13 +1818,16 @@ async function loadSaved(jobId) {
   try {
     const all = await pagesOf(jobId);
     return all.sort((a, b) => a.order - b.order).map(r => ({ id: r.id, name: r.name || "", zoom: r.zoom || "FULL", blob: r.blob, url: URL.createObjectURL(r.blob), thumb: r.thumb || null, thumbUrl: r.thumb ? URL.createObjectURL(r.thumb) : null,
-      pxPerInch: r.pxPerInch || null, ftPerPx: r.ftPerPx || null, scaleLabel: r.scaleLabel || "", runs: r.runs || [], devices: r.devices || [], hl: r.hl || [], pins: r.pins || [], rooms: r.rooms || [], fileId: r.fileId || null, words: r.words || null, add: r.add || "", prevAdd: r.prevAdd || "", prevBlob: r.prevBlob || null, vec: r.vec || null, cloud: r.cloud || null }))
+      pxPerInch: r.pxPerInch || null, ftPerPx: r.ftPerPx || null, scaleLabel: r.scaleLabel || "", runs: r.runs || [], devices: r.devices || [], hl: r.hl || [], pins: r.pins || [], sk: r.sk || [], kind: r.kind || "", rooms: r.rooms || [], fileId: r.fileId || null, words: r.words || null, add: r.add || "", prevAdd: r.prevAdd || "", prevBlob: r.prevBlob || null, vec: r.vec || null, cloud: r.cloud || null }))
       .map((p, i, all) => ({ ...p, zoom: all[0].zoom === "FREE" ? "FULL" : all[0].zoom })); // every sheet shares one zoom
   } catch (e) { return []; }
 }
 
 /* ---------- upload ---------- */
 $("uploadBtn").onclick = () => $("fileInput").click();
+$("blankBtn").onclick = () => addBlank();
+$("photoBtn").onclick = () => $("photoInput").click();
+$("photoInput").onchange = e => { addFiles([...e.target.files], { photo: true }); e.target.value = ""; };
 $("fileInput").onchange = e => { addFiles([...e.target.files]); e.target.value = ""; };
 const viewer = $("viewer");
 viewer.addEventListener("dragover", e => { e.preventDefault(); $("drop").hidden = false; });
@@ -1859,7 +1869,7 @@ function busy(title, frac, text) {
 // Sheets are added in the background: the first one shows right away and you can work on it
 // while the rest load. Each page's JPEG is made while the next page is drawn, a few at a time.
 let loading = null;
-async function addFiles(files) {
+async function addFiles(files, { photo = false } = {}) {
   const proj = files.find(f => /\.ajtakeoff$/i.test(f.name));
   if (proj) return importProject(proj);
   files = files.filter(f => f.type === "application/pdf" || /\.pdf$/i.test(f.name) || f.type.startsWith("image/"));
@@ -1877,9 +1887,10 @@ async function addFiles(files) {
     $("bgLoad").hidden = !shown; $("bgLoadBar").style.width = `${total ? done / total * 100 : 0}%`; $("bgLoadText").textContent = `Adding sheets ${done} of ${total}`;
     if (!shown) busy("Reading plans…", total ? done / total : 0, `Sheet ${done + 1} of ${total || "…"}`);
   };
-  const add = (blob, pxPerInch, thumb, words, vec) => {
+  let photoN = pages.filter(x => x.kind === "photo").length;
+  const add = (blob, pxPerInch, thumb, words, vec, kind) => {
     if (me.stop || job !== myJob) return;
-    pushPage(blob, "", pxPerInch, thumb); if (words && words.length) pages[pages.length - 1].words = words; if (vec) pages[pages.length - 1].vec = vec; savePage(pages[pages.length - 1], pages.length - 1); done++;
+    pushPage(blob, kind === "photo" ? `Photo ${++photoN}` : "", pxPerInch, thumb); if (kind) pages[pages.length - 1].kind = kind; if (words && words.length) pages[pages.length - 1].words = words; if (vec) pages[pages.length - 1].vec = vec; savePage(pages[pages.length - 1], pages.length - 1); done++;
     if (!shown) { shown = true; busy(null, null); current = startCount; renderAll(); $("nameInput").focus(); }
     else if (performance.now() - lastPaint > 700) { lastPaint = performance.now(); renderRail(); renderSheet(); }
     progress();
@@ -1907,11 +1918,11 @@ async function addFiles(files) {
     skipped = Math.max(0, total - room); total = Math.min(total, room);
     progress();
     const inFlight = [];
-    const drain = async max => { while (inFlight.length > max) { const r = await inFlight.shift(); add(r[0], r[1], r[2], r[3], r[4]); } };
+    const drain = async max => { while (inFlight.length > max) { const r = await inFlight.shift(); add(r[0], r[1], r[2], r[3], r[4], r[5]); } };
     for (const { f, pdf, want } of docs) {
       if (me.stop || job !== myJob) break;
       const libP = pdf ? vecSource(f) : null; // read in the background, so the first sheet still shows right away
-      if (!pdf) { if (room-- <= 0) break; inFlight.push(Promise.resolve([f, null, null])); await drain(0); continue; }
+      if (!pdf) { if (room-- <= 0) break; inFlight.push(photo ? photoSheet(f) : Promise.resolve([f, null, null])); await drain(0); continue; }
       for (const n of want) {
         if (me.stop || job !== myJob) break;
         if (room-- <= 0) break;
@@ -1945,6 +1956,37 @@ async function addFiles(files) {
   if (bad) toast("One file or page couldn't be read. It may be damaged or password protected.");
   else if (skipped) toast(`Added up to the ${MAX_PAGES}-page limit. ${skipped} page${skipped > 1 ? "s" : ""} left out.`);
   else if (done > 1) toast(`All ${done} sheets added.`);
+}
+/* Blank sheets and photos (Jonathan 2026-11-03: "a blank sheet I can add and scratch on" and "upload pictures and mark
+   them up with counts so they are in with the drawings"). Both are ordinary sheets: counts, runs, pins, notes and
+   sketch lines work on them and they go online with the job. kind "sketch" or "photo" keeps the Make zoom sharp offer off. */
+// a phone photo: turned the right way up, shrunk to the sheet size, saved as a JPEG with a thumbnail
+async function photoSheet(f) {
+  try {
+    const bmp = await createImageBitmap(f, { imageOrientation: "from-image" });
+    const sc = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height)), c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(bmp.width * sc)); c.height = Math.max(1, Math.round(bmp.height * sc));
+    const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, c.width, c.height); x.drawImage(bmp, 0, 0, c.width, c.height); bmp.close && bmp.close();
+    const [big, small] = await encodeSheet(c);
+    return [big, null, small, null, null, "photo"];
+  } catch (e) { return [f, null, null, null, null, "photo"]; }
+}
+const SK_GRID = 40; // px per grid square on a blank sheet = 1 ft
+async function addBlank() {
+  if (loading) return toast("Still adding the last plans. Wait for those to finish, then add a blank sheet.");
+  if (pages.filter(x => !x.example).length >= MAX_PAGES) return toast(`This project already has ${MAX_PAGES} pages, the limit.`);
+  if (pages.some(p => p.example)) { pages.forEach(p => { URL.revokeObjectURL(p.url); p.thumbUrl && URL.revokeObjectURL(p.thumbUrl); }); pages = []; current = 0; }
+  await ensureJob("Untitled job");
+  const W = 3200, H = 2080, c = document.createElement("canvas"); c.width = W; c.height = H;
+  const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, W, H);
+  for (let i = 0; i <= W; i += SK_GRID) { x.fillStyle = i % (SK_GRID * 5) ? "#e4e9ef" : "#c3ccd6"; x.fillRect(i, 0, i % (SK_GRID * 5) ? 1 : 2, H); }
+  for (let i = 0; i <= H; i += SK_GRID) { x.fillStyle = i % (SK_GRID * 5) ? "#e4e9ef" : "#c3ccd6"; x.fillRect(0, i, W, i % (SK_GRID * 5) ? 1 : 2); }
+  const [big, small] = await encodeSheet(c);
+  const n = pages.filter(q => q.kind === "sketch").length + 1;
+  pushPage(big, `Scratch sheet ${n}`, null, small);
+  const p = pages[pages.length - 1]; p.kind = "sketch"; p.ftPerPx = 1 / SK_GRID; p.scaleLabel = "Grid: 1 square = 1 ft";
+  savePage(p, pages.length - 1); current = pages.length - 1; touchJob(); renderAll();
+  toast("Blank sheet added. Use ✏️ Sketch to draw on it, or count and draw runs like on a drawing. Each grid square is 1 ft.");
 }
 const uid = () => crypto.randomUUID ? crypto.randomUUID() : String(Date.now() + Math.random());
 function pushPage(blob, name, pxPerInch = null, thumb = null) {
@@ -2278,7 +2320,7 @@ async function sharpRender() {
 // old jobs (added before v136) have no PDF kept: offer to add the plan PDF once, matched to sheets by their words
 function sharpBtnShow() {
   const p = pages[current], b = $("sharpBtn"); if (!b) return;
-  try { b.hidden = !p || p.example || hasVec(p) || !!cmp || !can("edit") || blurAt(p, viewOf(p)) < 1.15; } catch (e) { b.hidden = true; }
+  try { b.hidden = !p || p.example || !!p.kind || hasVec(p) || !!cmp || !can("edit") || blurAt(p, viewOf(p)) < 1.15; } catch (e) { b.hidden = true; }
 }
 $("sharpBtn").onclick = () => { if (!GDRIVE_ID) return $("sharpFile").click(); $("sharpModal").hidden = false; };
 /* Find the plan PDF in Google Drive (Jonathan 2026-11-02: "really annoying to have to go to the drive").
@@ -4883,6 +4925,7 @@ function replMap(p, fn, s) {
   p.devices.forEach(v => { [v.x, v.y] = fn([v.x, v.y]); });
   p.runs.forEach(r => { r.pts = r.pts.map(fn); r.px = polyLen(r.pts); });
   (p.pins || []).forEach(m => { [m.x, m.y] = fn([m.x, m.y]).map(Math.round); });
+  (p.sk || []).forEach(m => { m.pts = m.pts.map(q => fn(q).map(Math.round)); m.w *= s; });
   [...(p.hl || []), ...(p.rooms || [])].forEach(m => { const a = fn([m.x, m.y]), b = fn([m.x + m.w, m.y + m.h]); m.x = Math.round(Math.min(a[0], b[0])); m.y = Math.round(Math.min(a[1], b[1])); m.w = Math.round(Math.abs(b[0] - a[0])); m.h = Math.round(Math.abs(b[1] - a[1])); });
   if (p.ftPerPx) p.ftPerPx /= s;
   if (p.pxPerInch) p.pxPerInch *= s;
@@ -5717,6 +5760,7 @@ function setTool(t, dev) {
   $("runBtn").setAttribute("aria-pressed", tool === "run");
   $("eraseBtn").setAttribute("aria-pressed", tool === "erase");
   $("pinBtn").setAttribute("aria-pressed", tool === "pin");
+  $("drawBtn").setAttribute("aria-pressed", tool === "draw");
   renderCounts(); renderWires();
   $("sheet").classList.toggle("tooling", !!tool);
   updateHint(); drawOverlay();
@@ -5734,7 +5778,8 @@ function updateHint() {
     const d = devInfo(placeType);
     t.innerHTML = `Placing <b></b>. Click the sheet to drop one. <b>${countOn(p, d.id)}</b> on this sheet. Right-click one to delete it.`;
     t.querySelector("b").textContent = nameOf(d);
-  } else if (tool === "erase") t.textContent = "Click a symbol, a pin, or inside a yellow or red note box, to remove it.";
+  } else if (tool === "erase") t.textContent = "Click a symbol, a pin, a sketch line, or inside a yellow or red note box, to remove it.";
+  else if (tool === "draw") skHint(t);
   else if (tool === "pin") t.textContent = "Click the spot on the drawing, then pick what it is. Click any pin to change it or mark it done in the field.";
   else if (tool === "calibrate") t.textContent = draft.length ? "Now click the other end of the known dimension." : "Click one end of a dimension you know.";
   else if (tool === "measure") {
@@ -5811,6 +5856,7 @@ function drawOverlay() {
     g.appendChild(e);
     if (d.tag || d.label) g.appendChild(svgEl("text", { x: v.x + 10 / k, y: v.y - 6 / k, class: "mk-tag", "font-size": 11 / k, "stroke-width": 3 / k }, d.tag || d.label));
   }
+  drawSketch(g, p);
   { const off = svgEl("g", { class: "mk-office" }); while (g.firstChild) off.appendChild(g.firstChild); g.appendChild(off); } // faded for the field
   drawGhost(g, p, ns, ptsAttr);
   drawNotes(g, p, ns);
@@ -5871,11 +5917,14 @@ $("overlay").addEventListener("click", e => {
     saveMeta(p); drawOverlay(); updateHint(); renderCounts(); return;
   }
   if (tool === "pin") { if (e.detail > 1) return; return pinClick(p, q); }
+  if (tool === "draw") return; // drawn with the finger or mouse held down (pointer handlers in the Sketch section)
   if (tool === "erase") {
     if (noteErase(p, q)) return;
     if (fieldMode) return ghostErase(p, q);
     const pn = pinAt(p.pins, q);
     if (pn) { remember(); p.pins = p.pins.filter(x => x !== pn); saveMeta(p); drawOverlay(); return toast(`Pin “${pn.label}” removed. Undo brings it back.`); }
+    const sk = skAt(p, q);
+    if (sk) { remember(); p.sk = p.sk.filter(x => x !== sk); saveMeta(p); drawOverlay(); return toast("Sketch line erased. Undo brings it back."); }
     let best = null, bd = 14 / k;
     p.devices.forEach(v => { const dd = dist([v.x, v.y], q); if (dd < bd) { bd = dd; best = v; } });
     if (best) { remember(); p.devices = p.devices.filter(v => v !== best); if (dropEmptyRooms(p, [best])) toast("That was the last mark in the typical room, so its box is gone too. Undo brings it back."); hoverDev = null; saveMeta(p); drawOverlay(); renderCounts(); }
@@ -5916,6 +5965,7 @@ $("undoBtn").onclick = () => {
 };
 $("eraseBtn").onclick = () => setTool("erase");
 $("pinBtn").onclick = () => setTool("pin");
+$("drawBtn").onclick = () => setTool("draw");
 $("cancelToolBtn").onclick = () => { if (tool === "calibrate") { setTool(null); showScaleModal(false); } else setTool(null); };
 $("measureBtn").onclick = () => setTool("measure");
 $("runBtn").onclick = () => { if (tool !== "run") { runType = null; contRun = null; } setTool("run"); };
@@ -6170,7 +6220,7 @@ $("sheet").addEventListener("pointerleave", e => { if (e.pointerType === "mouse"
    Undo puts that copy back and jumps to the sheet that changed. */
 let undoStack = [], redoStack = [];
 function snapState(ids) {
-  return { c: JSON.stringify(countsList()), p: ids.map(id => { const pg = pages.find(x => x.id === id); return pg && [id, JSON.stringify([pg.devices, pg.runs, pg.ftPerPx || null, pg.scaleLabel || "", pg.rooms || [], pg.hl || [], pg.pins || []])]; }).filter(Boolean) };
+  return { c: JSON.stringify(countsList()), p: ids.map(id => { const pg = pages.find(x => x.id === id); return pg && [id, JSON.stringify([pg.devices, pg.runs, pg.ftPerPx || null, pg.scaleLabel || "", pg.rooms || [], pg.hl || [], pg.pins || [], pg.sk || []])]; }).filter(Boolean) };
 }
 function remember(list) {
   if (fieldMode) { fieldNo(); throw new Error("Field login is view only"); }
@@ -6183,10 +6233,10 @@ function restoreState(s) {
   let first = -1;
   s.p.forEach(([id, st]) => {
     const i = pages.findIndex(x => x.id === id); if (i < 0) return;
-    const pg = pages[i], cur = JSON.stringify([pg.devices, pg.runs, pg.ftPerPx || null, pg.scaleLabel || "", pg.rooms || [], pg.hl || [], pg.pins || []]);
+    const pg = pages[i], cur = JSON.stringify([pg.devices, pg.runs, pg.ftPerPx || null, pg.scaleLabel || "", pg.rooms || [], pg.hl || [], pg.pins || [], pg.sk || []]);
     if (cur === st) return;
-    const [dv, rn, fp, sl, rm, hl, pn] = JSON.parse(st);
-    Object.assign(pg, { devices: dv, runs: rn, ftPerPx: fp, scaleLabel: sl, rooms: rm || pg.rooms || [], hl: hl || pg.hl || [], pins: pn || pg.pins || [] }); saveMeta(pg);
+    const [dv, rn, fp, sl, rm, hl, pn, sk] = JSON.parse(st);
+    Object.assign(pg, { devices: dv, runs: rn, ftPerPx: fp, scaleLabel: sl, rooms: rm || pg.rooms || [], hl: hl || pg.hl || [], pins: pn || pg.pins || [], sk: sk || pg.sk || [] }); saveMeta(pg);
     if (first < 0) first = i;
   });
   sel.clear(); hoverDev = null; placed = [];
@@ -6918,7 +6968,7 @@ $("stage").addEventListener("pointerdown", e => {
       const [a, b] = [...touches.values()], v = viewOf(p);
       pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], v: { ...v } };
       gestureOn = true; sharpHold(); $("sheet").classList.add("free");
-      panMoved = true; drawOverlay();
+      panMoved = true; penDrag = null; drawOverlay();
       e.stopPropagation();
     }
     return;
@@ -7231,6 +7281,7 @@ document.addEventListener("keydown", e => {
     else if (e.key === "l" || e.key === "L") setTool("run");
     else if (e.key === "e" || e.key === "E") setTool("erase");
     else if (e.key === "p" || e.key === "P") setTool("pin");
+    else if (e.key === "d" || e.key === "D") setTool("draw");
     else if (e.key === "+" || e.key === "=") zoomCenter(1.4);
     else if (e.key === "-" || e.key === "_") zoomCenter(1 / 1.4);
   }
@@ -7655,6 +7706,9 @@ async function sheetCanvas(pg, only) { // only: draw just the runs it passes, no
     const w = wireOf(r.typeId);
     x.strokeStyle = w ? w.color : "#0b6fb8"; x.lineWidth = (only ? 4 : 1.5) * u;
     x.beginPath(); r.pts.forEach((q, i) => i ? x.lineTo(q[0], q[1]) : x.moveTo(q[0], q[1])); x.stroke();
+  });
+  (only ? [] : pg.sk || []).forEach(m => {
+    x.strokeStyle = SK_COLORS[m.c] || "#111"; x.lineWidth = m.w; x.beginPath(); m.pts.forEach((q, i) => i ? x.lineTo(q[0], q[1]) : x.moveTo(q[0], q[1])); x.stroke();
   });
   (only ? [] : pg.pins || []).forEach(m => {
     const dn = pinDoneOf(m).d; x.beginPath(); x.arc(m.x, m.y, 6 * u, 0, Math.PI * 2); x.fillStyle = dn ? "#2f9e44" : "#e03131"; x.fill(); x.lineWidth = 1.5 * u; x.strokeStyle = "#fff"; x.stroke();
@@ -9431,6 +9485,63 @@ function pinGo(i, m) {
 $("pinFindBtn").onclick = () => { if (tool === "pin") setTool(null); drawPinFind(); $("pfModal").hidden = false; };
 $("pfOpen").onchange = drawPinFind;
 $("pfClose").onclick = () => { $("pfModal").hidden = true; };
+/* Sketch (Jonathan 2026-11-03: a sheet "I can add and scratch on"): freehand lines on any sheet, office only.
+   Kept in p.sk as { id, c: color, w: width in sheet px, pts }, saved, undone and printed with the other marks. */
+const SK_COLORS = { k: "#111", r: "#e03131", b: "#1c7ed6" };
+var penDrag = null, skColor = "k";
+try { skColor = localStorage.getItem("aj-sk-color") || "k"; } catch (e) {}
+function skHint(t) {
+  t.innerHTML = 'Draw with your finger or hold the mouse down. <span class="sk-cols"></span> Erase takes a line off.';
+  const box = t.querySelector(".sk-cols");
+  [["k", "Black"], ["r", "Red"], ["b", "Blue"]].forEach(([c, n]) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "btn sm sk-col" + (skColor === c ? " on" : ""); b.textContent = n; b.style.color = SK_COLORS[c];
+    b.onclick = ev => { ev.stopPropagation(); skColor = c; try { localStorage.setItem("aj-sk-color", c); } catch (e) {} updateHint(); };
+    box.appendChild(b);
+  });
+}
+function drawSketch(g, p) {
+  const line = m => g.appendChild(svgEl("polyline", { points: m.pts.map(q => q.join(",")).join(" "), class: "mk-sk", stroke: SK_COLORS[m.c] || "#111", "stroke-width": m.w }));
+  (p.sk || []).forEach(line);
+  if (penDrag && penDrag.p === p) line(penDrag);
+}
+// the sketch line under a click, if any
+function skAt(p, q) {
+  let best = null, bd = Infinity;
+  (p.sk || []).forEach(m => {
+    const tol = 10 / k + m.w / 2;
+    for (let i = 0; i < m.pts.length; i++) {
+      const a = m.pts[i], b = m.pts[i + 1] || a, dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy;
+      const t = L2 ? Math.max(0, Math.min(1, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2)) : 0;
+      const d = Math.hypot(q[0] - a[0] - t * dx, q[1] - a[1] - t * dy);
+      if (d < tol && d < bd) { bd = d; best = m; }
+    }
+  });
+  return best;
+}
+$("overlay").addEventListener("pointerdown", e => {
+  const p = pages[current];
+  if (tool !== "draw" || !p || pinch || spaceDown || panMode || (e.pointerType === "mouse" && e.button !== 0)) return;
+  penDrag = { p, id: e.pointerId, c: skColor, w: Math.round(30 / k) / 10, pts: [imgPoint(e).map(Math.round)] };
+  try { $("overlay").setPointerCapture(e.pointerId); } catch (_) {}
+  drawOverlay();
+});
+$("overlay").addEventListener("pointermove", e => {
+  if (!penDrag || e.pointerId !== penDrag.id || pinch) return;
+  const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+  (evs.length ? evs : [e]).forEach(ev => { const q = imgPoint(ev).map(Math.round), l = penDrag.pts[penDrag.pts.length - 1]; if (dist(l, q) * k >= 1.5 && penDrag.pts.length < 4000) penDrag.pts.push(q); });
+  drawOverlay();
+});
+function penEnd(e) {
+  if (!penDrag || e.pointerId !== penDrag.id) return;
+  const d = penDrag; penDrag = null;
+  if (d.p === pages[current]) {
+    if (d.pts.length === 1) d.pts.push([d.pts[0][0] + 1, d.pts[0][1]]); // a tap leaves a dot
+    remember(); (d.p.sk || (d.p.sk = [])).push({ id: uid(), c: d.c, w: d.w, pts: d.pts }); saveMeta(d.p);
+  }
+  drawOverlay();
+}
+$("overlay").addEventListener("pointerup", penEnd);
+$("overlay").addEventListener("pointercancel", e => { if (penDrag && e.pointerId === penDrag.id) { penDrag = null; drawOverlay(); } });
 function drawPins(g0, p) {
   const one = (m, field) => {
     const dn = pinDoneOf(m).d, gp = svgEl("g", { class: "mk-pin" + (field ? " field" : "") + (dn ? " done" : "") + (m.id === pinFocus ? " focus" : "") });
