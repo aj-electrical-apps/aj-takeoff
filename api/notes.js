@@ -11,6 +11,7 @@ import { translate } from "../lib/translate.js";
 // GET ?job=<id> -> { notes: [...] }   (no job = every note for me)
 // POST { op: "new", job, jobName, page, pageName, rect: {x,y,w,h}, to: [ids], text, lang }
 // POST { op: "reply", id, text, lang }
+// POST { op: "delete", id }  only positions with "Delete sent messages" (and admins); leaves team/notes/<id>/d.json, so it can come back
 // Either can carry photo: "data:image/jpeg;base64,..." (stamped with date and time by the app) and photoAt; it's saved as
 // team/notes/<note id>/p-<time>-<random>.jpg and the message keeps its address (Jonathan 2026-10-31).
 const H = { "Cache-Control": "no-store" };
@@ -23,10 +24,10 @@ async function all() {
   do { const r = await list({ prefix: "team/notes/", limit: 1000, cursor }); out.push(...r.blobs); cursor = r.hasMore ? r.cursor : undefined; } while (cursor);
   const byNote = new Map();
   out.forEach(b => {
-    const m = /^team\/notes\/([\w-]+)\/(n|r-[\w-]+)\.json$/.exec(b.pathname);
+    const m = /^team\/notes\/([\w-]+)\/(n|d|r-[\w-]+)\.json$/.exec(b.pathname);
     if (!m) return;
     const n = byNote.get(m[1]) || { id: m[1], head: null, replies: [] };
-    if (m[2] === "n") n.head = b; else n.replies.push(b);
+    if (m[2] === "n") n.head = b; else if (m[2] === "d") n.gone = b; else n.replies.push(b);
     byNote.set(m[1], n);
   });
   return byNote;
@@ -59,7 +60,7 @@ export async function GET(request) {
     const job = new URL(request.url).searchParams.get("job");
     const { users } = await loadTeam();
     const jobs = jobsFor(users, who);
-    const heads = [...(await all()).values()].filter(n => n.head);
+    const heads = [...(await all()).values()].filter(n => n.head && !n.gone);
     const notes = (await Promise.all(heads.map(async n => {
       const h = await read(n.head);
       if (!h || (job && h.job !== job) || !canSee(h, who, jobs)) return null;
@@ -74,6 +75,16 @@ export async function POST(request) {
   try {
     const who = await whoIs(request) || { id: "open", n: "Office", r: "admin", p: "admin" };
     const b = await request.json().catch(() => ({}));
+    if (b.op === "delete") {
+      if (!okId(b.id)) return bad("Bad message.");
+      const n = (await all()).get(b.id), h = n && n.head && !n.gone && await read(n.head);
+      if (!h) return bad("That message is already gone.", 404);
+      const { users } = await loadTeam();
+      if (!canSee(h, who, jobsFor(users, who))) return bad("That message isn't yours.", 403);
+      if (!has(who, "admin") && !has(who, "notesdel")) return bad("Once a message is sent, only the COO or CEO can delete it.", 403);
+      await put(`team/notes/${b.id}/d.json`, JSON.stringify({ by: who.n || "Someone", byId: meOf(who), at: new Date().toISOString() }), { access: "public", addRandomSuffix: false, contentType: "application/json", allowOverwrite: true });
+      return Response.json({ ok: true }, { headers: H });
+    }
     let buf;
     try { buf = photoBytes(b); } catch (e) { return bad(e.message, e.status || 400); }
     if (!String(b.text || "").trim() && !buf) return bad("Type a message or add a photo.");

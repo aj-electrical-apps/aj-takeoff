@@ -857,7 +857,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v151<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v152<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
     <button class="btn sm look-btn" id="msgBtn" type="button" hidden title="Parts of the drawings people sent you, and your answers">Messages</button>
@@ -1278,7 +1278,7 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
     <div id="msgListBox"><p class="hint" id="msgEmpty"></p><ul class="msg-list" id="msgList"></ul></div>
     <div id="msgThreadBox" hidden>
       <p class="msg-meta" id="msgThHead"></p>
-      <div class="row"><button class="btn sm" type="button" id="msgBack">Back</button><button class="btn sm primary" type="button" id="msgShow">Show on the drawing</button></div>
+      <div class="row"><button class="btn sm" type="button" id="msgBack">Back</button><button class="btn sm primary" type="button" id="msgShow">Show on the drawing</button><button class="btn sm warn" type="button" id="msgDel" hidden>Delete this message</button></div>
       <div class="msg-thread" id="msgThread"></div>
       <textarea id="msgReply" maxlength="4000"></textarea>
       <div class="photo-row"><label class="btn sm" id="replyPhotoL">📷 <span>Take photo</span><input type="file" accept="image/*" capture="environment" id="replyPhotoIn" hidden></label><label class="btn sm" id="replyShotL" title="Pick a screenshot or picture you already have. You can also paste one (Ctrl + V) into the message box.">🖼️ <span>Add screenshot</span><input type="file" accept="image/*" id="replyShotIn" hidden></label><span class="photo-prev" id="replyPhotoPrev"></span></div>
@@ -5854,6 +5854,7 @@ $("overlay").addEventListener("click", e => {
   }
   if (tool === "pin") { if (e.detail > 1) return; return pinClick(p, q); }
   if (tool === "erase") {
+    if (noteErase(p, q)) return;
     if (fieldMode) return ghostErase(p, q);
     const pn = pinAt(p.pins, q);
     if (pn) { remember(); p.pins = p.pins.filter(x => x !== pn); saveMeta(p); drawOverlay(); return toast(`Pin “${pn.label}” removed. Undo brings it back.`); }
@@ -8559,7 +8560,8 @@ const makePw = () => `${PW_WORDS[pick(PW_WORDS.length)]}-${PW_WORDS[pick(PW_WORD
    A box dragged on a drawing goes to the people picked, saved online by api/notes with the message in English and Spanish.
    Everyone it went to can answer; each person reads it in their own language. Subs are added by a PM (api/subs). */
 var ES_MAP = {
-  "Messages": "Mensajes", "Highlight & send": "Marcar y enviar", "Send this part of the drawing": "Enviar esta parte del plano", "Send to": "Enviar a",
+  "Messages": "Mensajes", "Delete this message": "Borrar este mensaje", "Yes, delete it for everyone": "Sí, borrarlo para todos", "Message deleted.": "Mensaje borrado.",
+  "Removed. It wasn't sent.": "Quitado. No se envió.", "Once a message is sent, only the COO or CEO can delete it.": "Una vez enviado, solo el COO o el CEO pueden borrar un mensaje.", "Delete this message for everyone?": "¿Borrar este mensaje para todos?", "Highlight & send": "Marcar y enviar", "Send this part of the drawing": "Enviar esta parte del plano", "Send to": "Enviar a",
   "Send": "Enviar", "Cancel": "Cancelar", "Close": "Cerrar", "Back": "Atrás", "Answer": "Responder", "Show on the drawing": "Ver en el plano", "Language": "Idioma",
   "What do you need them to look at?": "¿Qué necesitas que revisen?", "Write your answer": "Escribe tu respuesta",
   "Write in English or Spanish. Each person reads it in their own language.": "Escribe en español o en inglés. Cada persona lo lee en su idioma.",
@@ -8764,6 +8766,32 @@ $("msgBtn").onclick = () => openMsgs();
 $("msgClose").onclick = () => { $("msgModal").hidden = true; noteOpen = null; };
 $("msgModal").addEventListener("keydown", e => { if (e.key === "Escape") $("msgClose").click(); });
 $("msgBack").onclick = () => { noteOpen = null; drawMsgs(); };
+/* Deleting Highlight & send (Jonathan 2026-11-03): a box not sent yet can always be removed (Cancel, or Erase on it);
+   once sent, only positions with "Delete sent messages" in Admin (the COO and CEO). */
+async function noteDelete(id) {
+  try {
+    const r = await fetch("/api/notes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "delete", id }) });
+    const o = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(o.error || "Couldn't delete it.");
+    notes = notes.filter(x => x.id !== id); if (noteOpen === id) noteOpen = null;
+    msgBadge(); drawOverlay(); if (!$("msgModal").hidden) drawMsgs();
+    toast(L("Message deleted."));
+    return true;
+  } catch (e) { toast(e.message); return false; }
+}
+$("msgDel").onclick = e => {
+  const b = e.currentTarget;
+  if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = L("Yes, delete it for everyone"); return; }
+  noteDelete(noteOpen);
+};
+// Erase on an orange box: a box not sent yet just goes; a sent one only for those allowed
+function noteErase(p, q) {
+  if (sendDraft && sendPage === p.id && q[0] >= sendDraft.x && q[0] <= sendDraft.x + sendDraft.w && q[1] >= sendDraft.y && q[1] <= sendDraft.y + sendDraft.h) { sendClose(); toast(L("Removed. It wasn't sent.")); return true; }
+  const n = noteAt(p, q); if (!n) return false;
+  if (!can("notesdel")) { toast(L("Once a message is sent, only the COO or CEO can delete it.")); return true; }
+  if (confirm(L("Delete this message for everyone?"))) noteDelete(n.id);
+  return true;
+}
 document.querySelectorAll(".msg-lang [data-lang]").forEach(b => b.onclick = () => { lsSet("aj-lang", b.dataset.lang); applyLang(); noteOpen ? drawThread() : drawMsgs(); drawOverlay(); });
 const whoLine = n => `${n.from.id === noteMe ? L("you") : n.from.name} → ${n.to.map((id, i) => id === noteMe ? L("you") : n.toNames[i] || "").join(", ")}`;
 function drawMsgs() {
@@ -8786,6 +8814,7 @@ function drawThread() {
   if (!n) return drawMsgs();
   $("msgListBox").hidden = true; $("msgThreadBox").hidden = false; $("msgErr").textContent = "";
   $("msgThHead").textContent = `${n.jobName || ""} · ${L("Sheet")} ${n.pageName || ""} · ${whoLine(n)}`;
+  $("msgDel").hidden = !can("notesdel"); delete $("msgDel").dataset.sure; $("msgDel").textContent = L("Delete this message");
   const box = $("msgThread"); box.replaceChildren();
   n.msgs.forEach(m => {
     const d = document.createElement("div"), mine = m.byId === noteMe, lang = myLang();
