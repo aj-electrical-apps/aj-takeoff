@@ -909,7 +909,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v155<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v156<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="layBtn" type="button" hidden title="Tablets: switch between the phone layout (drawing fills the screen) and the full layout with every panel showing">🖥 Full layout</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
@@ -1850,7 +1850,7 @@ async function store(fn, name = "pages") {
 }
 const meta = p => ({ fileId: p.fileId || null, name: p.name, zoom: p.zoom, pxPerInch: p.pxPerInch || null, ftPerPx: p.ftPerPx || null, scaleLabel: p.scaleLabel || "", runs: p.runs, devices: p.devices, hl: p.hl || [], pins: p.pins || [], sk: p.sk || [], kind: p.kind || "", rooms: p.rooms || [], add: p.add || "", prevAdd: p.prevAdd || "", cloud: p.cloud || null });
 // vec = that sheet's own one-page PDF, so zooming in draws it sharp (v136)
-const savePage = (p, i) => p.example ? null : (scheduleSync(), store(s => s.put({ id: p.id, jobId: job.id, order: i, blob: p.blob, thumb: p.thumb || null, words: p.words || null, prevBlob: p.prevBlob || null, vec: p.vec || null, ...meta(p) })));
+const savePage = (p, i) => p.example ? null : (scheduleSync(), (async () => { const r = await packRec({ id: p.id, jobId: job.id, order: i, blob: p.blob, thumb: p.thumb || null, words: p.words || null, prevBlob: p.prevBlob || null, vec: p.vec || null }); return store(s => s.put({ ...r, ...meta(p) })); })());
 const saveMeta = (p, quiet) => p.example ? null : (quiet || scheduleSync(), store(s => { const g = s.get(p.id); g.onsuccess = () => g.result && s.put({ ...g.result, ...meta(p) }); }));
 async function getAll(name) {
   const d = await db();
@@ -1859,9 +1859,23 @@ async function getAll(name) {
 // one job's sheets only
 async function pagesOf(jobId) {
   const d = await db(), os = d.transaction("pages").objectStore("pages");
-  if (!os.indexNames.contains("jobId")) return (await getAll("pages")).filter(r => r.jobId === jobId);
-  return new Promise((res, rej) => { const g = os.index("jobId").getAll(jobId); g.onsuccess = () => res(g.result); g.onerror = rej; });
+  if (!os.indexNames.contains("jobId")) return (await getAll("pages")).filter(r => r.jobId === jobId).map(unpackRec);
+  return new Promise((res, rej) => { const g = os.index("jobId").getAll(jobId); g.onsuccess = () => res(g.result.map(unpackRec)); g.onerror = rej; });
 }
+/* iPad Safari can lose the pictures of sheets kept as Blobs in its database: the record is there but the picture won't
+   open (Jonathan 2026-11-03, every LDS sheet a "?"). Repaired sheets are kept as plain bytes ({ ab, t }), which Safari
+   keeps; reading turns them back into Blobs so nothing else changes. */
+const packBlob = async b => b ? { ab: await b.arrayBuffer(), t: b.type || "" } : null;
+const unpackBlob = v => v && v.ab instanceof ArrayBuffer ? new Blob([v.ab], { type: v.t || "" }) : v;
+// Safari (every browser on an iPad or iPhone) keeps sheet pictures as plain bytes; other browsers keep Blobs as before
+const WEBKIT_IDB = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)) || (/Safari\//.test(navigator.userAgent) && !/Chrome|Chromium|Edg|Android/.test(navigator.userAgent));
+async function packRec(r) {
+  if (!WEBKIT_IDB) return r;
+  const o = { ...r };
+  for (const k of ["blob", "thumb", "vec", "prevBlob"]) if (o[k] instanceof Blob) { try { o[k] = await packBlob(o[k]); } catch (e) {} }
+  return o;
+}
+function unpackRec(r) { if (r) ["blob", "thumb", "vec", "prevBlob"].forEach(k => { if (r[k] && r[k].ab) r[k] = unpackBlob(r[k]); }); return r; }
 async function loadSaved(jobId) {
   try {
     const all = await pagesOf(jobId);
@@ -2065,6 +2079,50 @@ function needThumb(p) {
     p.thumbBusy = false;
   });
 }
+
+// a sheet's picture (big) or thumbnail that won't open on this device: get it again from the online copy
+const fixing = new Map(), fixSaid = new Set();
+function sheetFix(p, big) {
+  if (!p || p.example) return Promise.resolve(false);
+  const key = p.id + (big ? ":big" : ":thumb");
+  if (fixing.has(key)) return fixing.get(key);
+  const pr = (async () => {
+    const c = p.cloud || {};
+    try {
+      if (big) {
+        if (!c.img) throw new Error("not online");
+        const r = await fetch(c.img[0]); if (!r.ok) throw new Error("fetch");
+        const b = await r.blob();
+        URL.revokeObjectURL(p.url); p.blob = b; p.url = URL.createObjectURL(b);
+        const packed = await packBlob(b);
+        await store(s => { const g = s.get(p.id); g.onsuccess = () => g.result && s.put({ ...g.result, blob: packed }); });
+        if (pages[current] === p && !(showOld && p.prevBlob)) $("sheetImg").src = p.url;
+        if (!c.thumb) { p.thumbUrl && URL.revokeObjectURL(p.thumbUrl); p.thumbUrl = null; p.thumb = null; needThumb(p); }
+      } else {
+        let t = null;
+        if (c.thumb) { const r = await fetch(c.thumb[0]); if (r.ok) t = await r.blob(); }
+        if (!t) return sheetFix(p, true);
+        p.thumbUrl && URL.revokeObjectURL(p.thumbUrl); p.thumb = t; p.thumbUrl = URL.createObjectURL(t);
+        const packed = await packBlob(t);
+        await store(s => { const g = s.get(p.id); g.onsuccess = () => g.result && s.put({ ...g.result, thumb: packed }); });
+        const im = document.querySelector(`#rail .thumb[data-id="${p.id}"] img`); if (im) im.src = p.thumbUrl;
+      }
+      return true;
+    } catch (e) {
+      if (big && !fixSaid.has(p.id)) { fixSaid.add(p.id); toast(`Sheet ${p.name || ""} won't open on this device and there's no online copy to get it from. Open the job on the computer that added it and save it online.`); }
+      return false;
+    } finally { setTimeout(() => fixing.delete(key), 30000); }
+  })();
+  fixing.set(key, pr);
+  return pr;
+}
+$("sheetImg").addEventListener("error", () => { const p = pages[current], img = $("sheetImg"); if (p && img.getAttribute("src") === p.url) sheetFix(p, true); });
+// thumbnails that fail (lazy, so only the ones scrolled into view are fetched)
+$("rail").addEventListener("error", e => {
+  const im = e.target; if (!im || im.tagName !== "IMG") return;
+  const b = im.closest(".thumb"), p = b && pages.find(x => x.id === b.dataset.id);
+  if (p && im.getAttribute("src") === p.thumbUrl) sheetFix(p, false);
+}, true);
 
 /* ---------- render ---------- */
 const QPOS = { TL: "left:0;top:0", TR: "right:0;top:0", BL: "left:0;bottom:0", BR: "right:0;bottom:0" };
@@ -8386,7 +8444,7 @@ async function pullTeam(f, { keepOnly } = {}) {
       && JSON.stringify(meta(x)) === JSON.stringify(meta({ ...h, name: h.name || "" }));
     const keep = new Set(rows.map(x => x && x.id)), changed = rows.filter(x => x && x.blob && !same(x, have.get(x.id)));
     await store(s => { have.forEach((_, id) => { if (!keep.has(id)) s.delete(id); }); });
-    for (let i = 0; i < changed.length; i += 10) { const part = changed.slice(i, i + 10); await store(s => part.forEach(x => s.put(x))); await new Promise(r => setTimeout(r)); }
+    for (let i = 0; i < changed.length; i += 10) { const part = await Promise.all(changed.slice(i, i + 10).map(packRec)); await store(s => part.forEach(x => s.put(x))); await new Promise(r => setTimeout(r)); }
     await putJobLocal(j);
     jobs = jobs.filter(x => x.id !== j.id).concat(j);
     busy(null, null);
