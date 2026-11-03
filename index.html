@@ -909,7 +909,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v157<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v158<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="layBtn" type="button" hidden title="Tablets: switch between the phone layout (drawing fills the screen) and the full layout with every panel showing">🖥 Full layout</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
@@ -4719,7 +4719,7 @@ async function saveProposal() {
   busy("Making the proposal…", 0.2);
   try { file = await makeProposal(); } catch (e) { busy(null, null); return toast("Couldn't make the proposal. Check your internet and try again."); }
   busy(null, null);
-  if (!coScope) trkAddJob(true);
+  trkAddJob(true); // the base bid's numbers and every change order's, whichever was just made
   if (await mcpReady) {
     try {
       busy("Saving the proposal to Google Drive…", .5, file.name);
@@ -4789,10 +4789,11 @@ async function trkAddJob(quiet) {
   if (!job) return quiet || toast("Open a job first.");
   try { await trkFlush(); } catch (e) {} // the newest list first, so a row added on another computer is updated, not doubled
   // est: the estimate numbers the Pricing, Production & Bonuses app reads when a won bid becomes a job there
-  let ours = 0, est = null;
+  let ours = 0, est = null, cos = null;
+  const was = coScope; coScope = null; // the base bid, even while a change order is picked
   try {
     const t = propTotals(); ours = Math.round(t.total) || 0;
-    if (t.total > 0 && !coCur()) {
+    if (t.total > 0) {
       // the counts with their man hours, and who is quoting the material and the sub work
       const p = propOf(), r2 = v => Math.round(v * 1000) / 1000;
       const items = bidRows().filter(r => r.qty).map(r => ({ sec: r.sec, name: r.name, qty: r.qty, unit: r.unit, hEach: r.h, hrs: r2(r.hrs) }))
@@ -4801,13 +4802,23 @@ async function trkAddJob(quiet) {
       const subs = p.subs.filter(x => +(x.useVe && +x.ve ? x.ve : x.amt) || x.vendor).map(x => ({ name: x.name, vendor: x.vendor || "", amount: +(x.useVe && +x.ve ? x.ve : x.amt) || 0 }));
       est = { hrs: t.hrs, rate: t.rate, prod: t.prod, labor: t.labor, laborUp: t.laborUp, mat: t.mat, matUp: t.matUp, tax: t.tax, sub: t.sub, subUp: t.subUp, total: t.total, items, quotes, subs, at: new Date().toISOString() };
     }
+    /* change orders go to LA too (Jonathan 2026-11-03: "how are we going to get the cor to upload what they are added on
+       the takeoffs ... it is shared with the LA"): each one's price, hours and material, picked up there as a pending CO */
+    cos = coList().map(c => {
+      coScope = c.id;
+      const u = propTotals(), r0 = v => Math.round((+v || 0) * 100) / 100;
+      return { id: c.id, n: c.n, name: c.name || "", desc: c.desc || "", date: c.date || "", total: r0(u.total), hrs: r0(u.hrs), labor: r0(u.labor), laborUp: r0(u.laborUp),
+        mat: r0(u.mat), matUp: r0(u.matUp), tax: r0(u.tax), sub: r0(u.sub), subUp: r0(u.subUp), at: new Date().toISOString() };
+    }).filter(c => c.total > 0);
   } catch (e) {}
+  coScope = was;
   const had = trkRowOf(job);
   const row = { ...(had || { id: uid(), jobId: job.id, place: "", result: "", win: "", notes: "", date: job.bidDate || trkToday() }), job: job.name, gc: job.customer || (had && had.gc) || "", at: new Date().toISOString() };
   if (job.bidDate) row.date = job.bidDate;
   if (jobNoOf(job)) row.jobNo = jobNoOf(job);
   if (ours) row.ours = ours;
   if (est) row.est = est;
+  if (cos) row.cos = cos;
   await trkSend([row]);
   if (!$("trkModal").hidden) renderTrk();
   if (!quiet) toast(had ? `Updated ${job.name} in the Bid tracker.` : `Added ${job.name} to the Bid tracker.`);
