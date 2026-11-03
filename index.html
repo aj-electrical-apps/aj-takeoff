@@ -862,6 +862,35 @@ kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--li
 @media (min-width: 761px) { /* on a tablet the toolbox slides up on the right, so the drawing still shows beside it */
   html.ph-lay body.ph-tools .desk > .runs { left: auto !important; width: 460px; max-height: calc(100vh - var(--phbar-h, 56px) - 12px) !important; border-left: 1px solid var(--line); }
 }
+/* Bigger drawing on a computer (Jonathan 2026-11-03: "screens is just to small can we move this stuff out some? make it at
+   least as big as the red"): a tighter top bar, a thin sheet list, the tools slide out over the right side of the drawing,
+   and the sheet name bar hides once every sheet is named. html.big, set by the ⛶ Bigger drawing button (aj-big). */
+.big-btns { margin-left: auto; display: flex; gap: 4px; align-self: center; margin-bottom: 4px; flex: none; }
+.big-only { display: none; }
+html.big .big-only { display: inline-flex; }
+html.big .app > .toolbar { padding-block: 4px; gap: 4px 8px; }
+html.big .app > .toolbar .btn { height: 30px; padding: 0 8px; font-size: 13px; gap: 4px; }
+html.big .app > .toolbar .btn svg { width: 14px; height: 14px; }
+html.big .app > .toolbar .group { padding-left: 6px; gap: 2px; }
+html.big .app > .toolbar .brand { font-size: 15px !important; }
+html.big .app > .toolbar .brand-logo { height: 26px; width: auto; }
+html.big .app > .toolbar .jobbtn { height: 32px; }
+html.big #pageCount { display: none; }
+html.big .tabs { padding-top: 3px; }
+html.big .tabs .btn.sm { height: 26px; }
+html.big .desk, html.big .desk.no-rail { grid-template-columns: 92px minmax(0, 1fr); position: relative; }
+html.big .desk.no-rail { grid-template-columns: minmax(0, 1fr); }
+html.big .rail { padding: 6px 4px; gap: 4px; }
+html.big .thumb { grid-template-columns: 1fr; gap: 2px; padding: 4px; }
+html.big .thumb .num { font-size: 10px; padding: 0; }
+html.big .thumb .name { grid-column: 1; font-size: 11px; }
+html.big .thumb .pop, html.big .thumb .pin { width: 20px; height: 20px; font-size: 11px; top: 2px; }
+html.big .thumb .pin { right: 24px; }
+html.big .viewer { padding: 8px; }
+html.big .desk > .runs { position: absolute; top: var(--tabs-h, 36px); right: 0; bottom: 0; width: min(330px, 80vw); z-index: 20; box-shadow: -6px 0 18px rgba(0,0,0,.25); transform: translateX(105%); transition: transform .18s ease; visibility: hidden; }
+html.big body.tools-open .desk > .runs { transform: none; visibility: visible; }
+html.big body.all-named:not(.name-open) .labelbar { display: none !important; }
+html.big #bigBtn[aria-pressed="true"], html.big .big-only[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); }
 /* Tablets get the phone layout too (Jonathan 2026-11-03: "why cant we have the same view on the tablet that i have on my phone?").
    html.ph-lay is set by the app on touch tablets unless the Full layout button was picked; same rules as the phone ones above. */
 html.ph-lay .toolbar > .group:has(#blankBtn) { flex: 1 1 100%; min-width: 0; flex-wrap: wrap; row-gap: 8px; }
@@ -909,7 +938,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v158<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v159<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="layBtn" type="button" hidden title="Tablets: switch between the phone layout (drawing fills the screen) and the full layout with every panel showing">🖥 Full layout</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
@@ -1008,6 +1037,11 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
       <div class="tab-list" id="tabList" role="tablist" aria-label="Pinned sheets"></div>
       <button class="btn sm" id="tabPin" type="button" title="Put this sheet on the top bar so you can jump back to it">+ Pin this sheet</button>
       <button class="btn sm" id="rsBtn" type="button" title="Open one window with several sheets side by side that you can put on your other screen">⧉ Reference screen</button>
+      <span class="big-btns">
+        <button class="btn sm big-only" id="nameShowBtn" type="button" aria-pressed="false" title="Show the sheet name bar to name or rename sheets">✎ Rename sheet</button>
+        <button class="btn sm big-only" id="toolsShowBtn" type="button" aria-pressed="false" title="Show or hide the tools, counts and toolbox on the right">🧰 Tools</button>
+        <button class="btn sm" id="bigBtn" type="button" aria-pressed="false" title="Bigger drawing: smaller top bar, thin sheet list, tools slide out from the right and the name bar hides once every sheet is named">⛶ Bigger drawing</button>
+      </span>
     </div>
     <section class="viewer" id="viewer">
       <div class="stage" id="stage"><div class="sheet" id="sheet"><img id="sheetImg" alt="" draggable="false"><canvas id="cmpCanvas" hidden></canvas><svg id="overlay" aria-hidden="true"></svg></div></div>
@@ -2329,7 +2363,7 @@ function renderSheet() {
   $("progress").innerHTML = `<b>${named}</b> of ${pages.length} named`;
   $("nextBtn").firstChild.textContent = current === pages.length - 1 ? "Save " : "Next ";
 }
-function renderAll() { renderTabs(); renderRail(); renderSheet(); renderRuns(); renderWires(); renderCounts(); renderSel(); renderCmpBar(); }
+function renderAll() { renderTabs(); renderRail(); renderSheet(); renderRuns(); renderWires(); renderCounts(); renderSel(); renderCmpBar(); try { bigNamed(); } catch (e) {} }
 
 /* Corner zoom: the sheet (image + markup layer) is sized to fit the view, then scaled 2x and
    anchored on the chosen corner, so exactly that quarter of the sheet (50% wide x 50% tall) fills the view. */
@@ -7360,7 +7394,9 @@ $("qsInput").addEventListener("keydown", e => {
 document.addEventListener("keydown", e => {
   if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey || e.target.closest("input, select, textarea, [contenteditable]")) return;
   if ([...document.querySelectorAll(".modal")].some(m => !m.hidden)) return;
-  e.preventDefault(); $("qsInput").focus(); $("qsInput").select();
+  e.preventDefault();
+  if (document.documentElement.classList.contains("big") && !document.body.classList.contains("tools-open")) $("toolsShowBtn").click(); // the search lives in the slide-out tools
+  $("qsInput").focus(); $("qsInput").select();
 });
 /* Foldable sections in the right panel: click a heading to tuck it away (remembered on this computer) */
 function foldSaved() { try { return JSON.parse(localStorage.getItem("aj-fold") || "[]"); } catch (e) { return []; } }
@@ -8519,6 +8555,36 @@ const isPhone = () => matchMedia("(max-width: 760px)").matches || document.docum
 /* Tablets (Jonathan 2026-11-03: "why cant we have the same view on the tablet that i have on my phone?"): a touch
    tablet gets the phone layout (html.ph-lay) unless "Full layout" was picked on this device (aj-layout = "full"). */
 const isTablet = () => matchMedia("(pointer: coarse)").matches && !matchMedia("(max-width: 760px)").matches;
+// Bigger drawing on a computer: on unless turned off on this computer; first time, on for screens under 900 px tall or 1500 wide
+function bigApply() {
+  let pref = null; try { pref = localStorage.getItem("aj-big"); } catch (e) {}
+  const want = pref ? pref === "1" : (innerHeight < 900 || innerWidth < 1500);
+  const on = want && !isPhone();
+  const el = document.documentElement; if (el.classList.contains("big") !== on) el.classList.toggle("big", on);
+  $("bigBtn").setAttribute("aria-pressed", on); $("bigBtn").hidden = isPhone();
+  $("bigBtn").textContent = on ? "⛶ Show all panels" : "⛶ Bigger drawing";
+  let open = false; try { open = localStorage.getItem("aj-tools-open") === "1"; } catch (e) {}
+  document.body.classList.toggle("tools-open", on && open); $("toolsShowBtn").setAttribute("aria-pressed", on && open);
+  document.documentElement.style.setProperty("--tabs-h", ($("tabs").offsetHeight || 36) + "px"); // the slide-out tools start under the sheet tabs, so 🧰 Tools stays clickable
+  bigNamed();
+}
+function bigNamed() {
+  const all = pages.length > 0 && pages.every(x => x.example || (x.name || "").trim());
+  document.body.classList.toggle("all-named", all);
+  $("nameShowBtn").hidden = !all; $("nameShowBtn").setAttribute("aria-pressed", document.body.classList.contains("name-open"));
+}
+$("bigBtn").onclick = () => {
+  const on = !document.documentElement.classList.contains("big");
+  try { localStorage.setItem("aj-big", on ? "1" : "0"); } catch (e) {}
+  bigApply();
+};
+$("toolsShowBtn").onclick = () => {
+  const open = !document.body.classList.contains("tools-open");
+  try { localStorage.setItem("aj-tools-open", open ? "1" : "0"); } catch (e) {}
+  bigApply();
+};
+$("nameShowBtn").onclick = () => { document.body.classList.toggle("name-open"); bigNamed(); if (document.body.classList.contains("name-open")) $("nameInput").focus(); };
+addEventListener("resize", () => { clearTimeout(bigApply.t); bigApply.t = setTimeout(bigApply, 200); });
 function layApply() {
   let full = false; try { full = localStorage.getItem("aj-layout") === "full"; } catch (e) {}
   const on = isTablet() && !full;
@@ -8527,6 +8593,7 @@ function layApply() {
   if (!on && !matchMedia("(max-width: 760px)").matches) ["menu", "tools", "sheets"].forEach(k => document.body.classList.remove("ph-" + k));
 }
 layApply();
+bigApply();
 matchMedia("(max-width: 760px)").addEventListener && matchMedia("(max-width: 760px)").addEventListener("change", layApply);
 $("layBtn").onclick = () => {
   const on = document.documentElement.classList.contains("ph-lay");
