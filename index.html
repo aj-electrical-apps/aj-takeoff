@@ -504,6 +504,10 @@ li.cnt.pc .cnt-main b::after { content: " · Precon"; font-weight: 600; color: #
 .btn.tool.pin-tool[aria-pressed="true"] { background: #ffe3e3; border-color: #e03131; color: #5a0000; }
 .cnt-n .gq { color: #7048e8; font-weight: 600; }
 #tsTable tr.ord-add td:first-child { box-shadow: inset 3px 0 0 #7048e8; }
+#tsTable .ord-send { min-height: 24px; padding: 1px 7px; margin-right: 6px; font-size: 12px; color: #2b8a3e; border-color: #2b8a3e; }
+#tsTable .ord-send[aria-pressed="true"] { background: #c92a2a; border-color: #c92a2a; color: #fff; }
+#tsTable tr.ord-off td { opacity: .55; } #tsTable tr.ord-off td:first-child { text-decoration: line-through; } #tsTable tr.ord-off .ord-send { opacity: 1; text-decoration: none; }
+@media print { #tsTable tr.ord-off { display: none; } }
 #tsTable .ord-q { width: 90px; text-align: right; }
 #ordNote { width: 100%; box-sizing: border-box; font: inherit; }
 .ord-ok { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -977,7 +981,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v164<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v165<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="layBtn" type="button" hidden title="Tablets: switch between the phone layout (drawing fills the screen) and the full layout with every panel showing">🖥 Full layout</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
@@ -10043,13 +10047,15 @@ function renderOrder() {
   $("tsEmpty").hidden = !!L.length;
   const num = n => (Math.round(n * 10) / 10).toLocaleString();
   t.innerHTML = `<thead><tr><th>Item</th><th class="n">Estimate</th><th class="n">Field / precon adds</th><th class="n">Order</th></tr></thead><tbody>` +
-    secs.map(s => `<tr class="sec"><td colspan="4">${esc(s)}</td></tr>` + L.filter(l => l.sec === s).map(l => `<tr${l.add ? ' class="ord-add"' : ""}><td>${esc(l.name)}</td><td class="n">${l.est ? num(l.est) + " " + l.unit : ""}</td><td class="n">${l.add ? "+" + num(l.add) + " " + l.unit : ""}</td>
+    secs.map(s => `<tr class="sec"><td colspan="4">${esc(s)}</td></tr>` + L.filter(l => l.sec === s).map(l => `<tr class="${l.add ? "ord-add" : ""}${l.qty ? "" : " ord-off"}"><td><button class="btn sm no-lock no-print ord-send" type="button" data-send="${esc(l.key)}" aria-pressed="${!l.qty}" title="${l.qty ? "Leave this off what goes to the supplier" : "Send this to the supplier again"}">${l.qty ? "✓ Send" : "✕ Not sending"}</button> ${esc(l.name)}</td><td class="n">${l.est ? num(l.est) + " " + l.unit : ""}</td><td class="n">${l.add ? "+" + num(l.add) + " " + l.unit : ""}</td>
       <td class="n"><input type="number" class="ord-q no-lock" min="0" step="1" data-ok="${esc(l.key)}" value="${l.qty}" aria-label="Order quantity for ${esc(l.name)}"><span class="print-only">${l.qty.toLocaleString()}</span> ${l.unit}</td></tr>`).join("")).join("") +
     (() => { const sk = o.skip || {}, ids = Object.keys(sk); if (!ids.length) return ""; const nm = id => { const d = devInfo(id); if (d && countsList().some(c => c.id === id)) return nameOf(d); const w = wiresList().find(x => x.id === id); return w ? wireShort(w) : "A removed type"; };
       return `<tr class="sec"><td colspan="4">Taken off the order by precon</td></tr>` + ids.map(id => `<tr><td colspan="4" class="ord-skip">${esc(nm(id))} from the estimate <span class="hint">· by ${esc(sk[id].by || "Precon")}</span>${isPc() ? `<button class="btn sm no-lock no-print" type="button" data-unskip="${esc(id)}">Put back</button>` : ""}</td></tr>`).join(""); })() +
     `<tr class="sec"><td colspan="4">Note to the supplier</td></tr><tr><td colspan="4"><textarea id="ordNote" class="no-lock" rows="3" placeholder="e.g. Deliver to the north gate Tuesday 7 AM. Call the super at the number on the PO.">${esc(o.note || "")}</textarea><span class="print-only">${esc(o.note || "")}</span></td></tr>
     <tr><td colspan="4"><div class="ord-ok">${o.approved ? `<b>Approved by ${esc(o.approved.by || "the field")}</b> · ${new Date(o.approved.at).toLocaleString()}` : "Not approved yet."}
       <button class="btn sm no-lock no-print" type="button" id="ordApprove">${o.approved ? "Take back approval" : "Approve this order"}</button></div></td></tr></tbody>`;
+  // Jonathan 2026-11-04: "where do I click to not send to suppliers" - one tap takes a line off (order 0), again puts it back
+  t.querySelectorAll(".ord-send").forEach(bt => bt.onclick = () => { const k0 = bt.dataset.send, l = L.find(x => x.key === k0); if (l.qty) o.qty[k0] = 0; else delete o.qty[k0]; if (!l.qty && !l.calc) o.qty[k0] = 1; o.approved = null; fieldTouch(); renderOrder(); });
   t.querySelectorAll(".ord-q").forEach(inp => inp.onchange = () => {
     const k0 = inp.dataset.ok, l = L.find(x => x.key === k0);
     if (inp.value === "" || +inp.value === l.calc) delete o.qty[k0]; else o.qty[k0] = Math.max(0, +inp.value);
