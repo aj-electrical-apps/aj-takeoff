@@ -464,7 +464,7 @@ html.look-new body { font-family: var(--font-ui); }
 .cnt-div .sn { order: 2; font-weight: 600; }
 /* Field login (Jonathan 2026-10-30): the PM and super look, measure and print; the estimate is locked */
 .role-field :is(#uploadBtn, #blankBtn, #photoBtn, #drawBtn, #bgLoad, #newJobBtn, #coBtn, #clearBtn, #replBtn, #lblBtn, #symBtn, #pnlBtn, #schedBtn, #impBtn, #addCountBtn, #addWireBtn, #addDitchBtn,
-  #scaleBtn, #hlYBtn, #hlRBtn, #roomBtn, #fileBtn, #histUndo, #histRedo, #tsDbo, #tsRomex, #tsAllBox,
+  #scaleBtn, #hlYBtn, #hlRBtn, #hlQBtn, #roomBtn, #fileBtn, #histUndo, #histRedo, #tsDbo, #tsRomex, #tsAllBox,
   #jobForm, #teamWhoBox, #jobsOpenFile, #labelForm, .cnt-edit, .psec[data-fold="toolbox"], .tool-sub, .feed-edit) { display: none !important; }
 .review-bar { position: fixed; left: 50%; top: 10px; transform: translateX(-50%); z-index: 60; max-width: min(760px, calc(100vw - 24px)); display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
   padding: 10px 14px; border-radius: 10px; background: #f3efff; border: 1px solid #7048e8; color: #2b1a66; box-shadow: 0 6px 24px rgba(0,0,0,.15); font-size: 14px; }
@@ -523,6 +523,25 @@ html.look-new body { font-family: var(--font-ui); }
 .cnt-sec .sec-eye, .cnt-sec .sec-only { flex: none; width: auto; padding: 2px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); font-size: 11px; font-weight: 500; color: var(--muted); }
 .cnt-sec .sec-eye[aria-pressed="true"] { background: #495057; color: #fff; border-color: #495057; }
 .cnt-sec .sec-only[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+/* Jonathan 2026-11-04: "the categories (panels, switching...) need to stand out more, they're hard to find when you scroll,
+   and the tools at the top need to be smaller so there's more room for the counts" */
+.runs > .psec > h2:first-child, .runs > .psec > .sec-head > h2 { font-size: 15px; letter-spacing: .05em; padding: 6px 8px; margin: 0 -4px; border-radius: 6px; background: var(--accent-soft); color: var(--fg); border-left: 4px solid var(--accent); }
+.runs > .psec > .sec-head { margin: 0 -4px; } .runs > .psec > .sec-head > h2 { margin: 0; flex: 1 1 auto; }
+.cnt-sec { position: sticky; top: var(--qs-h, -12px); z-index: 3; margin-top: 8px; padding: 3px 4px 3px 0; border-radius: 6px; background: var(--accent); box-shadow: 0 2px 6px rgb(0 0 0 / .18); }
+.cnt-list > .cnt-sec:first-child { margin-top: 0; }
+.cnt-sec button.cnt-sh { padding: 6px 8px; color: var(--accent-fg); font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.cnt-sec button.cnt-sh .chev, .cnt-sec button.cnt-sh .sn { color: var(--accent-fg); opacity: .9; font-size: 13px; }
+.cnt-sec .sec-eye, .cnt-sec .sec-only { border-color: rgb(255 255 255 / .55); background: rgb(255 255 255 / .15); color: var(--accent-fg); }
+.cnt-div { color: var(--fg); font-size: 12px; }
+.tbx summary { font-size: 15px; font-weight: 700; padding: 8px 10px; border-left: 4px solid var(--accent); border-radius: 6px; background: var(--accent-soft); }
+.tbx details[open] > summary { background: var(--accent); color: var(--accent-fg); }
+.tbx details[open] > summary .gcount { color: var(--accent-fg); }
+.tool-grid { grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.btn.tool { min-height: 28px; font-size: 12.5px; padding: 3px 5px; line-height: 1.1; }
+.btn.tool svg { width: 14px; height: 14px; }
+.hist .btn.tool { min-height: 26px; }
+.tool-sub { margin: 2px 0 -2px; font-size: 10.5px; }
+.zoomrow .btn { height: 28px; }
 .mk-cand { fill: rgb(25 113 194 / .12); stroke: #1971c2; stroke-width: 2.5; stroke-dasharray: 5 3; cursor: pointer; } .mk-cand.off { fill: none; stroke: #c92a2a; stroke-dasharray: 2 3; opacity: .7; }
 .sym-bar { position: fixed; top: 108px; left: 50%; transform: translateX(-50%); z-index: 24; width: min(560px, calc(100vw - 32px)); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 24px rgb(0 0 0 / .2); padding: 10px 12px; display: grid; gap: 8px; font-size: 14px; }
 .sym-bar .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; } .sym-bar input[type=range] { flex: 1; min-width: 120px; }
@@ -629,6 +648,13 @@ td .bid-ln[data-q], td .bid-ln[data-s] { width: calc(100% - 80px); }
 .mk-hl { stroke-width: .75; }
 .mk-hl.y { fill: rgb(255 225 0 / .35); stroke: #d4b100; }
 .mk-hl.r { fill: rgb(255 60 60 / .28); stroke: #d33; }
+.mk-hl.q { fill: rgb(28 126 214 / .18); stroke: #1864ab; stroke-width: 2; }
+.btn.tool.hl-q[aria-pressed="true"] { background: #d0ebff; border-color: #1864ab; color: #0b3d6e; }
+.btn.tool.hl-q::before { content: "?"; width: 14px; height: 14px; border-radius: 3px; background: #1c7ed6; color: #fff; font: 700 11px/14px system-ui; text-align: center; margin-right: 6px; flex: none; }
+#hlRfi { display: grid; gap: 8px; } #hlRfi[hidden] { display: none; }
+#hlRfi .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+#hlRfi label { display: grid; gap: 3px; font-size: 13px; font-weight: 600; } #hlRfi input { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; }
+.rfi-acts { display: flex; gap: 8px; flex-wrap: wrap; } .rfi-acts .btn { flex: 1 1 auto; }
 .mk-hl.draft { stroke-dasharray: 5 3; }
 .mk-hl.sched { fill: rgb(47 158 68 / .08); stroke: #2f9e44; stroke-width: 2; }
 .sched-wrap { overflow: auto; max-height: 55vh; border: 1px solid var(--line); border-radius: 6px; }
@@ -725,7 +751,7 @@ tr.ex-off .ex-row span { color: var(--muted); text-decoration: line-through; }
 .note-item { display: grid; grid-template-columns: 220px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: start; }
 .note-item img { width: 100%; border: 1px solid var(--line); border-radius: 4px; background: #fff; }
 .note-item .tagc { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 4px; margin-right: 6px; }
-.note-item .tagc.y { background: #fff3a6; color: #3d3200; } .note-item .tagc.r { background: #ffd6d6; color: #5a0000; }
+.note-item .tagc.y { background: #fff3a6; color: #3d3200; } .note-item .tagc.q { background: #d0ebff; color: #0b3d6e; } .note-item .tagc.r { background: #ffd6d6; color: #5a0000; }
 .note-item p { margin: 4px 0 8px; white-space: pre-wrap; }
 .note-acts { display: flex; gap: 6px; flex-wrap: wrap; }
 .ts-table img.sup-crop { max-width: 260px; display: block; margin-top: 4px; border: 1px solid var(--line); background: #fff; }
@@ -939,7 +965,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v160<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v161<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="layBtn" type="button" hidden title="Tablets: switch between the phone layout (drawing fills the screen) and the full layout with every panel showing">🖥 Full layout</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
@@ -1119,6 +1145,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
           <p class="tool-sub">Mark up</p>
           <button class="btn tool hl-y" id="hlYBtn" type="button" aria-pressed="false" title="Yellow highlighter: drag over a note to save it to your Notes page">Yellow note</button>
           <button class="btn tool hl-r" id="hlRBtn" type="button" aria-pressed="false" title="Red highlighter: drag over a note to save it to your Notes page, count sheet and supplier sheet">Red note</button>
+          <button class="btn tool hl-q" id="hlQBtn" type="button" aria-pressed="false" title="RFI: drag a box over the part of the drawing you have a question about, type the question, then print or send it as a PDF with the drawing">RFI</button>
           <button class="btn tool hl-room" id="roomBtn" type="button" aria-pressed="false" title="Typical room: drag a box around one room you marked up, then say how many of that room the job has">Typical room</button>
           <button class="btn tool" id="ghostBtn" type="button" aria-pressed="true" hidden title="Show or hide the marks and runs the field added. They never change your estimate.">Field marks</button>
           <button class="btn tool" id="officeMkBtn" type="button" hidden title="Show the office mark-ups faded, or hide them. Nothing changes in the estimate.">Office mark-ups: faded</button>
@@ -1709,13 +1736,21 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
   <form class="modal-card" id="hlForm" autocomplete="off">
     <h2 id="hlTitle">Note</h2>
     <img id="hlCrop" alt="The highlighted part of the sheet" style="width:100%;border:1px solid var(--line);border-radius:6px;background:#fff">
-    <div class="opt"><label for="hlColor">Highlighter</label><select id="hlColor"><option value="y">Yellow: my notes page</option><option value="r">Red: notes page and supplier sheet</option></select></div>
-    <div class="opt"><label for="hlNote">What it says, or your note (optional)</label><textarea id="hlNote" placeholder="e.g. All 2x4s to be 0-10V dimming. Or: Supplier to quote Lithonia equal."></textarea></div>
+    <div class="opt"><label for="hlColor">Highlighter</label><select id="hlColor"><option value="y">Yellow: my notes page</option><option value="r">Red: notes page and supplier sheet</option><option value="q">Blue RFI: a question to send with the drawing</option></select></div>
+    <div id="hlRfi" hidden>
+      <div class="row2"><label>To (GC or engineer)<input id="rfiTo" placeholder="e.g. Smith Construction"></label><label>Answer needed by<input id="rfiDue" type="date"></label></div>
+      <label>Subject<input id="rfiSubj" placeholder="e.g. Panel LP-2 location"></label>
+    </div>
+    <div class="opt"><label for="hlNote" id="hlNoteLbl">What it says, or your note (optional)</label><textarea id="hlNote" placeholder="e.g. All 2x4s to be 0-10V dimming. Or: Supplier to quote Lithonia equal."></textarea></div>
     <div class="actions">
       <button class="btn danger" type="button" id="hlDelete" hidden>Delete note</button>
       <span class="spacer"></span>
       <button class="btn" type="button" id="hlCancel">Cancel</button>
       <button class="btn primary" type="submit" id="hlSave">Save note</button>
+    </div>
+    <div class="rfi-acts" id="rfiActs" hidden>
+      <button class="btn" type="button" id="rfiPdf">📄 Print / save RFI PDF</button>
+      <button class="btn" type="button" id="rfiSend">✉ Send RFI</button>
     </div>
   </form>
 </div>
@@ -3868,15 +3903,17 @@ function setHl(m) {
   $("sendBtn").setAttribute("aria-pressed", hlMode === "send");
   if (hlMode === "send") toast(L("Drag a box around the part of the drawing to send. Click an orange box to see its messages."));
   if (hlMode && tool) setTool(null);
-  $("hlYBtn").setAttribute("aria-pressed", hlMode === "y"); $("hlRBtn").setAttribute("aria-pressed", hlMode === "r"); $("roomBtn").setAttribute("aria-pressed", hlMode === "room"); $("schedBtn").setAttribute("aria-pressed", hlMode === "sched"); $("pnlBtn").setAttribute("aria-pressed", hlMode === "pnl" || !$("pnlModal").hidden); $("symBtn").setAttribute("aria-pressed", hlMode === "sym"); $("lblBtn").setAttribute("aria-pressed", hlMode === "lbl");
+  $("hlYBtn").setAttribute("aria-pressed", hlMode === "y"); $("hlQBtn").setAttribute("aria-pressed", hlMode === "q"); $("hlRBtn").setAttribute("aria-pressed", hlMode === "r"); $("roomBtn").setAttribute("aria-pressed", hlMode === "room"); $("schedBtn").setAttribute("aria-pressed", hlMode === "sched"); $("pnlBtn").setAttribute("aria-pressed", hlMode === "pnl" || !$("pnlModal").hidden); $("symBtn").setAttribute("aria-pressed", hlMode === "sym"); $("lblBtn").setAttribute("aria-pressed", hlMode === "lbl");
   $("sheet").style.cursor = hlMode ? "crosshair" : "";
   if (hlMode === "sched") toast("Schedule reader: drag a box around the whole light fixture schedule, header row included.");
   if (hlMode === "lbl") toast("Auto-name: drag a box around the sheet number in the title block, like E-101. Leave a little room around it.");
   if (hlMode === "room") toast("Typical room: drag a box around one room you marked up. Click a room box to change it. Click the button again to stop.");
+  else if (hlMode === "q") toast("RFI: drag a box around the part of the drawing you have a question about. Click the button again to stop.");
   else if (hlMode === "y" || hlMode === "r") toast(hlMode === "y" ? "Yellow highlighter: drag a box over the note. Click the button again to stop." : "Red highlighter: drag a box over the note for the supplier. Click the button again to stop.");
 }
 $("hlYBtn").onclick = () => setHl("y");
 $("hlRBtn").onclick = () => setHl("r");
+$("hlQBtn").onclick = () => setHl("q");
 $("roomBtn").onclick = () => setHl("room");
 $("schedBtn").onclick = () => setHl("sched");
 $("lblBtn").onclick = () => setHl("lbl");
@@ -3937,6 +3974,7 @@ $("sheet").addEventListener("pointerup", e => {
   }
   const x = Math.min(d.start[0], d.end[0]), y = Math.min(d.start[1], d.end[1]);
   const h = { id: uid(), c: hlMode, x: Math.round(x), y: Math.round(y), w: Math.round(Math.abs(d.end[0] - d.start[0])), h: Math.round(Math.abs(d.end[1] - d.start[1])), note: "" };
+  if (h.c === "q") rfiInit(h);
   (pg.hl || (pg.hl = [])).push(h); saveMeta(pg); drawOverlay();
   openHl(pg, h, true);
 }, true);
@@ -3960,22 +3998,109 @@ $("roomModal").addEventListener("keydown", e => { if (e.key === "Escape") $("roo
 const allRooms = () => pages.flatMap((pg, i) => (pg.rooms || []).map(m => ({ pg, i, m })));
 async function openHl(pg, h, isNew) {
   hlEdit = { pg, h, isNew };
-  $("hlTitle").textContent = `${isNew ? "New note" : "Note"} · ${sheetName(pg, pages.indexOf(pg))}`;
   $("hlColor").value = h.c; $("hlNote").value = h.note || "";
-  $("hlDelete").hidden = false; $("hlSave").textContent = "Save note";
+  $("rfiTo").value = h.to || ""; $("rfiSubj").value = h.subj || ""; $("rfiDue").value = h.due || "";
+  rfiShow(isNew);
+  $("hlDelete").hidden = false;
   $("hlCrop").removeAttribute("src");
   $("hlModal").hidden = false; $("hlNote").focus();
   $("hlCrop").src = await cropOf(pg, h);
 }
 $("hlForm").addEventListener("submit", e => {
   e.preventDefault();
-  const { pg, h } = hlEdit; h.c = $("hlColor").value; h.note = $("hlNote").value.trim();
+  const { pg, h } = hlEdit; hlTake(h);
   saveMeta(pg); $("hlModal").hidden = true; drawOverlay();
   if (!$("takeoffModal").hidden) renderTakeoff();
-  toast(h.c === "r" ? "Saved to your Notes page, count sheet and supplier sheet." : "Saved to your Notes page.");
+  toast(h.c === "q" ? `RFI ${h.n} saved. Click its blue box any time to print or send it.` : h.c === "r" ? "Saved to your Notes page, count sheet and supplier sheet." : "Saved to your Notes page.");
 });
 const dropHl = () => { const { pg, h } = hlEdit; remember([pg]); pg.hl = (pg.hl || []).filter(x => x !== h); saveMeta(pg); $("hlModal").hidden = true; drawOverlay(); if (!$("takeoffModal").hidden) renderTakeoff(); };
 $("hlDelete").onclick = () => { dropHl(); toast("Note deleted. Undo brings it back."); };
+/* RFI highlight (Jonathan 2026-11-04): a blue box like the notes, with To / Subject / question, that prints or sends as
+   a PDF with the close-up and the whole sheet attached (the way the Underground sheet carries its drawings). */
+const allRfis = () => allNotes().filter(n => n.h.c === "q");
+function rfiInit(h) {
+  h.n = Math.max(0, ...allRfis().map(n => +n.h.n || 0)) + 1;
+  h.date = new Date().toISOString().slice(0, 10);
+  if (!h.to && job && job.customer) h.to = job.customer;
+}
+function hlTake(h) {
+  const was = h.c; h.c = $("hlColor").value; h.note = $("hlNote").value.trim();
+  if (h.c === "q") { if (was !== "q" || !h.n) rfiInit(h); h.to = $("rfiTo").value.trim(); h.subj = $("rfiSubj").value.trim(); h.due = $("rfiDue").value; }
+}
+function rfiShow(isNew) {
+  const q = $("hlColor").value === "q", { pg, h } = hlEdit, nm = sheetName(pg, pages.indexOf(pg));
+  $("hlRfi").hidden = $("rfiActs").hidden = !q;
+  if (q && !$("rfiTo").value && job && job.customer) $("rfiTo").value = job.customer;
+  $("hlNoteLbl").textContent = q ? "Your question" : "What it says, or your note (optional)";
+  $("hlNote").placeholder = q ? "e.g. Plans show panel LP-2 on this wall but there is a door here. Where should it go?" : "e.g. All 2x4s to be 0-10V dimming. Or: Supplier to quote Lithonia equal.";
+  $("hlTitle").textContent = q ? `${isNew ? "New RFI" : "RFI"} ${h.c === "q" && h.n ? h.n : ""} · ${nm}` : `${isNew ? "New note" : "Note"} · ${nm}`;
+  $("hlSave").textContent = q ? "Save RFI" : "Save note";
+}
+$("hlColor").addEventListener("change", () => rfiShow(hlEdit && hlEdit.isNew));
+async function makeRfiPdf(pg, h) {
+  const JsPDF = await loadJsPdf(), c = company(), i = pages.indexOf(pg), nm = sheetName(pg, i), no = jobNoOf(job);
+  busy("Making the RFI PDF…", .2, "Adding the drawing");
+  const doc = new JsPDF({ orientation: "p", unit: "pt", format: "letter", compress: true }), W = 612, M = 44;
+  const fmt = d => { if (!d) return ""; const [y, m, dd] = d.split("-"); return `${+m}/${+dd}/${y}`; };
+  doc.setTextColor(0); doc.setFont("helvetica", "bold"); doc.setFontSize(16); doc.text(c.name || "AJ Electrical", M, 52);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(80);
+  doc.text([c.address, [c.phone, c.email].filter(Boolean).join("  ·  "), c.license ? "License " + c.license : ""].filter(Boolean), M, 66);
+  doc.setTextColor(0); doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.text("REQUEST FOR INFORMATION", W - M, 52, { align: "right" });
+  doc.setFontSize(13); doc.setTextColor(24, 100, 171); doc.text(`RFI #${h.n || 1}`, W - M, 70, { align: "right" }); doc.setTextColor(0);
+  doc.setDrawColor(24, 100, 171); doc.setLineWidth(1.5); doc.line(M, 96, W - M, 96);
+  const rows = [["Job", (job ? job.name : "Example job") + (no ? `  (#${no})` : "")], ["To", h.to || ""], ["From", [teamWho, c.name].filter(Boolean).join(", ")],
+    ["Date", fmt(h.date)], ["Answer needed by", fmt(h.due)], ["Subject", h.subj || ""], ["Drawing", `${nm} (page ${i + 1})`]];
+  let y = 116; doc.setFontSize(10.5);
+  rows.forEach(([k, v]) => { doc.setFont("helvetica", "bold"); doc.text(k, M, y); doc.setFont("helvetica", "normal"); doc.text(doc.splitTextToSize(String(v), W - M - 160)[0] || "", M + 112, y); y += 16; });
+  y += 8; doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.text("Question", M, y); y += 6;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(11);
+  const ql = doc.splitTextToSize(h.note || "(no question typed)", W - 2 * M - 16), qh = Math.max(40, ql.length * 14 + 16);
+  doc.setDrawColor(150); doc.setLineWidth(.75); doc.rect(M, y, W - 2 * M, qh); doc.text(ql, M + 8, y + 18); y += qh + 18;
+  // close-up of the boxed area
+  const big = await cropOf(pg, h, 1400), r = h.h / Math.max(1, h.w), bw = W - 2 * M, room = 792 - 150 - y;
+  let iw = bw, ih = iw * r; if (ih > room) { ih = Math.max(120, room); iw = ih / r; }
+  doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.text("Close-up of the area in question", M, y); y += 6;
+  doc.addImage(big, "JPEG", M + (bw - iw) / 2, y, iw, ih); doc.setDrawColor(24, 100, 171); doc.setLineWidth(1.5); doc.rect(M + (bw - iw) / 2, y, iw, ih); y += ih + 20;
+  // answer block
+  doc.setTextColor(0); doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.text("Answer", M, y); doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(90);
+  doc.text("Please answer here or by reply email.", M + 50, y); doc.setTextColor(0); doc.setDrawColor(150); doc.setLineWidth(.5);
+  for (let k = 1; k <= 3; k++) doc.line(M, y + k * 20, W - M, y + k * 20);
+  doc.setFontSize(9.5); doc.text("Answered by: ______________________________     Date: ______________", M, Math.min(772, y + 84));
+  doc.setFontSize(8); doc.setTextColor(120); doc.text(`Page 2: the whole sheet ${nm}, with the area in question boxed in blue.`, M, 782);
+  // page 2: the whole sheet, every mark hidden but this RFI's box
+  busy("Making the RFI PDF…", .6, "Adding the whole sheet");
+  const sc = await sheetCanvas(pg, () => false), k = sc.width / (sc.srcW || sc.width), x = sc.getContext("2d"), u = Math.max(sc.width, sc.height) / 1100;
+  x.strokeStyle = "#1864ab"; x.lineWidth = 5 * u; x.fillStyle = "rgba(28,126,214,.16)";
+  x.fillRect(h.x * k, h.y * k, h.w * k, h.h * k); x.strokeRect(h.x * k - 3 * u, h.y * k - 3 * u, h.w * k + 6 * u, h.h * k + 6 * u);
+  x.font = `bold ${Math.round(22 * u)}px sans-serif`; x.fillStyle = "#1864ab"; x.textBaseline = "bottom"; x.fillText(`RFI ${h.n || 1}`, h.x * k, Math.max(24 * u, h.y * k - 6 * u));
+  const s2 = Math.min(1, 3000 / Math.max(sc.width, sc.height)), d = document.createElement("canvas");
+  d.width = Math.round(sc.width * s2); d.height = Math.round(sc.height * s2); d.getContext("2d").drawImage(sc, 0, 0, d.width, d.height); sc.width = sc.height = 0;
+  const L = d.width > d.height, PW = L ? 792 : 612, PH = L ? 612 : 792;
+  doc.addPage("letter", L ? "l" : "p");
+  doc.setTextColor(0); doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.text(`RFI #${h.n || 1} · ${nm}`, 24, 26);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.text(job ? job.name : "", PW - 24, 26, { align: "right" });
+  const aw = PW - 48, ah = PH - 56, f = Math.min(aw / d.width, ah / d.height), dw = d.width * f, dh = d.height * f;
+  doc.addImage(d.toDataURL("image/jpeg", .85), "JPEG", 24 + (aw - dw) / 2, 36 + (ah - dh) / 2, dw, dh); d.width = d.height = 0;
+  busy(null, null);
+  return new File([doc.output("blob")], safeName(`${job ? job.name : "Example job"} RFI ${h.n || 1}${h.subj ? " - " + h.subj : ""}`) + ".pdf", { type: "application/pdf" });
+}
+async function rfiOut(send) {
+  if (!hlEdit) return;
+  const { pg, h } = hlEdit; hlTake(h); saveMeta(pg); drawOverlay(); if (!$("takeoffModal").hidden) renderTakeoff();
+  if (!h.note) { $("hlNote").focus(); return toast("Type your question first."); }
+  let file; try { file = await makeRfiPdf(pg, h); } catch (e) { busy(null, null); return toast("Couldn't make the RFI PDF. Check your internet and try again."); }
+  if (matchMedia("(pointer: coarse)").matches && navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: file.name }); return; } catch (e) { if (e && e.name === "AbortError") return; }
+  }
+  if (!send) { const u = URL.createObjectURL(file), w = window.open(u, "_blank"); if (!w) downloadFile(file); else toast("The RFI opened in a new tab. Print it or save it from there."); setTimeout(() => URL.revokeObjectURL(u), 300000); return; }
+  downloadFile(file);
+  const enc = encodeURIComponent, subject = `RFI #${h.n}${h.subj ? ": " + h.subj : ""} · ${job ? job.name : ""}`;
+  const body = `${h.to ? h.to + ",\n\n" : ""}Please see the attached RFI #${h.n} for ${job ? job.name : "this job"}${h.due ? ", answer needed by " + h.due : ""}.\n\n${h.note}\n\nThanks,\n${teamWho || company().name || ""}`;
+  location.href = `mailto:?subject=${enc(subject)}&body=${enc(body)}`;
+  toast(`Saved ${file.name} to Downloads. Your email opened: attach that file and send.`, 9000);
+}
+$("rfiPdf").onclick = () => rfiOut(false);
+$("rfiSend").onclick = () => rfiOut(true);
 $("hlCancel").onclick = () => { $("hlModal").hidden = true; }; // a new box stays, with no typed note
 $("hlModal").addEventListener("keydown", e => { if (e.key === "Escape") $("hlModal").hidden = true; });
 // every highlight in sheet order, numbered for the Notes page
@@ -4196,9 +4321,9 @@ function renderNotes() {
   $("tsEmpty").hidden = true;
   if (!list.length) { t.innerHTML = `<tbody><tr><td>No notes yet. Pick <b>Yellow note</b> or <b>Red note</b> under Tools, then drag a box over a note on the drawing.</td></tr></tbody>`; return; }
   t.innerHTML = `<tbody><tr><td>${list.map(n => `<div class="note-item" data-k="${n.no}"><img alt="Highlighted area on ${esc(sheetName(n.pg, n.i))}"><div>
-    <div><span class="tagc ${n.h.c}">${n.h.c === "r" ? "Red · supplier" : "Yellow"}</span><b>Note ${n.no}</b> · Page ${n.i + 1}, ${esc(sheetName(n.pg, n.i))}</div>
+    <div><span class="tagc ${n.h.c}">${n.h.c === "q" ? "RFI " + (n.h.n || "") : n.h.c === "r" ? "Red · supplier" : "Yellow"}</span><b>${n.h.c === "q" && n.h.subj ? esc(n.h.subj) : "Note " + n.no}</b> · Page ${n.i + 1}, ${esc(sheetName(n.pg, n.i))}</div>
     <p>${n.h.note ? esc(n.h.note) : `<span class="hint">No typed note</span>`}</p>
-    <div class="note-acts no-print"><button class="btn sm" type="button" data-go="${n.no}">Show on drawing</button><button class="btn sm" type="button" data-ed="${n.no}">Edit</button></div></div></div>`).join("")}</td></tr></tbody>`;
+    <div class="note-acts no-print"><button class="btn sm" type="button" data-go="${n.no}">Show on drawing</button><button class="btn sm" type="button" data-ed="${n.no}">${n.h.c === "q" ? "Open RFI (print / send)" : "Edit"}</button></div></div></div>`).join("")}</td></tr></tbody>`;
   list.forEach(n => cropOf(n.pg, n.h).then(u => { const im = t.querySelector(`.note-item[data-k="${n.no}"] img`); if (im) im.src = u; }));
   t.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { const n = list[b.dataset.go - 1]; $("takeoffModal").hidden = true; go(n.i); });
   t.querySelectorAll("[data-ed]").forEach(b => b.onclick = () => { const n = list[b.dataset.ed - 1]; openHl(n.pg, n.h); });
@@ -5982,7 +6107,7 @@ function drawOverlay() {
     g.appendChild(svgEl("rect", { x: h.r[0] - pad, y: h.r[1] - pad, width: h.r[2] + pad * 2, height: h.r[3] + pad * 2, rx: pad, class: "mk-fw" + (i === fw.at ? " on" : ""), ...ns })); });
   (p.hl || []).forEach(h => {
     const rc = svgEl("rect", { x: h.x, y: h.y, width: h.w, height: h.h, class: "mk-hl " + h.c, ...ns });
-    rc.appendChild(svgEl("title", {}, (h.c === "r" ? "Red note" : "Yellow note") + (h.note ? ": " + h.note : "")));
+    rc.appendChild(svgEl("title", {}, (h.c === "q" ? "RFI " + (h.n || "") : h.c === "r" ? "Red note" : "Yellow note") + (h.note ? ": " + h.note : "")));
     g.appendChild(rc);
   });
   (p.rooms || []).forEach(m => {
@@ -6095,7 +6220,7 @@ $("overlay").addEventListener("click", e => {
     if (best) { remember(); p.devices = p.devices.filter(v => v !== best); if (dropEmptyRooms(p, [best])) toast("That was the last mark in the typical room, so its box is gone too. Undo brings it back."); hoverDev = null; saveMeta(p); drawOverlay(); renderCounts(); }
     else {
       const h = hlAt(p, q);
-      if (h) { remember(); p.hl = p.hl.filter(x => x !== h); saveMeta(p); drawOverlay(); if (!$("takeoffModal").hidden) renderTakeoff(); toast(`${h.c === "r" ? "Red" : "Yellow"} note deleted. Undo brings it back.`); }
+      if (h) { remember(); p.hl = p.hl.filter(x => x !== h); saveMeta(p); drawOverlay(); if (!$("takeoffModal").hidden) renderTakeoff(); toast(`${h.c === "q" ? "RFI" : h.c === "r" ? "Red note" : "Yellow note"} deleted. Undo brings it back.`); }
       else toast("No symbol or note there. Click right on the symbol, or inside the yellow or red box, to remove it.");
     }
     return;
@@ -7337,7 +7462,7 @@ const QS_TABS = [["order", "Order", "supplier order approve field"], ["hours", "
   ["prop", "Proposal", "quote send customer price"], ["rate", "Labor rates", "hours table"], ["asm", "Parts lists", "assemblies boxes rings"], ["ug", "Underground sub", "trench ditch"], ["notes", "Notes list", "highlights"]];
 const QS_BTNS = [["uploadBtn", "pdf plans add sheets"], ["fileBtn", "save open file email drive"], ["newJobBtn", "start"], ["jobBtn", "jobs open switch"], ["notesBtn", "highlights"], ["coBtn", "co extra"], ["trkBtn", "tracker won lost"],
   ["cmpBtn", "compare"], ["rsBtn", "second screen monitor"], ["tabPin", "pin tab"], ["measureBtn", "distance ruler"], ["runBtn", "conduit wire footage draw"], ["scaleBtn", "scale"], ["eraseBtn", "delete remove"], ["pinBtn", "pin point dot location label spot"], ["pinFindBtn", "find pins marked field list"],
-  ["hlYBtn", "highlight"], ["hlRBtn", "highlight supplier"], ["roomBtn", "typical repeat"], ["replBtn", "addendum revision revised"], ["lblBtn", "name sheets title block"], ["symBtn", "auto count symbols"],
+  ["hlYBtn", "highlight"], ["hlRBtn", "highlight supplier"], ["hlQBtn", "rfi question request for information engineer gc"], ["roomBtn", "typical repeat"], ["replBtn", "addendum revision revised"], ["lblBtn", "name sheets title block"], ["symBtn", "auto count symbols"],
   ["pnlBtn", "breakers panel schedule"], ["schedBtn", "fixture schedule lights"], ["impBtn", "import excel csv other app"], ["addCountBtn", "new count fixture type"], ["addWireBtn", "new conduit wire type"]];
 const QS_ICO = { count: '<svg viewBox="-10 -10 20 20"><circle r="6" fill="currentColor"/></svg>', new: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3v10M3 8h10"/></svg>',
   run: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 13V7h6V3h6"/></svg>', tool: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M10 2.5a3 3 0 0 0-3.6 3.9L2 10.8 4.2 13l4.4-4.4A3 3 0 0 0 12.5 5l-2 .5-.5-2z"/></svg>',
@@ -7866,8 +7991,8 @@ async function sheetCanvas(pg, only) { // only: draw just the runs it passes, no
   const u = Math.max(img.width, img.height) / 1100; // one "screen pixel" at a full-sheet view
   x.lineJoin = x.lineCap = "round";
   (only ? [] : pg.hl || []).forEach(h => {
-    x.fillStyle = h.c === "r" ? "rgba(255,60,60,.28)" : "rgba(255,225,0,.35)"; x.fillRect(h.x, h.y, h.w, h.h);
-    x.strokeStyle = h.c === "r" ? "#d33" : "#d4b100"; x.lineWidth = 1.5 * u; x.strokeRect(h.x, h.y, h.w, h.h);
+    x.fillStyle = h.c === "q" ? "rgba(28,126,214,.18)" : h.c === "r" ? "rgba(255,60,60,.28)" : "rgba(255,225,0,.35)"; x.fillRect(h.x, h.y, h.w, h.h);
+    x.strokeStyle = h.c === "q" ? "#1864ab" : h.c === "r" ? "#d33" : "#d4b100"; x.lineWidth = 1.5 * u; x.strokeRect(h.x, h.y, h.w, h.h);
   });
   pg.runs.filter(r => !only || only(r)).forEach(r => {
     const w = wireOf(r.typeId);
@@ -7935,7 +8060,7 @@ async function makePdf() {
       const lines = doc.splitTextToSize(n.h.note || "", 250), block = Math.max(ih, 30 + lines.length * 13) + 18;
       if (y + block > 760) { doc.addPage([612, 792], "p"); y = 50; }
       doc.addImage(url, "JPEG", 50, y, iw2, ih);
-      doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.text(`Note ${n.no} · ${n.h.c === "r" ? "Red, for supplier" : "Yellow"}`, 315, y + 10);
+      doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.text(`Note ${n.no} · ${n.h.c === "q" ? "RFI " + (n.h.n || "") : n.h.c === "r" ? "Red, for supplier" : "Yellow"}`, 315, y + 10);
       doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.text(`Page ${n.i + 1}, ${sheetName(n.pg, n.i)}`, 315, y + 25);
       if (lines.length) doc.text(lines, 315, y + 42);
       y += block;
@@ -7991,6 +8116,9 @@ const onOwnSite = () => location.protocol === "https:" && !/claude|anthropic|use
 /* A newer version is on the website (Jonathan 2026-11-03: "dp" - his screen was still on v155 hours after v158 went up,
    because the app stays open all day). Checks every 15 minutes and when the app comes back into view, then offers a
    one-tap update. Nothing is lost: jobs are already saved on the device and online. */
+// category headings in Counts stick just under the search box while scrolling (v161)
+(() => { const q = document.querySelector(".runs > .qs"), r = q && q.parentElement; if (!q || !window.ResizeObserver) return;
+  new ResizeObserver(() => r.style.setProperty("--qs-h", (q.offsetHeight ? q.offsetHeight - 12 : -12) + "px")).observe(q); })();
 const APP_VER = +((((document.querySelector(".brand small") || {}).textContent || "").match(/v(\d+)/) || [])[1] || 0);
 let verNewest = 0;
 async function verCheck() {
