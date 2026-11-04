@@ -462,6 +462,16 @@ html.look-new body { font-family: var(--font-ui); }
 .cnt-div { display: flex; align-items: center; gap: 8px; margin: 6px 2px 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .cnt-div::after { content: ""; flex: 1; height: 1px; background: var(--line); order: 1; }
 .cnt-div .sn { order: 2; font-weight: 600; }
+/* Precon (Jonathan 2026-11-04): a field login with every tool; what it adds lives in the field layer, marked precon */
+html.role-field.can-precon :is(#addCountBtn, #addWireBtn, #addDitchBtn, #hlYBtn, #hlRBtn, #hlQBtn, #schedBtn) { display: inline-flex !important; }
+html.role-field.can-precon .psec[data-fold="toolbox"]:not(#_) { display: flex !important; }
+html.role-field.can-precon .tool-sub:not(#_) { display: block !important; }
+html.role-field.can-precon li.pc .cnt-edit:not(#_) { display: inline-flex !important; }
+.cnt-skip { flex: none; align-self: center; padding: 2px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); font-size: 11px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.cnt-skip[aria-pressed="true"] { background: #c92a2a; border-color: #c92a2a; color: #fff; }
+li.cnt.skipped .cnt-main { opacity: .5; text-decoration: line-through; }
+li.cnt.pc .cnt-main b::after { content: " · Precon"; font-weight: 600; color: #7048e8; font-family: var(--font-sans, inherit); font-size: 11px; }
+.ord-skip { font-size: 13px; } .ord-skip button { margin-left: 6px; }
 /* Field login (Jonathan 2026-10-30): the PM and super look, measure and print; the estimate is locked */
 .role-field :is(#uploadBtn, #blankBtn, #photoBtn, #drawBtn, #bgLoad, #newJobBtn, #coBtn, #clearBtn, #replBtn, #lblBtn, #symBtn, #pnlBtn, #schedBtn, #impBtn, #addCountBtn, #addWireBtn, #addDitchBtn,
   #scaleBtn, #hlYBtn, #hlRBtn, #hlQBtn, #roomBtn, #fileBtn, #histUndo, #histRedo, #tsDbo, #tsRomex, #tsAllBox,
@@ -751,7 +761,7 @@ tr.ex-off .ex-row span { color: var(--muted); text-decoration: line-through; }
 .note-item { display: grid; grid-template-columns: 220px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: start; }
 .note-item img { width: 100%; border: 1px solid var(--line); border-radius: 4px; background: #fff; }
 .note-item .tagc { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 4px; margin-right: 6px; }
-.note-item .tagc.y { background: #fff3a6; color: #3d3200; } .note-item .tagc.q { background: #d0ebff; color: #0b3d6e; } .note-item .tagc.r { background: #ffd6d6; color: #5a0000; }
+.note-item .tagc.y { background: #fff3a6; color: #3d3200; } .note-item .tagc.q { background: #d0ebff; color: #0b3d6e; } .note-item .tagc.pcn { background: #e5dbff; color: #3b1f8f; margin-left: 6px; } .note-item .tagc.r { background: #ffd6d6; color: #5a0000; }
 .note-item p { margin: 4px 0 8px; white-space: pre-wrap; }
 .note-acts { display: flex; gap: 6px; flex-wrap: wrap; }
 .nr-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 14px 0 2px; padding: 6px 10px; border-radius: 6px; background: var(--accent-soft); border-left: 4px solid var(--accent); }
@@ -967,7 +977,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v163<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v164<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="layBtn" type="button" hidden title="Tablets: switch between the phone layout (drawing fills the screen) and the full layout with every panel showing">🖥 Full layout</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
@@ -3025,7 +3035,8 @@ function renderCounts() {
     const n = p ? p.devices.filter(v => { const d = devInfo(v.t); return d && famOf(d.group) === s.dataset.group; }).length : 0;
     s.textContent = n || "";
   });
-  const items = countsList().map(c => devInfo(c.id));
+  const items = countsList().filter(c => !c.pc || fieldMode || showGhost).map(c => devInfo(c.id));
+  const skip = (fieldLayer.order && fieldLayer.order.skip) || {}, rawOf = id => countsList().find(c => c.id === id) || {};
   // placements from before count items existed still show, without a description
   const legacy = Object.values(DEVICES).filter(d => pages.some(pg => countOn(pg, d.id)));
   const all = [...items, ...legacy];
@@ -3074,7 +3085,7 @@ function renderCounts() {
     if (isClosed) { const nS = p ? qtyOn(p, d.id) : 0, nA = pages.reduce((t, pg) => t + qtyOn(pg, d.id), 0) + impQty(d.id); sheetTot += nS; allTot += nA; return; }
     const nS = p ? qtyOn(p, d.id) : 0, nA = pages.reduce((t, pg) => t + qtyOn(pg, d.id), 0) + impQty(d.id);
     sheetTot += nS; allTot += nA;
-    const li = document.createElement("li"); li.className = "cnt";
+    const li = document.createElement("li"); li.className = "cnt" + (rawOf(d.id).pc ? " pc" : "") + (skip[d.id] ? " skipped" : "");
     const b = document.createElement("button"); b.type = "button"; b.className = "cnt-main";
     b.setAttribute("aria-pressed", tool === "place" && placeType === d.id);
     b.title = "Place on this sheet";
@@ -3084,7 +3095,7 @@ function renderCounts() {
     const kind = document.createElement("span"); kind.textContent = d.custom && !(d.amps && !d.tag) && !typeTitled(d) ? ` · ${d.kind}` : "";
     const ds = document.createElement("span"); ds.className = "d"; ds.textContent = typeTitled(d) ? [kindSub(d), [d.sMaker, d.sModel].filter(Boolean).join(" "), d.desc].filter(Boolean).join(" · ") : d.custom ? (specOf(d) || (d.amps ? "" : "Tap the pencil to add a mounting height")) : specOf(d);
     tx.append(nm, kind, ds);
-    const n = document.createElement("span"); n.className = "cnt-n"; n.innerHTML = `${nS}<small>of ${nA}</small>${ghostQty(d.id) ? `<small class="gq">+${ghostQty(d.id)} field</small>` : ""}`;
+    const n = document.createElement("span"); n.className = "cnt-n"; n.innerHTML = `${nS}<small>of ${nA}</small>${ghostQty(d.id) ? `<small class="gq">+${ghostQty(d.id)} ${isPc() ? "precon / field" : "field"}</small>` : ""}`;
     b.append(tx, n);
     b.onclick = () => setTool("place", d.id);
     if (fieldMode) b.title = "Add a field mark of this on the sheet. It goes on the Order page, not in the estimate.";
@@ -3094,10 +3105,11 @@ function renderCounts() {
     fd.innerHTML = `<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2"/><path d="M8 .5v3M8 12.5v3M.5 8h3M12.5 8h3"/></svg>`;
     fd.onclick = () => findCount(d.id);
     li.appendChild(fd);
+    if (isPc() && !rawOf(d.id).pc) li.appendChild(skipBtn(d.id, nameOf(d)));
     if (d.custom) {
       const e = document.createElement("button"); e.type = "button"; e.className = "cnt-edit"; e.title = "Edit this count"; e.setAttribute("aria-label", "Edit " + nameOf(d));
       e.innerHTML = `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M11 2.5 13.5 5 6 12.5H3.5V10z"/></svg>`;
-      e.onclick = () => DEVICES[d.base] && DEVICES[d.base].ask ? openAmps(d.base, d.id) : openCount(d.id);
+      e.onclick = () => fieldMode && !rawOf(d.id).pc ? fieldNo() : DEVICES[d.base] && DEVICES[d.base].ask ? openAmps(d.base, d.id) : openCount(d.id);
       li.appendChild(e);
     }
     ul.appendChild(li);
@@ -3105,6 +3117,14 @@ function renderCounts() {
   $("cntSheet").textContent = sheetTot; $("cntAll").textContent = allTot;
 }
 
+// Precon takes an estimate count or run type off the Order page when they think it's wrong for ordering (v164)
+function skipBtn(id, name) {
+  const sk = fieldLayer.order.skip || (fieldLayer.order.skip = {}), on = !!sk[id], x = document.createElement("button");
+  x.type = "button"; x.className = "cnt-skip"; x.setAttribute("aria-pressed", on); x.textContent = on ? "Off order" : "Order ✓";
+  x.title = on ? `Put the estimate's ${name} back on the Order page` : `Take the estimate's ${name} off the Order page (the estimate itself doesn't change). Count your own instead.`;
+  x.onclick = () => { if (on) delete sk[id]; else sk[id] = { by: teamWho || "Precon", at: Date.now() }; fieldLayer.order.approved = null; fieldTouch(); renderCounts(); renderWires(); if (!$("takeoffModal").hidden && tsView === "order") renderTakeoff(); toast(on ? `${name} is back on the order.` : `${name} from the estimate is off the order. What precon counts still goes on it.`); };
+  return x;
+}
 function cntClosed() { try { return JSON.parse(localStorage.getItem("aj-cnt-closed") || "[]"); } catch (e) { return []; } }
 function cntSetClosed(list) { try { localStorage.setItem("aj-cnt-closed", JSON.stringify(list)); } catch (e) {} }
 
@@ -3900,7 +3920,7 @@ $("schedForm").addEventListener("submit", e => {
   toast(`${made} fixture type${made === 1 ? "" : "s"} added${upd ? `, ${upd} updated` : ""}. They're in the Fixture schedule box at the top of the toolbox.`);
 });
 function setHl(m) {
-  if (fieldMode && hlMode !== m && m !== "send") return fieldNo();
+  if (fieldMode && hlMode !== m && m !== "send" && !(isPc() && ["y", "r", "q", "sched"].includes(m))) return fieldNo();
   hlMode = hlMode === m ? null : m;
   $("sendBtn").setAttribute("aria-pressed", hlMode === "send");
   if (hlMode === "send") toast(L("Drag a box around the part of the drawing to send. Click an orange box to see its messages."));
@@ -3919,7 +3939,8 @@ $("hlQBtn").onclick = () => setHl("q");
 $("roomBtn").onclick = () => setHl("room");
 $("schedBtn").onclick = () => setHl("sched");
 $("lblBtn").onclick = () => setHl("lbl");
-const hlAt = (pg, q) => (pg.hl || []).slice().reverse().find(h => q[0] >= h.x && q[0] <= h.x + h.w && q[1] >= h.y && q[1] <= h.y + h.h);
+const hlsOf = pg => [...(pg.hl || []), ...(pg.ghost && pg.ghost.hl || [])];
+const hlAt = (pg, q) => hlsOf(pg).slice().reverse().find(h => q[0] >= h.x && q[0] <= h.x + h.w && q[1] >= h.y && q[1] <= h.y + h.h);
 $("sheet").addEventListener("pointerdown", e => {
   if (!hlMode || e.button !== 0 || !pages[current]) return;
   e.stopImmediatePropagation(); e.preventDefault();
@@ -3977,7 +3998,8 @@ $("sheet").addEventListener("pointerup", e => {
   const x = Math.min(d.start[0], d.end[0]), y = Math.min(d.start[1], d.end[1]);
   const h = { id: uid(), c: hlMode, x: Math.round(x), y: Math.round(y), w: Math.round(Math.abs(d.end[0] - d.start[0])), h: Math.round(Math.abs(d.end[1] - d.start[1])), note: "" };
   if (h.c === "q") rfiInit(h);
-  (pg.hl || (pg.hl = [])).push(h); saveMeta(pg); drawOverlay();
+  if (isPc()) { Object.assign(h, { pc: 1, by: teamWho || "Precon" }); ghostOf(pg).hl = [...(ghostOf(pg).hl || []), h]; fieldTouch(); drawOverlay(); }
+  else { (pg.hl || (pg.hl = [])).push(h); saveMeta(pg); drawOverlay(); }
   openHl(pg, h, true);
 }, true);
 let roomEdit = null;
@@ -4010,12 +4032,14 @@ async function openHl(pg, h, isNew) {
 }
 $("hlForm").addEventListener("submit", e => {
   e.preventDefault();
-  const { pg, h } = hlEdit; hlTake(h);
-  saveMeta(pg); $("hlModal").hidden = true; drawOverlay();
+  const { pg, h } = hlEdit;
+  if (fieldMode && !h.pc) { $("hlModal").hidden = true; return fieldNo(); }
+  hlTake(h);
+  if (h.pc) fieldTouch(); else saveMeta(pg); $("hlModal").hidden = true; drawOverlay();
   if (!$("takeoffModal").hidden) renderTakeoff();
   toast(h.c === "q" ? `RFI ${h.n} saved in Notes & RFIs. Print or send it from there, or click its blue box.` : h.c === "r" ? "Saved to Notes & RFIs, the count sheet and the supplier sheet." : "Saved to Notes & RFIs.");
 });
-const dropHl = () => { const { pg, h } = hlEdit; remember([pg]); pg.hl = (pg.hl || []).filter(x => x !== h); saveMeta(pg); $("hlModal").hidden = true; drawOverlay(); if (!$("takeoffModal").hidden) renderTakeoff(); };
+const dropHl = () => { const { pg, h } = hlEdit; if (h.pc) { ghostOf(pg).hl = (ghostOf(pg).hl || []).filter(x => x !== h); fieldLayer.gone = [...(fieldLayer.gone || []), h.id]; fieldTouch(); } else { remember([pg]); pg.hl = (pg.hl || []).filter(x => x !== h); saveMeta(pg); } $("hlModal").hidden = true; drawOverlay(); if (!$("takeoffModal").hidden) renderTakeoff(); };
 $("hlDelete").onclick = () => { dropHl(); toast("Note deleted. Undo brings it back."); };
 /* RFI highlight (Jonathan 2026-11-04): a blue box like the notes, with To / Subject / question, that prints or sends as
    a PDF with the close-up and the whole sheet attached (the way the Underground sheet carries its drawings). */
@@ -4089,7 +4113,7 @@ async function makeRfiPdf(pg, h) {
 async function rfiOut(send, pg0, h0) {
   if (!pg0 && !hlEdit) return;
   const { pg, h } = pg0 ? { pg: pg0, h: h0 } : hlEdit;
-  if (!pg0) { hlTake(h); saveMeta(pg); drawOverlay(); if (!$("takeoffModal").hidden) renderTakeoff(); }
+  if (!pg0 && !(fieldMode && !h.pc)) { hlTake(h); if (h.pc) fieldTouch(); else saveMeta(pg); drawOverlay(); if (!$("takeoffModal").hidden) renderTakeoff(); }
   if (!h.note) { if (pg0) return openHl(pg, h), toast("Type your question first."); $("hlNote").focus(); return toast("Type your question first."); }
   let file; try { file = await makeRfiPdf(pg, h); } catch (e) { busy(null, null); return toast("Couldn't make the RFI PDF. Check your internet and try again."); }
   if (matchMedia("(pointer: coarse)").matches && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -4108,7 +4132,7 @@ $("rfiSend").onclick = () => rfiOut(true);
 $("hlCancel").onclick = () => { $("hlModal").hidden = true; }; // a new box stays, with no typed note
 $("hlModal").addEventListener("keydown", e => { if (e.key === "Escape") $("hlModal").hidden = true; });
 // every highlight in sheet order, numbered for the Notes page
-const allNotes = () => pages.flatMap((pg, i) => (pg.hl || []).map(h => ({ pg, i, h }))).map((n, k) => ({ ...n, no: k + 1 }));
+const allNotes = () => pages.flatMap((pg, i) => hlsOf(pg).map(h => ({ pg, i, h }))).map((n, k) => ({ ...n, no: k + 1 }));
 
 /* ---------- count sheet and supplier sheet ----------
    Count sheet: every count and every footage line from all sheets, with an extra % box on each footage line.
@@ -4324,7 +4348,7 @@ function renderNotes() {
   const t = $("tsTable"), all = allNotes(), rfis = all.filter(n => n.h.c === "q"), notes = all.filter(n => n.h.c !== "q");
   $("tsEmpty").hidden = true;
   const item = n => `<div class="note-item" data-k="${n.no}"><img alt="Highlighted area on ${esc(sheetName(n.pg, n.i))}"><div>
-    <div><span class="tagc ${n.h.c}">${n.h.c === "q" ? "RFI " + (n.h.n || "") : n.h.c === "r" ? "Red · supplier" : "Yellow"}</span><b>${n.h.c === "q" ? esc(n.h.subj || "No subject") : "Note " + n.no}</b> · Page ${n.i + 1}, ${esc(sheetName(n.pg, n.i))}</div>
+    <div><span class="tagc ${n.h.c}">${n.h.c === "q" ? "RFI " + (n.h.n || "") : n.h.c === "r" ? "Red · supplier" : "Yellow"}</span><b>${n.h.c === "q" ? esc(n.h.subj || "No subject") : "Note " + n.no}</b> · Page ${n.i + 1}, ${esc(sheetName(n.pg, n.i))}${n.h.pc ? ` <span class="tagc pcn">Added by Precon${n.h.by && n.h.by !== "Precon" ? " · " + esc(n.h.by) : ""}</span>` : ""}</div>
     ${n.h.c === "q" ? `<div class="hint">${[n.h.to && "To " + esc(n.h.to), n.h.date && "Made " + esc(n.h.date), n.h.due && "Answer by " + esc(n.h.due)].filter(Boolean).join(" · ")}</div>` : ""}
     <p>${n.h.note ? esc(n.h.note) : `<span class="hint">${n.h.c === "q" ? "No question typed yet" : "No typed note"}</span>`}</p>
     <div class="note-acts no-print"><button class="btn sm" type="button" data-go="${n.no}">Show on drawing</button><button class="btn sm" type="button" data-ed="${n.no}">Edit</button>${n.h.c === "q" ? `<button class="btn sm" type="button" data-pdf="${n.no}">📄 Print / save PDF</button><button class="btn sm primary" type="button" data-send="${n.no}">✉ Send RFI</button>` : ""}</div></div></div>`;
@@ -6118,7 +6142,7 @@ function drawOverlay() {
   const g = svgEl("g", {});
   if (fw) fw.hits.forEach((h, i) => { if (h.pg !== p) return; const pad = Math.max(4, h.r[3] * .25);
     g.appendChild(svgEl("rect", { x: h.r[0] - pad, y: h.r[1] - pad, width: h.r[2] + pad * 2, height: h.r[3] + pad * 2, rx: pad, class: "mk-fw" + (i === fw.at ? " on" : ""), ...ns })); });
-  (p.hl || []).forEach(h => {
+  hlsOf(p).forEach(h => {
     const rc = svgEl("rect", { x: h.x, y: h.y, width: h.w, height: h.h, class: "mk-hl " + h.c, ...ns });
     rc.appendChild(svgEl("title", {}, (h.c === "q" ? "RFI " + (h.n || "") : h.c === "r" ? "Red note" : "Yellow note") + (h.note ? ": " + h.note : "")));
     g.appendChild(rc);
@@ -6232,7 +6256,7 @@ $("overlay").addEventListener("click", e => {
     p.devices.forEach(v => { const dd = dist([v.x, v.y], q); if (dd < bd) { bd = dd; best = v; } });
     if (best) { remember(); p.devices = p.devices.filter(v => v !== best); if (dropEmptyRooms(p, [best])) toast("That was the last mark in the typical room, so its box is gone too. Undo brings it back."); hoverDev = null; saveMeta(p); drawOverlay(); renderCounts(); }
     else {
-      const h = hlAt(p, q);
+      const h = (p.hl || []).slice().reverse().find(x => q[0] >= x.x && q[0] <= x.x + x.w && q[1] >= x.y && q[1] <= x.y + x.h);
       if (h) { remember(); p.hl = p.hl.filter(x => x !== h); saveMeta(p); drawOverlay(); if (!$("takeoffModal").hidden) renderTakeoff(); toast(`${h.c === "q" ? "RFI" : h.c === "r" ? "Red note" : "Yellow note"} deleted. Undo brings it back.`); }
       else toast("No symbol or note there. Click right on the symbol, or inside the yellow or red box, to remove it.");
     }
@@ -6526,7 +6550,7 @@ function snapState(ids) {
   return { c: JSON.stringify(countsList()), p: ids.map(id => { const pg = pages.find(x => x.id === id); return pg && [id, JSON.stringify([pg.devices, pg.runs, pg.ftPerPx || null, pg.scaleLabel || "", pg.rooms || [], pg.hl || [], pg.pins || [], pg.sk || []])]; }).filter(Boolean) };
 }
 function remember(list) {
-  if (fieldMode) { fieldNo(); throw new Error("Field login is view only"); }
+  if (fieldMode) { if (isPc()) return; fieldNo(); throw new Error("Field login is view only"); } // precon: its changes go in its own layer
   const ids = (list || [pages[current]]).filter(Boolean).map(pg => pg.id);
   undoStack.push(snapState(ids)); if (undoStack.length > 200) undoStack.shift();
   redoStack = []; updHist();
@@ -6913,13 +6937,13 @@ function wireSpec(w) {
 const wireTotal = w => isUG(w) || isJH(w) || isPull(w) || isDitch(w) ? 0 : ((w.count || 0) + (w.ground ? 1 : 0)) * (w.sets || 1);
 const pipeRuns = w => isPull(w) ? w.runs || 1 : w.sets || 1; // each parallel set is its own conduit
 function renderWires() {
-  const ul = $("wireList"), list = wiresList();
+  const ul = $("wireList"), list = wiresList().filter(w => !w.pc || fieldMode || showGhost), skip = (fieldLayer.order && fieldLayer.order.skip) || {};
   ul.replaceChildren();
   $("wiresEmpty").hidden = list.length > 0;
   const lfOf = id => pages.reduce((t, pg) => t + (pg.ftPerPx ? pg.runs.filter(r => r.typeId === id && inScope(r)).reduce((a, r) => a + runPx(pg, r) * pg.ftPerPx, 0) : 0), 0);
   list.forEach(w => {
     const lf = lfOf(w.id);
-    const li = document.createElement("li"); li.className = "cnt";
+    const li = document.createElement("li"); li.className = "cnt" + (w.pc ? " pc" : "") + (skip[w.id] ? " skipped" : "");
     const b = document.createElement("button"); b.type = "button"; b.className = "cnt-main";
     b.setAttribute("aria-pressed", tool === "run" && runType === w.id && !contRun);
     b.title = "Draw a run of this type";
@@ -6934,8 +6958,8 @@ function renderWires() {
     b.onclick = () => startRunType(w.id);
     const e = document.createElement("button"); e.type = "button"; e.className = "cnt-edit"; e.title = "Edit this run type"; e.setAttribute("aria-label", "Edit " + wireLabel(w));
     e.innerHTML = `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M11 2.5 13.5 5 6 12.5H3.5V10z"/></svg>`;
-    e.onclick = () => openWire(w.id);
-    li.append(b, e); ul.appendChild(li);
+    e.onclick = () => fieldMode && !w.pc ? fieldNo() : openWire(w.id);
+    li.append(b); if (isPc() && !w.pc) li.append(skipBtn(w.id, wireShort(w))); li.append(e); ul.appendChild(li);
   });
 }
 function startRunType(id) {
@@ -7704,7 +7728,7 @@ async function runSync() {
     if (todo.length) { setDrive("busy", `Saving sheets to Drive… 0 of ${todo.length}`); await Promise.all([worker(), worker(), worker()]); }
     if (job !== j) return;
     setDrive("busy", "Saving to Drive…");
-    const data = { app: "aj-takeoff", v: 1, savedAt: new Date().toISOString(), job: { id: j.id, no: jobNoOf(j) || undefined, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, driveSheetsId: j.driveSheetsId, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [], extra: j.extra || {}, feed: j.feed || {}, supOver: j.supOver || {}, bid: j.bid || null, prop: j.prop || null, cos: j.cos || [], imports: j.imports || [] },
+    const data = { app: "aj-takeoff", v: 1, savedAt: new Date().toISOString(), job: { id: j.id, no: jobNoOf(j) || undefined, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, driveSheetsId: j.driveSheetsId, counts: (j.counts || []).filter(c => !c.pc), align: j.align || {}, wireTypes: (j.wireTypes || []).filter(w => !w.pc), extra: j.extra || {}, feed: j.feed || {}, supOver: j.supOver || {}, bid: j.bid || null, prop: j.prop || null, cos: j.cos || [], imports: j.imports || [] },
       pages: list.map(p => ({ id: p.id, fileId: p.fileId, ...meta(p) })) };
     const made = await drv("create_file", { title: `${safeName(j.name)} · ajjob ${j.id}.json`, parentId: root, textContent: JSON.stringify(data), contentMimeType: "application/json", disableConversionToGoogleType: true });
     const old = j.driveJsonId;
@@ -7819,7 +7843,7 @@ const APP_HOME = "https://aj-commercial-takeoff.vercel.app/";
 async function projectBlob() {
   const j = job, list = pages.filter(p => !p.example);
   const head = { app: "aj-takeoff", kind: "job-file", v: 1, savedAt: new Date().toISOString(),
-    job: { id: j.id, no: jobNoOf(j) || undefined, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, counts: j.counts || [], align: j.align || {}, wireTypes: j.wireTypes || [], extra: j.extra || {}, feed: j.feed || {}, supOver: j.supOver || {}, bid: j.bid || null, prop: j.prop || null, cos: j.cos || [], imports: j.imports || [] }, pages: [] };
+    job: { id: j.id, no: jobNoOf(j) || undefined, name: j.name, customer: j.customer, address: j.address, bidDate: j.bidDate, created: j.created, updated: j.updated, counts: (j.counts || []).filter(c => !c.pc), align: j.align || {}, wireTypes: (j.wireTypes || []).filter(w => !w.pc), extra: j.extra || {}, feed: j.feed || {}, supOver: j.supOver || {}, bid: j.bid || null, prop: j.prop || null, cos: j.cos || [], imports: j.imports || [] }, pages: [] };
   let at = 0;
   for (const p of list) {
     const { fileId, ...m } = meta(p);
@@ -8322,7 +8346,25 @@ let job = null, jobs = [];
 const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} };
 const putJobLocal = j => store(s => s.put(j), "jobs");
-const saveJob = j => { if (job && j.id === job.id) scheduleSync(); return putJobLocal(j); };
+const saveJob = j => { if (job && j.id === job.id) { scheduleSync(); if (isPc()) pcMark(); } return putJobLocal(j); };
+/* Precon's own types (v164): anything a precon login makes is marked pc, saved in the field layer (types / wires), merged into
+   the job on every computer, and left out whenever the office saves the estimate. */
+let pcEst = null, pcEstFor = null;
+function pcStamp() { pcEstFor = job ? job.id : null; pcEst = job ? new Set([...(job.counts || []), ...(job.wireTypes || [])].filter(c => !c.pc).map(c => c.id)) : null; }
+function pcMark() {
+  if (!job || pcEstFor !== job.id || !pcEst) return;
+  [...(job.counts || []), ...(job.wireTypes || [])].forEach(c => { if (!pcEst.has(c.id) && !c.pc) c.pc = 1; });
+  fieldTouch();
+}
+function pcMerge(layer) {
+  if (!job) return;
+  const gone = new Set(layer.gone || []);
+  [["counts", layer.types], ["wireTypes", layer.wires]].forEach(([k, list]) => {
+    const arr = (job[k] || (job[k] = [])).filter(c => !(c.pc && gone.has(c.id)));
+    (list || []).forEach(t => { if (gone.has(t.id)) return; const o = arr.find(c => c.id === t.id); if (o) Object.assign(o, t, { pc: 1 }); else arr.push({ ...t, pc: 1 }); });
+    job[k] = arr;
+  });
+}
 // job number (Jonathan 2026-11-03): handed out online the first time a job is saved there, and shared with LA
 const jobNoOf = j => { if (!j) return ""; try { return (teamIndex[segId(j.id)] || {}).no || j.no || ""; } catch (e) { return j.no || ""; } };
 function showJobName() { const n = jobNoOf(job); $("jobName").textContent = job ? (n ? `#${n} · ` : "") + job.name : "Example job"; }
@@ -8340,7 +8382,7 @@ async function openJob(j) {
   if (teamOn && fieldDirty && job && job !== j) { clearTimeout(fieldTimer); await fieldPush(); }
   pages.forEach(p => { URL.revokeObjectURL(p.url); p.thumbUrl && URL.revokeObjectURL(p.thumbUrl); });
   clearTimeout(syncTimer); syncWanted = false;
-  job = j; lsSet("aj-current-job", j ? j.id : null); showJobName(); coScope = null; showOld = false; coChip();
+  job = j; lsSet("aj-current-job", j ? j.id : null); showJobName(); coScope = null; showOld = false; coChip(); pcStamp();
   dropCmp(); sel.clear(); undoStack = []; redoStack = []; updHist(); tabs = [];
   if (teamOn) setDrive(j && j.teamUrl ? "ok" : "idle", j && j.teamUrl ? "Saved online" : "Saved on this computer");
   else setDrive(j && j.driveJsonId ? "ok" : "idle", j && j.driveJsonId ? "Saved to Google Drive" : null);
@@ -8456,7 +8498,7 @@ async function ensureJob(firstFileName) {
   if (job) return;
   const j = newJobRecord({ name: (firstFileName || "Untitled job").replace(/\.[a-z0-9]+$/i, "") });
   await saveJob(j);
-  job = j; lsSet("aj-current-job", j.id); showJobName();
+  job = j; lsSet("aj-current-job", j.id); showJobName(); pcStamp();
 }
 const touchJob = () => { if (job) { job.updated = new Date().toISOString(); saveJob(job); } };
 
@@ -8842,7 +8884,8 @@ async function teamMoveUp() {
 var teamOffline = false, isAdmin = false, signedIn = false;
 // what this person's position can do; everything until the website says otherwise (and always off the website)
 var myPerms = null, posName = "";
-const PERM_KEYS = ["edit", "cost", "hours", "tracker", "lists", "counts", "order", "marks", "scale"];
+const PERM_KEYS = ["edit", "cost", "hours", "tracker", "lists", "counts", "order", "marks", "scale", "precon"];
+function isPc() { return fieldMode && !!myPerms && myPerms.has("precon"); }
 const TAB_NEEDS = { bid: "cost", prop: "cost", rate: "lists", asm: "lists", count: "counts", sup: "counts", ug: "counts", order: "order", hours: "hours" };
 function can(k) { return !myPerms || myPerms.has(k); }
 function tabOk(v) { const n = TAB_NEEDS[v]; return !n || can(n); }
@@ -8850,6 +8893,7 @@ function applyPerms() {
   const de = document.documentElement;
   PERM_KEYS.forEach(k => de.classList.toggle("no-" + k, !can(k)));
   de.classList.toggle("can-scale", can("scale"));
+  de.classList.toggle("can-precon", !!myPerms && myPerms.has("precon"));
   de.classList.toggle("office-off", lsGet("aj-office-mk") === "off");
   $("brandPos").textContent = posName && !isAdmin ? " · " + posName : "";
   $("officeMkBtn").hidden = !fieldMode;
@@ -9597,8 +9641,9 @@ function drawEditLinks() {
 /* Working without internet */
 function fieldKeep() {
   if (!job) return;
-  const out = { base: fieldUrl, order: fieldLayer.order, gone: fieldLayer.gone, scales: fieldLayer.scales || {}, pages: {} };
-  pages.forEach(p => { if (p.ghost && (p.ghost.devices.length || p.ghost.runs.length)) out.pages[p.id] = p.ghost; });
+  const out = { base: fieldUrl, order: fieldLayer.order, gone: fieldLayer.gone, scales: fieldLayer.scales || {}, pages: {},
+    types: (job.counts || []).filter(c => c.pc), wires: (job.wireTypes || []).filter(w => w.pc) };
+  pages.forEach(p => { if (p.ghost && (p.ghost.devices.length || p.ghost.runs.length || (p.ghost.pins || []).length || (p.ghost.hl || []).length)) out.pages[p.id] = p.ghost; });
   lsSet("aj-fieldq-" + job.id, JSON.stringify(out));
 }
 function fieldQueued(j) {
@@ -9657,10 +9702,11 @@ $("ghostBtn").onclick = () => { showGhost = !showGhost; lsSet("aj-ghost", showGh
 function fieldApply(layer, url) {
   fieldLayer = { order: { qty: {}, note: "", approved: null }, gone: [], ...layer };
   fieldLayer.order = { qty: {}, note: "", approved: null, ...(layer.order || {}) };
-  fieldUrl = url;
+  fieldUrl = url; fieldLayer.skipSeen = { ...(fieldLayer.order.skip || {}) };
+  pcMerge(layer); if (job && pcEstFor !== job.id) pcStamp();
   pages.forEach(p => {
     const g = (layer.pages || {})[p.id], sc = (layer.scales || {})[p.id];
-    p.ghost = { devices: g && g.devices || [], runs: g && g.runs || [], pins: g && g.pins || [] };
+    p.ghost = { devices: g && g.devices || [], runs: g && g.runs || [], pins: g && g.pins || [], hl: g && g.hl || [] };
     if (fieldMode && sc) { p.ftPerPx = sc[0]; p.scaleLabel = sc[1]; p.fieldScale = true; } // the field's own scale, for the field only
   });
   ghostBtnShow(); drawOverlay(); renderCounts();
@@ -9701,20 +9747,28 @@ async function fieldPush() {
     const cur = await fieldNewest(j);
     let theirs = null;
     if (cur && cur.url !== fieldUrl) theirs = await (await fetch(cur.url)).json();
+    // precon types deleted on this computer since the layer was loaded
+    const pcT = (j.counts || []).filter(c => c.pc), pcW = (j.wireTypes || []).filter(w => w.pc), have = new Set([...pcT, ...pcW].map(c => c.id));
+    [...(fieldLayer.types || []), ...(fieldLayer.wires || [])].forEach(t => { if (!have.has(t.id)) fieldLayer.gone = [...(fieldLayer.gone || []), t.id]; });
     const gone = new Set([...(fieldLayer.gone || []), ...(theirs && theirs.gone || [])]);
     const out = { app: "aj-takeoff", kind: "field-layer", v: 1, savedAt: new Date().toISOString(), by: teamWho, gone: [...gone].slice(-2000), pages: {},
       markups: fieldLayer.markups || theirs && theirs.markups || null,
       order: { ...(theirs && theirs.order || {}), ...fieldLayer.order, qty: { ...(theirs && theirs.order && theirs.order.qty || {}), ...fieldLayer.order.qty } },
       scales: { ...(theirs && theirs.scales || {}), ...(fieldLayer.scales || {}) }, pinDone: { ...(theirs && theirs.pinDone || {}) } };
+    const mergeT = (a, b) => [...new Map([...byId(b || []), ...byId(a.map(({ pc, ...t }) => t))]).values()].filter(x => !gone.has(x.id));
+    out.types = mergeT(pcT, theirs && theirs.types); out.wires = mergeT(pcW, theirs && theirs.wires);
+    out.order.skip = { ...(theirs && theirs.order && theirs.order.skip || {}), ...(fieldLayer.order.skip || {}) };
+    Object.keys(out.order.skip).forEach(id => { if (fieldLayer.order.skip && !fieldLayer.order.skip[id] && fieldLayer.skipSeen && fieldLayer.skipSeen[id]) delete out.order.skip[id]; });
     Object.entries(fieldLayer.pinDone || {}).forEach(([id, r]) => { const o = out.pinDone[id]; if (!o || r.at > o.at) out.pinDone[id] = r; });
     pages.forEach(p => {
       const mine = ghostOf(p), th = theirs && theirs.pages && theirs.pages[p.id] || { devices: [], runs: [], pins: [] };
       const merge = (a, b) => [...new Map([...byId(b), ...byId(a)]).values()].filter(x => !gone.has(x.id));
-      p.ghost = { devices: merge(mine.devices, th.devices || []), runs: merge(mine.runs, th.runs || []), pins: merge(mine.pins, th.pins || []) };
-      if (p.ghost.devices.length || p.ghost.runs.length || p.ghost.pins.length) out.pages[p.id] = p.ghost;
+      p.ghost = { devices: merge(mine.devices, th.devices || []), runs: merge(mine.runs, th.runs || []), pins: merge(mine.pins, th.pins || []), hl: merge(mine.hl || [], th.hl || []) };
+      if (p.ghost.devices.length || p.ghost.runs.length || p.ghost.pins.length || p.ghost.hl.length) out.pages[p.id] = p.ghost;
     });
     if (theirs && theirs.pages) Object.keys(theirs.pages).forEach(id => { if (!out.pages[id] && !pages.some(p => p.id === id)) out.pages[id] = theirs.pages[id]; });
-    fieldLayer.order = out.order; fieldLayer.gone = out.gone; fieldLayer.scales = out.scales; fieldLayer.pinDone = out.pinDone;
+    fieldLayer.order = out.order; fieldLayer.gone = out.gone; fieldLayer.scales = out.scales; fieldLayer.pinDone = out.pinDone; fieldLayer.types = out.types; fieldLayer.wires = out.wires;
+    fieldLayer.skipSeen = { ...out.order.skip }; pcMerge(out);
     const details = b64url({ by: teamWho.slice(0, 30), u: out.savedAt });
     const url = await (window.AJ_TEAM_PUT ? window.AJ_TEAM_PUT(`team/field/${segId(j.id)}/m${details}.json`, new Blob([JSON.stringify(out)], { type: "application/json" }), "application/json")
       : (async () => { blobClient = blobClient || await import("./blob-client.js");
@@ -9743,6 +9797,8 @@ function ghostErase(p, q) {
   g.devices.forEach(v => { const dd = dist([v.x, v.y], q); if (dd < bd) { bd = dd; best = v; kind = "d"; } });
   const seg = (a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], L = dx * dx + dy * dy, t = L ? Math.max(0, Math.min(1, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L)) : 0; return dist(q, [a[0] + t * dx, a[1] + t * dy]); };
   if (!best) g.runs.forEach(r => { for (let i = 1; i < r.pts.length; i++) { const dd = seg(r.pts[i - 1], r.pts[i]); if (dd < bd) { bd = dd; best = r; kind = "r"; } } });
+  const gh = !best && (g.hl || []).slice().reverse().find(x => q[0] >= x.x && q[0] <= x.x + x.w && q[1] >= x.y && q[1] <= x.y + x.h);
+  if (gh) { g.hl = g.hl.filter(x => x !== gh); fieldLayer.gone = [...(fieldLayer.gone || []), gh.id]; fieldTouch(); drawOverlay(); if (!$("takeoffModal").hidden) renderTakeoff(); return toast(`${gh.c === "q" ? "RFI" : "Note"} deleted.`); }
   if (!best) return toast("Click right on one of the field's own marks, pins or runs to remove it. The office's marks can't be changed here.");
   if (kind === "d") g.devices = g.devices.filter(v => v !== best); else g.runs = g.runs.filter(r => r !== best);
   fieldLayer.gone = [...(fieldLayer.gone || []), best.id];
@@ -9772,7 +9828,7 @@ function openPin(p, m, ghost, q) {
   pinEd = { p, m, ghost, q };
   $("pinTitle").textContent = m ? (mine ? "Change this pin" : m.label) : "Drop a location pin";
   const dn = m && pinDoneOf(m);
-  $("pinWho").textContent = m ? [`${ghost ? "Field pin" : "Office pin"}${m.by ? " by " + m.by : ""}`, dn.d ? `Marked in the field${dn.by ? " by " + dn.by : ""}${dn.at ? " " + new Date(dn.at).toLocaleDateString() : ""}` : ""].filter(Boolean).join(" · ") : "Pick what it is, or type your own.";
+  $("pinWho").textContent = m ? [m.pc ? `Added by Precon${m.by ? " (" + m.by + ")" : ""}` : `${ghost ? "Field pin" : "Office pin"}${m.by ? " by " + m.by : ""}`, dn.d ? `Marked in the field${dn.by ? " by " + dn.by : ""}${dn.at ? " " + new Date(dn.at).toLocaleDateString() : ""}` : ""].filter(Boolean).join(" · ") : "Pick what it is, or type your own.";
   $("pinEdit").hidden = !mine;
   const box = $("pinPicks"); box.replaceChildren();
   const rec = pinRecent().filter(x => !PIN_PICKS.includes(x));
@@ -9793,7 +9849,7 @@ function pinSave(label) {
   if (!PIN_PICKS.includes(v)) lsSet("aj-pin-recent", JSON.stringify([v, ...pinRecent().filter(x => x !== v)].slice(0, 6)));
   $("pinModal").hidden = true; pinEd = null;
   if (fieldMode) {
-    if (m) { m.label = v; m.at = Date.now(); } else ghostOf(p).pins.push({ id: uid(), x: Math.round(q[0]), y: Math.round(q[1]), label: v, by: teamWho || "", at: Date.now() });
+    if (m) { m.label = v; m.at = Date.now(); } else ghostOf(p).pins.push({ id: uid(), x: Math.round(q[0]), y: Math.round(q[1]), label: v, by: teamWho || "", at: Date.now(), ...(isPc() ? { pc: 1 } : {}) });
     fieldTouch(); drawOverlay(); return;
   }
   remember();
@@ -9968,9 +10024,16 @@ function ghostLines() {
   try { return supLines(); }
   finally { pages.forEach((p, i) => { [p.devices, p.runs, p.rooms] = keep[i]; }); if (job) { [job.imports, job.supOver] = hold; } }
 }
+function orderEstLines() {
+  const sk = (fieldLayer.order && fieldLayer.order.skip) || {};
+  if (!Object.keys(sk).length) return supLines();
+  const keep = pages.map(p => [p.devices, p.runs]);
+  pages.forEach(p => { p.devices = p.devices.filter(v => !sk[v.t]); p.runs = p.runs.filter(r => !sk[r.typeId]); });
+  try { return supLines(); } finally { pages.forEach((p, i) => { [p.devices, p.runs] = keep[i]; }); }
+}
 function orderLines() {
   const m = new Map(), key = l => `${l.sec}|${l.name}`;
-  supLines().forEach(l => m.set(key(l), { ...l, key: key(l), est: l.qty, add: 0 }));
+  orderEstLines().forEach(l => m.set(key(l), { ...l, key: key(l), est: l.qty, add: 0 }));
   ghostLines().forEach(l => { const k0 = key(l), o = m.get(k0) || { ...l, key: k0, est: 0, add: 0 }; o.add += l.qty; m.set(k0, o); });
   const q = fieldLayer.order.qty || {};
   return [...m.values()].map(o => { const calc = Math.ceil(o.est + o.add); return { ...o, calc, qty: q[o.key] != null && q[o.key] !== "" ? +q[o.key] : calc }; });
@@ -9979,9 +10042,11 @@ function renderOrder() {
   const t = $("tsTable"), L = orderLines(), o = fieldLayer.order, secs = [...new Set(L.map(l => l.sec))];
   $("tsEmpty").hidden = !!L.length;
   const num = n => (Math.round(n * 10) / 10).toLocaleString();
-  t.innerHTML = `<thead><tr><th>Item</th><th class="n">Estimate</th><th class="n">Field adds</th><th class="n">Order</th></tr></thead><tbody>` +
+  t.innerHTML = `<thead><tr><th>Item</th><th class="n">Estimate</th><th class="n">Field / precon adds</th><th class="n">Order</th></tr></thead><tbody>` +
     secs.map(s => `<tr class="sec"><td colspan="4">${esc(s)}</td></tr>` + L.filter(l => l.sec === s).map(l => `<tr${l.add ? ' class="ord-add"' : ""}><td>${esc(l.name)}</td><td class="n">${l.est ? num(l.est) + " " + l.unit : ""}</td><td class="n">${l.add ? "+" + num(l.add) + " " + l.unit : ""}</td>
       <td class="n"><input type="number" class="ord-q no-lock" min="0" step="1" data-ok="${esc(l.key)}" value="${l.qty}" aria-label="Order quantity for ${esc(l.name)}"><span class="print-only">${l.qty.toLocaleString()}</span> ${l.unit}</td></tr>`).join("")).join("") +
+    (() => { const sk = o.skip || {}, ids = Object.keys(sk); if (!ids.length) return ""; const nm = id => { const d = devInfo(id); if (d && countsList().some(c => c.id === id)) return nameOf(d); const w = wiresList().find(x => x.id === id); return w ? wireShort(w) : "A removed type"; };
+      return `<tr class="sec"><td colspan="4">Taken off the order by precon</td></tr>` + ids.map(id => `<tr><td colspan="4" class="ord-skip">${esc(nm(id))} from the estimate <span class="hint">· by ${esc(sk[id].by || "Precon")}</span>${isPc() ? `<button class="btn sm no-lock no-print" type="button" data-unskip="${esc(id)}">Put back</button>` : ""}</td></tr>`).join(""); })() +
     `<tr class="sec"><td colspan="4">Note to the supplier</td></tr><tr><td colspan="4"><textarea id="ordNote" class="no-lock" rows="3" placeholder="e.g. Deliver to the north gate Tuesday 7 AM. Call the super at the number on the PO.">${esc(o.note || "")}</textarea><span class="print-only">${esc(o.note || "")}</span></td></tr>
     <tr><td colspan="4"><div class="ord-ok">${o.approved ? `<b>Approved by ${esc(o.approved.by || "the field")}</b> · ${new Date(o.approved.at).toLocaleString()}` : "Not approved yet."}
       <button class="btn sm no-lock no-print" type="button" id="ordApprove">${o.approved ? "Take back approval" : "Approve this order"}</button></div></td></tr></tbody>`;
@@ -9991,6 +10056,7 @@ function renderOrder() {
     o.approved = null; fieldTouch(); renderOrder();
   });
   $("ordNote").onchange = () => { o.note = $("ordNote").value.trim(); fieldTouch(); };
+  t.querySelectorAll("[data-unskip]").forEach(b => b.onclick = () => { delete o.skip[b.dataset.unskip]; o.approved = null; fieldTouch(); renderOrder(); renderCounts(); renderWires(); });
   // approving saves the order's lines with it, so the AJ Leadership app can stage it as a material order (v162)
   $("ordApprove").onclick = () => {
     o.approved = o.approved ? null : { by: teamWho || (fieldMode ? "Field" : "Office"), at: new Date().toISOString() };
