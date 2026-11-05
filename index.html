@@ -983,7 +983,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v166<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v167<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="layBtn" type="button" hidden title="Tablets: switch between the phone layout (drawing fills the screen) and the full layout with every panel showing">🖥 Full layout</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
@@ -5845,24 +5845,31 @@ const ghostWho = x => (x.by || "Field") + (x.pc ? " (Precon)" : "");
 function ghostByWho(fn) {
   if (!ghostAny() || !(fieldMode || showGhost)) return [];
   const whos = [...new Set(pages.flatMap(p => p.ghost ? [...p.ghost.devices, ...p.ghost.runs].map(ghostWho) : []))];
-  return whos.map(who => {
+  const under = pick => {
     const keep = pages.map(p => [p.devices, p.runs, p.rooms]), hold = job ? [job.imports, job.supOver] : null;
-    pages.forEach(p => { const g = p.ghost || { devices: [], runs: [] }; p.devices = g.devices.filter(x => ghostWho(x) === who); p.runs = g.runs.filter(x => ghostWho(x) === who); p.rooms = []; });
+    pages.forEach(p => { const g = p.ghost || { devices: [], runs: [] }; p.devices = g.devices.filter(pick); p.runs = g.runs.filter(pick); p.rooms = []; });
     if (job) { job.imports = []; job.supOver = {}; }
-    try { return { who, r: fn() }; }
+    try { return fn(); }
     finally { pages.forEach((p, i) => { [p.devices, p.runs, p.rooms] = keep[i]; }); if (job) { [job.imports, job.supOver] = hold; } }
-  }).filter(x => x.r && x.r.length);
+  };
+  // some lines don't come from marks at all (panels, their breaker whips, subfeeds set on the count sheet): an empty
+  // drawing still makes them, so only what goes up when this person's marks are put in counts as theirs (v167)
+  const base = new Map(); under(() => false).forEach(([k, a, q]) => base.set(k, (base.get(k) || 0) + q));
+  return whos.map(who => {
+    const m = new Map(); under(x => ghostWho(x) === who).forEach(([k, a, q, u]) => { const o = m.get(k) || [k, a, 0, u]; o[2] += q; m.set(k, o); });
+    return { who, r: [...m.values()].map(([k, a, q, u]) => [a, q - (base.get(k) || 0), u]).filter(x => x[1] > 0.0001) };
+  }).filter(x => x.r.length);
 }
 function ghostSheetRows(sup) {
   const cols = sup ? 2 : 4, n = v => (Math.round(v * 10) / 10).toLocaleString();
   const list = ghostByWho(() => {
-    const { counts, foot } = takeoffRows(), rows = counts.filter(c => !c.brk && c.qty).map(c => [c.name + (c.what ? ` · ${c.what}` : ""), `${n(c.qty)} ${c.unit || "ea"}`]);
-    if (!sup) return [...rows, ...foot.filter(f => f.base).map(f => [f.label + (f.sub && !f.sub.startsWith(f.label) ? ` · ${f.sub}` : ""), fmtLF(f.base)])];
+    const { counts, foot } = takeoffRows(), cs = counts.filter(c => !c.brk && c.qty), rows = cs.map(c => ["c:" + c.id, c.name + (c.what ? ` · ${c.what}` : ""), +c.qty, c.unit || "ea"]);
+    if (!sup) return [...rows, ...foot.filter(f => f.base).map(f => ["f:" + f.key, f.label + (f.sub && !f.sub.startsWith(f.label) ? ` · ${f.sub}` : ""), +f.base, "LF"])];
     const { mat, parts, fittings } = supplierRows();
-    return [...rows.filter((r, i) => !counts.filter(c => !c.brk && c.qty)[i].misc), ...mat.map(m => [m.name, `${m.lf.toLocaleString()} ft`]), ...fittings.filter(f => f.qty).map(f => [f.name, `${f.qty} ea`]), ...parts.filter(p => p.qty).map(p => [p.name, `${p.qty} ea`])];
+    return [...rows.filter((r, i) => !cs[i].misc), ...mat.map(m => ["m:" + m.name, m.name, +m.lf, "ft"]), ...fittings.filter(f => f.qty).map(f => ["t:" + f.name, f.name, +f.qty, "ea"]), ...parts.filter(p => p.qty).map(p => ["p:" + p.name, p.name, +p.qty, "ea"])];
   });
   return list.map(({ who, r }) => `<tr class="sec ghost-sec"><td colspan="${cols}">Added by ${esc(who)}<small>Not in the estimate. It goes on the Order page.</small></td></tr>` +
-    r.map(([a, b]) => `<tr class="ghost-row"><td>${esc(a)}</td>${sup ? "" : "<td></td><td></td>"}<td class="n">+${esc(b)}</td></tr>`).join("")).join("");
+    r.map(([a, q, u]) => `<tr class="ghost-row"><td>${esc(a)}</td>${sup ? "" : "<td></td><td></td>"}<td class="n">+${u === "LF" ? fmtLF(q) : n(q) + " " + u}</td></tr>`).join("")).join("");
 }
 function redNotesRows(cols, title) {
   const red = allNotes().filter(n => n.h.c === "r");
