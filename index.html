@@ -390,7 +390,7 @@ html.look-new body { font-family: var(--font-ui); }
 .ug-check small { font-weight: 400; color: var(--muted); }
 #wireForm .ug-check { display: flex; flex-direction: row; align-items: center; flex-wrap: wrap; }
 #wireForm .ug-check input { width: 18px; height: 18px; margin: 0; flex: none; }
-#wireForm.dt .wire-only, #wireForm.dt .pipe-row, #wireForm.dt .jh-hide, #wireForm.dt .ugk-only, #wireForm.dt .spacer-opt, #wireForm.ug .wire-only, #wireForm:not(.ug):not(.tr):not(.ptr):not(.dt) .ug-only, #wireForm.tr .ugk-only, #wireForm.jh .wire-only, #wireForm.jh .pipe-row, #wireForm.jh .jh-hide, #wireForm:not(.jh) .jh-only, #wireForm.pl .wire-only:not(.ug-check) { display: none; }
+#wireForm.nosweep .sweep-opt, #wireForm.dt .wire-only, #wireForm.dt .pipe-row, #wireForm.dt .jh-hide, #wireForm.dt .ugk-only, #wireForm.dt .spacer-opt, #wireForm.ug .wire-only, #wireForm:not(.ug):not(.tr):not(.ptr):not(.dt) .ug-only, #wireForm.tr .ugk-only, #wireForm.jh .wire-only, #wireForm.jh .pipe-row, #wireForm.jh .jh-hide, #wireForm:not(.jh) .jh-only, #wireForm.pl .wire-only:not(.ug-check) { display: none; }
 .ug-sheets { display: none; }
 @media print { body.print-ts .ug-sheets { display: block; } .ug-sheets figure { break-before: page; margin: 0; } .ug-sheets figcaption { font: 600 12pt sans-serif; margin-bottom: 6px; } .ug-sheets img { width: 100%; max-height: 9.3in; object-fit: contain; } }
 .amp-box { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
@@ -654,6 +654,9 @@ td .bid-ln[data-q], td .bid-ln[data-s] { width: calc(100% - 80px); }
 .ts-table td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 .ts-table td.n, .ts-table th.n { text-align: right; font-family: var(--font-mono); white-space: nowrap; }
 .ts-table tr.sec td { font-weight: 600; background: var(--bg); padding-top: 10px; }
+.ts-table tr.asm-h td { font-weight: 700; padding-top: 12px; border-top: 2px solid var(--line); background: var(--accent-soft); }
+.ts-table tr.asm-h .asm-lf { float: right; font-family: var(--font-mono); font-weight: 600; }
+.ts-table tr.asm-sub td:first-child { padding-left: 26px; }
 .ts-table small { display: block; color: var(--muted); font-size: 12px; }
 .ts-table .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
 .ts-wrap { overflow-x: auto; }
@@ -983,7 +986,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v168<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v169<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="layBtn" type="button" hidden title="Tablets: switch between the phone layout (drawing fills the screen) and the full layout with every panel showing">🖥 Full layout</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
@@ -1838,6 +1841,9 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
       <div class="opt ugk-only"><label for="wRuns">Conduit runs in the ditch</label><input type="number" id="wRuns" min="1" max="20" step="1" inputmode="numeric"></div>
       <div class="opt"><label for="wFillDepth">How deep the backfill goes</label><select id="wFillDepth"><option value="full">Whole ditch</option><option value="6">Bottom 6 in</option><option value="12">Bottom 12 in</option><option value="18">Bottom 18 in</option></select></div>
       <div class="opt spacer-opt"><label for="wSpacer">Duct bank spacers</label><select id="wSpacer"><option value="0">None</option><option value="4">Every 4 ft</option><option value="5">Every 5 ft</option><option value="6">Every 6 ft</option><option value="8">Every 8 ft</option><option value="10">Every 10 ft</option></select></div>
+      <div class="opt spacer-opt"><label for="wSweep">90° sweeps (long sweeps)</label><select id="wSweep"><option value="2">Yes, 2 per run (up at each end)</option><option value="1">Yes, 1 per run</option><option value="0">No sweeps</option></select></div>
+      <div class="opt spacer-opt sweep-opt"><label for="wSweepR">Sweep radius</label><select id="wSweepR"><option value="12">12 in</option><option value="18">18 in</option><option value="24">24 in</option><option value="36">36 in</option><option value="48">48 in</option></select></div>
+      <div class="opt spacer-opt sweep-opt"><label for="wSweepSch">Sweep schedule</label><select id="wSweepSch"><option value="40">Schedule 40</option><option value="80">Schedule 80</option></select></div>
     </div>
     <p class="hint ug-only" id="wGravel" style="margin:0"></p>
     <div class="amp-box wire-only">
@@ -4198,7 +4204,7 @@ function takeoffRows() {
     const lf = lfOf(w.id);
     if (!lf) return;
     const sets = w.sets || 1, mat = w.mat === "AL" || /AL/.test(w.ins) ? "AL" : "CU";
-    const add = (key, label, sub, base, sup) => foot.push({ key, label, sub, base, pct: +ex[key] || 0, sup, color: w.color });
+    const add = (key, label, sub, base, sup) => foot.push({ key, label, sub, base, pct: +ex[key] || 0, sup, color: w.color, wid: w.id, runLf: lf });
     if (isJH(w)) {
       const by = pages.map((pg, i) => [sheetName(pg, i), pg.runs.filter(r => r.typeId === w.id && inScope(r)).reduce((a, r) => a + hooksOn(r.px, pg, w) * runW(pg, r), 0)]).filter(x => x[1]);
       counts.push({ id: w.id, asm: "jhook|J-hook run", feed: null, name: `J-hooks${w.label ? " · " + w.label : ""}`, what: `One every ${w.interval || 5}' along ${fmtLF(lf)} of runs`, qty: by.reduce((t, x) => t + x[1], 0), by, color: w.color, group: "lvp" });
@@ -4214,11 +4220,14 @@ function takeoffRows() {
       if (!isUG(w)) { const cf = foot.find(f => f.key === `${w.id}:c`); if (cf) cf.ug = true; }
       add(`${w.id}:t`, `Trench ${trenchLabel(w)}`, isDitch(w) ? `Open and close ditch, no conduit${w.label ? " · " + w.label : ""}` : `Dig length for ${runs > 1 ? `${runs} runs of ` : ""}${w.size} ${w.conduit}`, lf, null);
       const fl = ugFill(w, lf);
-      if (fl) counts.push({ id: `${w.id}:fill`, gravel: true, misc: true, sup: false, unit: "CY", group: "misc", color: w.color, feed: null, by: [], label: `${w.backfill} backfill${w.label ? " · " + w.label : ""}`,
+      if (fl) counts.push({ wid: w.id, id: `${w.id}:fill`, gravel: true, misc: true, sup: false, unit: "CY", group: "misc", color: w.color, feed: null, by: [], label: `${w.backfill} backfill${w.label ? " · " + w.label : ""}`,
         name: `${w.backfill} backfill${w.label ? " · " + w.label : ""}`, qty: fl.cy,
         what: `About ${fl.cy} cubic yards${fl.tons ? ` (about ${fl.tons} tons)` : ""}: ${fmtLF(lf)} of ditch × ${w.width || 30}" wide × ${fl.deep}" deep` });
       const sp = ugSpacers(w, lf);
-      if (sp) counts.push({ id: `${w.id}:sp`, gravel: true, misc: true, sup: true, unit: "ea", group: "misc", color: w.color, feed: null, by: [], label: spacerName(w),
+      const nRuns = pages.reduce((t, pg) => t + pg.runs.filter(r => r.typeId === w.id && inScope(r)).reduce((a, r) => a + runW(pg, r), 0), 0), swq = !isDitch(w) && w.sweep ? nRuns * w.sweep * ditchRuns(w) : 0;
+      if (swq) counts.push({ id: `${w.id}:sw`, gravel: true, misc: true, sup: true, unit: "ea", group: "misc", color: w.color, feed: null, by: [], label: sweepName(w), wid: w.id,
+        name: sweepName(w), qty: swq, what: `${w.sweep} per run × ${nRuns} run${nRuns > 1 ? "s" : ""} drawn${ditchRuns(w) > 1 ? ` × ${ditchRuns(w)} conduits` : ""}` });
+      if (sp) counts.push({ wid: w.id, id: `${w.id}:sp`, gravel: true, misc: true, sup: true, unit: "ea", group: "misc", color: w.color, feed: null, by: [], label: spacerName(w),
         name: spacerName(w), qty: sp, what: `One every ${w.spacer}' along ${fmtLF(lf)} of ditch` });
     }
     if (isDitch(w)) return; // just the dig and backfill, nothing goes in it
@@ -5569,8 +5578,19 @@ function renderTakeoff() {
       <label>Avg feet per fixture<input type="number" data-f="ft" min="0" max="5000" value="${f.ft}"></label>
       <button class="btn sm" type="button" data-f="done">Done</button></div></td></tr>`; };
     if (allRooms().length) h += `<tr class="sec ts-rooms-h"><td colspan="4">Typical rooms: one room, then times the rooms (already in the totals below)</td></tr>` + roomBreakRows() + `<tr class="sec ts-rooms-h"><td colspan="4">Whole job totals</td></tr>`;
-    bySection(counts).forEach(sec => h += `<tr class="sec"><td colspan="4">${esc(sec.title)}</td></tr>` + sec.rows.map(c => `<tr><td><span class="sw" style="background:${c.color}"></span>${esc(c.name)}${c.what ? `<small>${esc(c.what)}</small>` : ""}<small>${esc(c.by.map(x => `${x[0]}: ${x[1]}`).join(" · "))}</small>${c.feed ? `<button type="button" class="feed-btn no-print" data-id="${esc(c.id)}">Wiring: ${esc(feedText(c.feed))} ✎</button>` : ""}</td><td class="n">${c.qty}</td><td></td><td class="n"><b>${c.qty}${c.unit === "LF" ? " ft" : c.unit === "CY" ? " CY" : ""}</b></td></tr>` + (c.feed && feedOpen === c.id ? editor(c) : "")).join(""));
-    if (foot.length) h += `<tr class="sec"><td colspan="4">Conduit and wire footage</td></tr>` + foot.map(f => `<tr><td><span class="sw" style="background:${f.color}"></span>${esc(f.label)}<small>${esc(f.sub)}</small></td><td class="n">${fmtLF(f.base)}</td><td class="n"><input type="number" class="ts-pct" min="0" max="100" step="1" data-key="${esc(f.key)}" value="${f.pct || ""}" placeholder="0" aria-label="Extra percent for ${esc(f.label)}"> %</td><td class="n"><b>${f.total.toLocaleString()} LF</b></td></tr>`).join("");
+    const cRow = c => `<tr><td><span class="sw" style="background:${c.color}"></span>${esc(c.name)}${c.what ? `<small>${esc(c.what)}</small>` : ""}<small>${esc(c.by.map(x => `${x[0]}: ${x[1]}`).join(" · "))}</small>${c.feed ? `<button type="button" class="feed-btn no-print" data-id="${esc(c.id)}">Wiring: ${esc(feedText(c.feed))} ✎</button>` : ""}</td><td class="n">${c.qty}</td><td></td><td class="n"><b>${c.qty}${c.unit === "LF" ? " ft" : c.unit === "CY" ? " CY" : ""}</b></td></tr>` + (c.feed && feedOpen === c.id ? editor(c) : "");
+    bySection(counts.filter(c => !c.wid)).forEach(sec => h += `<tr class="sec"><td colspan="4">${esc(sec.title)}</td></tr>` + sec.rows.map(cRow).join(""));
+    const fRow = f => `<tr><td><span class="sw" style="background:${f.color}"></span>${esc(f.label)}<small>${esc(f.sub)}</small></td><td class="n">${fmtLF(f.base)}</td><td class="n"><input type="number" class="ts-pct" min="0" max="100" step="1" data-key="${esc(f.key)}" value="${f.pct || ""}" placeholder="0" aria-label="Extra percent for ${esc(f.label)}"> %</td><td class="n"><b>${f.total.toLocaleString()} LF</b></td></tr>`;
+    /* Jonathan 2026-11-05: "it doesn't define: this is 3/4", this is what's underneath it". Each run type is a heading with the
+       footage drawn, and its conduit, wire, ground, trench, backfill, spacers and sweeps sit under it. */
+    const wids = [...new Set([...foot.map(f => f.wid), ...counts.map(c => c.wid)].filter(Boolean))];
+    if (wids.length) h += `<tr class="sec"><td colspan="4">Conduit and wire runs</td></tr>` + wids.map(id => {
+      const w = wiresList().find(x => x.id === id), fs = foot.filter(f => f.wid === id), cs = counts.filter(c => c.wid === id), lf = (fs[0] || {}).runLf;
+      return `<tr class="asm-h"><td colspan="4"><span class="sw" style="background:${w ? w.color : "#888"}"></span>${esc(w ? (w.label ? w.label + " · " : "") + wireLabel(w) : "Run type")}${lf ? `<span class="asm-lf">${fmtLF(lf)} drawn</span>` : ""}</td></tr>` +
+        [...fs.map(fRow), ...cs.map(cRow)].map(r => r.replace("<tr>", '<tr class="asm-sub">')).join("");
+    }).join("");
+    const loose = foot.filter(f => !f.wid);
+    if (loose.length) h += `<tr class="sec"><td colspan="4">Wiring for counted items</td></tr>` + loose.map(fRow).join("");
     t.innerHTML = h + ghostSheetRows(false) + redNotesRows(4, "Red notes") + `</tbody>`;
     fillRedCrops(t);
     t.querySelectorAll(".feed-btn").forEach(bt => bt.onclick = () => { feedOpen = feedOpen === bt.dataset.id ? null : bt.dataset.id; renderTakeoff(); });
@@ -7063,6 +7083,11 @@ const isJH = w => w && w.kind === "jhook";
 // J-hooks on one run: one every interval along it, rounded up, plus the one at the start
 const hooksOn = (pxLen, pg, w) => pg.ftPerPx ? Math.ceil(pxLen * pg.ftPerPx / (w.interval || 5)) + 1 : 0;
 const hooksOf = w => pages.reduce((t, pg) => t + pg.runs.filter(r => r.typeId === w.id && inScope(r)).reduce((a, r) => a + hooksOn(r.px, pg, w) * runW(pg, r), 0), 0);
+/* Underground sweeps (Jonathan 2026-11-05): a long 90 where the conduit comes up, picked per run type: how many per run,
+   radius (24" for 2" to 4", 36" above) and schedule (40 unless picked). Older run types have none until they're edited. */
+const sweepFields = () => ({ sweep: +$("wSweep").value, sweepR: +$("wSweepR").value || 24, sweepSch: +$("wSweepSch").value || 40 });
+const sweepRFor = size => { const n = parseFloat(String(size).replace(/ (\d)\/(\d)/, (m, a, b) => "." + String(a / b).slice(2))) || 0; return n > 4 ? 36 : 24; };
+const sweepName = w => `${w.size} ${/rigid|rmc|imc|galv/i.test(w.conduit) ? w.conduit : "PVC Sch " + (w.sweepSch || 40)} 90° sweep, ${w.sweepR || 24}" radius`;
 function wireFields() {
   const label = $("wLabel").value.trim();
   if ($("wKind").value === "jhook") return { label, kind: "jhook", interval: Math.max(1, Math.min(20, +$("wHook").value || 5)), conduit: "No conduit", size: "", count: 0, gauge: "", ins: "", ground: "", color: $("wColor").value, sets: 1, mat: "CU", amps: null };
@@ -7071,14 +7096,14 @@ function wireFields() {
   const wFor = $("wFor").value || undefined;
   if ($("wKind").value === "pull") return { label, kind: "pull", for: wFor, conduit: $("wConduit").value, size: $("wSize").value, count: 0, gauge: "", ins: "", ground: "", color: $("wColor").value, sets: 1, mat: "CU", amps: null,
     runs: $("wTrench").checked ? Math.max(1, Math.min(20, parseInt($("wRuns").value, 10) || 1)) : 1,
-    ...($("wTrench").checked ? { trench: true, depth: +$("wDepth").value, backfill: $("wFill").value, width: +$("wWidth").value || 30, fillDepth: $("wFillDepth").value, spacer: +$("wSpacer").value || 0 } : {}) };
+    ...($("wTrench").checked ? { trench: true, depth: +$("wDepth").value, backfill: $("wFill").value, width: +$("wWidth").value || 30, fillDepth: $("wFillDepth").value, spacer: +$("wSpacer").value || 0, ...sweepFields() } : {}) };
   if ($("wKind").value === "ug") return { label, kind: "ug", for: wFor, conduit: $("wConduit").value, size: $("wSize").value, count: 0, gauge: "", ins: "", ground: "", color: $("wColor").value,
     sets: 1, mat: "CU", amps: null, depth: +$("wDepth").value, backfill: $("wFill").value,
-    width: +$("wWidth").value || 30, runs: Math.max(1, Math.min(20, parseInt($("wRuns").value, 10) || 1)), fillDepth: $("wFillDepth").value, spacer: +$("wSpacer").value || 0 };
+    width: +$("wWidth").value || 30, runs: Math.max(1, Math.min(20, parseInt($("wRuns").value, 10) || 1)), fillDepth: $("wFillDepth").value, spacer: +$("wSpacer").value || 0, ...sweepFields() };
   return { label, kind: "wire", for: wFor, conduit: $("wConduit").value, size: $("wSize").value, count: Math.max(1, Math.min(40, parseInt($("wCount").value, 10) || 1)),
     gauge: $("wGauge").value, ins: $("wIns").value, ground: $("wGround").value, color: $("wColor").value,
     sets: Math.max(1, Math.min(12, parseInt($("wSets").value, 10) || 1)), mat: $("wMat").value, amps: parseInt($("wAmps").value, 10) || null,
-    ...($("wTrench").checked ? { trench: true, depth: +$("wDepth").value, backfill: $("wFill").value, width: +$("wWidth").value || 30, fillDepth: $("wFillDepth").value, spacer: +$("wSpacer").value || 0 } : {}) };
+    ...($("wTrench").checked ? { trench: true, depth: +$("wDepth").value, backfill: $("wFill").value, width: +$("wWidth").value || 30, fillDepth: $("wFillDepth").value, spacer: +$("wSpacer").value || 0, ...sweepFields() } : {}) };
 }
 function wirePreview() {
   $("wireForm").classList.toggle("ug", $("wKind").value === "ug");
@@ -7087,6 +7112,7 @@ function wirePreview() {
   $("wireForm").classList.toggle("pl", $("wKind").value === "pull");
   $("wireForm").classList.toggle("ptr", $("wKind").value === "pull" && $("wTrench").checked);
   $("wireForm").classList.toggle("dt", $("wKind").value === "ditch");
+  $("wireForm").classList.toggle("nosweep", $("wSweep").value === "0");
   $("wSize").disabled = NOPIPE.includes($("wConduit").value);
   const w = wireFields();
   $("wirePrev").textContent = wireLabel(w);
@@ -7096,7 +7122,7 @@ function wirePreview() {
   el.textContent = !f ? "" : `Conduit fill about ${Math.round(f.used * 100)}% (EMT sizes; ${Math.round(f.max * 100)}% allowed)` +
     (f.used > f.max ? `. Too full: try ${conduitFor(w)}.` : ".");
 }
-["wLabel", "wConduit", "wSize", "wCount", "wGauge", "wIns", "wGround", "wSets", "wDepth", "wFill", "wWidth", "wRuns", "wFillDepth", "wSpacer", "wTrench"].forEach(id => $(id).addEventListener("input", wirePreview));
+["wLabel", "wConduit", "wSize", "wCount", "wGauge", "wIns", "wGround", "wSets", "wDepth", "wFill", "wWidth", "wRuns", "wFillDepth", "wSpacer", "wTrench", "wSweep", "wSweepR", "wSweepSch"].forEach(id => $(id).addEventListener("input", wirePreview));
 $("wKind").addEventListener("input", () => {
   // underground runs are usually PVC; going back to wire picks EMT again
   if ($("wKind").value === "ug" && ["EMT", "MC cable", "Romex (NM-B)", "No conduit", "Flex (FMC)", "Sealtite (LFMC)"].includes($("wConduit").value)) $("wConduit").value = "PVC Sch 40";
@@ -7118,6 +7144,7 @@ function pickAmps() {
   wirePreview();
 }
 $("wAmps").addEventListener("input", pickAmps);
+$("wSize").addEventListener("input", () => { if (!editingWire || editingWire.sweepR == null) { $("wSweepR").value = String(sweepRFor($("wSize").value)); wirePreview(); } });
 /* What the run is for (Jonathan 2026-10-29): picking one fills in placeholder sizes he can change. Pole lights, signage and hot box
    start as #10 in 1" PVC underground; the others pick wire, ground and conduit by NEC from typical amps; primary is conduit and pull string for the utility. */
 const RUN_FOR = ["Primary", "Secondary", "Subfeed", "HVAC", "Lighting", "Signage", "Pole lights", "Receptacles", "Hot box"];
@@ -7153,6 +7180,7 @@ function openWire(id) {
   $("wColor").value = w.color || PALETTE[(list.length + 3) % PALETTE.length];
   $("wLabel").value = w.label || ""; $("wKind").value = ["ug", "jhook", "pull", "ditch"].includes(w.kind) ? w.kind : "wire"; $("wHook").value = w.interval || 5; $("wDepth").value = String(w.depth || 24); $("wFill").value = w.backfill || "None"; $("wWidth").value = String(w.width || 30); $("wRuns").value = w.runs || 1; $("wFillDepth").value = w.fillDepth || "full"; $("wSpacer").value = String(w.spacer || 0); $("wTrench").checked = !!w.trench; $("wFor").value = w.for || ""; if (isPull(w)) $("wKind").value = "pull";
   if (isUG(w)) { $("wCount").value = 3; $("wGauge").value = "12"; $("wIns").value = "STR"; }
+  $("wSweep").value = String(w.sweep != null ? w.sweep : editingWire ? 0 : 2); $("wSweepR").value = String(w.sweepR || sweepRFor(w.size)); $("wSweepSch").value = String(w.sweepSch || 40);
   $("wireDelete").hidden = !editingWire;
   $("wireSave").textContent = editingWire ? "Save" : "Save and draw";
   wirePreview();
