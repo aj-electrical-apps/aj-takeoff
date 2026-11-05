@@ -983,7 +983,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v167<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v168<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="layBtn" type="button" hidden title="Tablets: switch between the phone layout (drawing fills the screen) and the full layout with every panel showing">🖥 Full layout</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
@@ -3727,7 +3727,7 @@ $("ampDelete").onclick = () => {
   if (n && !askDelArmed) { askDelArmed = true; $("ampDelete").textContent = `Delete and remove ${n} symbol${n > 1 ? "s" : ""}`; return; }
   remember(pages.filter(pg => countOn(pg, c.id)));
   pages.forEach(pg => { if (countOn(pg, c.id)) { pg.devices = pg.devices.filter(v => v.t !== c.id); saveMeta(pg); } });
-  if (job) { job.counts = job.counts.filter(x => x !== c); saveJob(job); } else exampleCounts = exampleCounts.filter(x => x !== c);
+  if (job) { job.counts = job.counts.filter(x => x !== c); typeGone(c); saveJob(job); } else exampleCounts = exampleCounts.filter(x => x !== c);
   $("ampModal").hidden = true; renderCounts(); drawOverlay();
 };
 $("ampModal").addEventListener("keydown", e => { if (e.key === "Escape") $("ampModal").hidden = true; });
@@ -5841,6 +5841,16 @@ const roomRows = cols => { const r = allRooms(); return r.length ? `<tr class="s
 // red highlights as table rows (count and supplier sheets), crops filled in after
 /* Jonathan 2026-11-05: on their own logins nobody could see what the field or precon added on the Count sheet or
    Material list (only on the Order page). Each person's adds get their own section, after the estimate's lines. */
+/* Jonathan 2026-11-05: "it won't let me delete a count I added". A precon or field type lives in the field layer, so deleting
+   it only from the job brought it back on the next field load. Deleting it now marks it gone in the layer, with its marks. */
+function typeGone(c) {
+  const ids = new Set([c.id]); let marks = 0;
+  pages.forEach(p => { const g = p.ghost; if (!g) return; [g.devices, g.runs].forEach(L => L.forEach(x => { if (x.t === c.id || x.typeId === c.id) { ids.add(x.id); marks++; } }));
+    g.devices = g.devices.filter(x => x.t !== c.id); g.runs = g.runs.filter(x => x.typeId !== c.id); });
+  if (!c.pc && !marks) return;
+  fieldLayer.gone = [...(fieldLayer.gone || []), ...ids]; fieldLayer.types = (fieldLayer.types || []).filter(t => t.id !== c.id); fieldLayer.wires = (fieldLayer.wires || []).filter(t => t.id !== c.id);
+  fieldTouch();
+}
 const ghostWho = x => (x.by || "Field") + (x.pc ? " (Precon)" : "");
 function ghostByWho(fn) {
   if (!ghostAny() || !(fieldMode || showGhost)) return [];
@@ -6062,7 +6072,7 @@ $("cntDelete").onclick = () => {
   if (n && !deleteArmed) { deleteArmed = true; $("cntDelete").textContent = `Delete and remove ${n} symbol${n > 1 ? "s" : ""}`; return; }
   remember(pages.filter(pg => countOn(pg, c.id)));
   pages.forEach(pg => { if (countOn(pg, c.id)) { pg.devices = pg.devices.filter(v => v.t !== c.id); saveMeta(pg); } });
-  if (job) { job.counts = job.counts.filter(x => x !== c); saveJob(job); } else exampleCounts = exampleCounts.filter(x => x !== c);
+  if (job) { job.counts = job.counts.filter(x => x !== c); typeGone(c); saveJob(job); } else exampleCounts = exampleCounts.filter(x => x !== c);
   $("countModal").hidden = true; renderCounts(); drawOverlay();
 };
 $("countForm").addEventListener("submit", e => {
@@ -6296,6 +6306,7 @@ $("overlay").addEventListener("click", e => {
     else {
       const h = (p.hl || []).slice().reverse().find(x => q[0] >= x.x && q[0] <= x.x + x.w && q[1] >= x.y && q[1] <= x.y + x.h);
       if (h) { remember(); p.hl = p.hl.filter(x => x !== h); saveMeta(p); drawOverlay(); if (!$("takeoffModal").hidden) renderTakeoff(); toast(`${h.c === "q" ? "RFI" : h.c === "r" ? "Red note" : "Yellow note"} deleted. Undo brings it back.`); }
+      else if (showGhost && ghostAny()) ghostErase(p, q); // the field's and precon's marks can be erased by the office too
       else toast("No symbol or note there. Click right on the symbol, or inside the yellow or red box, to remove it.");
     }
     return;
@@ -7155,7 +7166,7 @@ $("wireDelete").onclick = () => {
   const w = editingWire; if (!w) return;
   // runs of this type stay; they just lose the type
   pages.forEach(pg => { if (pg.runs.some(r => r.typeId === w.id)) { pg.runs.forEach(r => { if (r.typeId === w.id) r.typeId = null; }); saveMeta(pg); } });
-  if (job) { job.wireTypes = job.wireTypes.filter(x => x !== w); saveJob(job); } else exampleWires = exampleWires.filter(x => x !== w);
+  if (job) { job.wireTypes = job.wireTypes.filter(x => x !== w); typeGone(w); saveJob(job); } else exampleWires = exampleWires.filter(x => x !== w);
   if (runType === w.id) runType = null;
   $("wireModal").hidden = true; renderWires(); renderRuns(); drawOverlay();
 };
