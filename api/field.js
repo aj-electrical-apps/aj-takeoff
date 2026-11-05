@@ -1,4 +1,7 @@
 import { list, del } from "@vercel/blob";
+import { whoIs } from "../lib/session.js";
+import { jobOk as mayOpen } from "../lib/team-store.js";
+const jobOk = async (request, id) => mayOpen(await whoIs(request), id);
 
 // The field layer of each job: the PM's and super's ghost marks and runs, and their Order page.
 // Saved apart from the job (team/field/<job id>/m<details>-<random>.json) so nothing in the field ever
@@ -23,7 +26,7 @@ const okId = id => typeof id === "string" && /^[\w-]{1,80}$/.test(id);
 export async function GET(request) {
   try {
     const id = new URL(request.url).searchParams.get("id");
-    if (!okId(id)) return Response.json({ error: "Bad job" }, { status: 400 });
+    if (!okId(id) || !await jobOk(request, id)) return Response.json({ error: "Bad job" }, { status: 400 });
     const [current] = await files(id);
     return Response.json({ current: current || null }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
@@ -34,7 +37,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    if (body.op !== "tidy" || !okId(body.id)) return Response.json({ error: "Bad request" }, { status: 400 });
+    if (body.op !== "tidy" || !okId(body.id) || !await jobOk(request, body.id)) return Response.json({ error: "Bad request" }, { status: 400 });
     const extra = (await files(body.id)).slice(KEEP).map(f => f.url);
     if (extra.length) await del(extra);
     return Response.json({ removed: extra.length });

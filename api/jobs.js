@@ -1,5 +1,5 @@
 import { list, put, del } from "@vercel/blob";
-import { whoIs } from "../lib/session.js";
+import { whoIs, roleKey } from "../lib/session.js";
 import { loadTeam, jobsFor, jobNosFor } from "../lib/team-store.js";
 
 // The team's jobs, kept in Vercel Blob so everyone using the app sees the same list.
@@ -35,7 +35,7 @@ const okId = id => typeof id === "string" && /^[\w-]{1,80}$/.test(id);
 export async function GET(request) {
   try {
     const q = new URL(request.url).searchParams, id = q.get("id");
-    const who = await whoIs(request), mine = who && who.r === "sub" ? jobsFor((await loadTeam()).users, who) : null; // a sub sees only the jobs shared with them
+    const who = await whoIs(request), mine = who && roleKey(who.r) === "sub" ? jobsFor((await loadTeam()).users, who) : null; // a sub sees only the jobs shared with them
     if (id) {
       if (!okId(id) || (mine && !mine.has(id))) return Response.json({ error: "Bad job" }, { status: 400 });
       const [current] = await jobFiles(id);

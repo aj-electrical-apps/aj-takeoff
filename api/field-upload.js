@@ -1,5 +1,7 @@
 import { handleUploadPresigned } from "@vercel/blob/client";
 import { issueSignedToken } from "@vercel/blob";
+import { whoIs } from "../lib/session.js";
+import { jobOk } from "../lib/team-store.js";
 
 // Upload address for one job's field layer (ghost marks, ghost runs, the Order page). Office and field can both use it.
 export async function POST(request) {
@@ -9,7 +11,9 @@ export async function POST(request) {
       body,
       request,
       getSignedToken: async pathname => {
-        if (!/^team\/field\/[\w-]{1,80}\/m[A-Za-z0-9_-]{1,400}\.json$/.test(pathname)) throw new Error("Only AJ Takeoff field layers");
+        const m = /^team\/field\/([\w-]{1,80})\/m[A-Za-z0-9_-]{1,400}\.json$/.exec(pathname);
+        if (!m) throw new Error("Only AJ Takeoff field layers");
+        if (!await jobOk(await whoIs(request), m[1])) throw new Error("That job isn't shared with you.");
         const r = { allowedContentTypes: ["application/json"], maximumSizeInBytes: 20 * 1024 * 1024 };
         const token = await issueSignedToken({ pathname, operations: ["put"], validUntil: Date.now() + 60 * 60 * 1000, ...r });
         return { token, urlOptions: { ...r, addRandomSuffix: true } };

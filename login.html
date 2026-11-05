@@ -77,7 +77,7 @@ $("f").addEventListener("submit", async e => {
   try {
     const r = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ setup, name: $("name").value, password: $("pw").value, appPassword: $("app").value }) });
     const o = await r.json().catch(() => ({}));
-    if (r.ok) { try { localStorage.setItem("aj-who", o.name || $("name").value.trim()); } catch (x) {} location.replace(next); return; }
+    if (r.ok) { try { localStorage.setItem("aj-who", o.name || $("name").value.trim()); if (o.role === "sub") localStorage.setItem("aj-sub", "[]"); else localStorage.removeItem("aj-sub"); } catch (x) {} location.replace(next); return; }
     $("err").textContent = o.error || "That didn't work. Try again.";
   } catch (x) { $("err").textContent = "No internet right now. Sign in once you have WiFi; after that the app also opens without it."; }
   $("err").hidden = false; $("go").disabled = false;

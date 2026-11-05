@@ -986,7 +986,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v170<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v171<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="layBtn" type="button" hidden title="Tablets: switch between the phone layout (drawing fills the screen) and the full layout with every panel showing">🖥 Full layout</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
@@ -1949,8 +1949,13 @@ const savePage = (p, i) => p.example ? null : (scheduleSync(), (async () => { co
 const saveMeta = (p, quiet) => p.example ? null : (quiet || scheduleSync(), store(s => { const g = s.get(p.id); g.onsuccess = () => g.result && s.put({ ...g.result, ...meta(p) }); }));
 async function getAll(name) {
   const d = await db();
-  return new Promise((res, rej) => { const g = d.transaction(name).objectStore(name).getAll(); g.onsuccess = () => res(g.result); g.onerror = rej; });
+  const all = await new Promise((res, rej) => { const g = d.transaction(name).objectStore(name).getAll(); g.onsuccess = () => res(g.result); g.onerror = rej; });
+  return name === "jobs" ? all.filter(subMay) : all;
 }
+// Subcontractor logins (Jonathan 2026-11-05): only the jobs shared with them, even if this device has other jobs saved from an
+// office login. aj-sub = the job ids they may open (set at sign-in and from the online job list); no aj-sub = every job.
+const subJobs = () => { const v = lsGet("aj-sub"); if (v == null) return null; try { return new Set(JSON.parse(v)); } catch (e) { return new Set(); } };
+const subMay = j => { const s = subJobs(); return !s || s.has(segId(j.id)); };
 // one job's sheets only
 async function pagesOf(jobId) {
   const d = await db(), os = d.transaction("pages").objectStore("pages");
@@ -8597,6 +8602,9 @@ async function roleCheck() {
       role = window.AJ_ROLE || o.role; isAdmin = !!o.admin && role !== "field"; signedIn = !!o.signin;
       if (Array.isArray(o.perms) && !window.AJ_ROLE) { myPerms = new Set(o.perms); posName = o.positionName || ""; lsSet("aj-perms", o.perms.join(",")); lsSet("aj-pos", posName || null); }
       if (signedIn && o.name) { teamWho = o.name.slice(0, 30); lsSet("aj-who", teamWho); }
+      const wasSub = subJobs();
+      lsSet("aj-sub", o.position === "sub" ? JSON.stringify(teamJobs.map(f => f.id)) : null);
+      if (String(wasSub && [...wasSub]) !== String(subJobs() && [...subJobs()])) subRecheck();
       lsSet("aj-lang-srv", o.lang || null);
       lsSet("aj-role", role); lsSet("aj-admin", isAdmin ? "1" : null); lsSet("aj-signed", signedIn ? "1" : null);
     }
@@ -8607,6 +8615,11 @@ async function roleCheck() {
   if (window.AJ_ROLE === "field" || (role === "field" && !myPerms)) myPerms = new Set(["hours", "counts", "order", "marks", "scale"]);
   applyLang(); meBtnShow();
   if (role === "field" && !fieldMode) { enterField(); applyPerms(); }
+}
+// the job list changed for this login (signed in as a sub, or back as office): reload the jobs here and close one they can't open
+async function subRecheck() {
+  try { jobs = (await getAll("jobs")).sort((a, b) => (b.updated || "").localeCompare(a.updated || "")); } catch (e) { return; }
+  if (job ? !subMay(job) : jobs.length) await openJob(jobs[0] || null);
 }
 function enterField() {
   fieldMode = true;
