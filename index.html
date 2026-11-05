@@ -504,6 +504,8 @@ li.cnt.pc .cnt-main b::after { content: " · Precon"; font-weight: 600; color: #
 .btn.tool.pin-tool[aria-pressed="true"] { background: #ffe3e3; border-color: #e03131; color: #5a0000; }
 .cnt-n .gq { color: #7048e8; font-weight: 600; }
 #tsTable tr.ord-add td:first-child { box-shadow: inset 3px 0 0 #7048e8; }
+#tsTable tr.ghost-sec td { background: #e5dbff; color: #3b1f8f; } #tsTable tr.ghost-row td { color: #5f3dc4; } #tsTable tr.ghost-row td:first-child { box-shadow: inset 3px 0 0 #7048e8; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) #tsTable tr.ghost-sec td { background: #2b1f4d; color: #d0bfff; } :root:not([data-theme="light"]) #tsTable tr.ghost-row td { color: #b197fc; } }
 #tsTable .ord-send { min-height: 24px; padding: 1px 7px; margin-right: 6px; font-size: 12px; color: #2b8a3e; border-color: #2b8a3e; }
 #tsTable .ord-send[aria-pressed="true"] { background: #c92a2a; border-color: #c92a2a; color: #fff; }
 #tsTable tr.ord-off td { opacity: .55; } #tsTable tr.ord-off td:first-child { text-decoration: line-through; } #tsTable tr.ord-off .ord-send { opacity: 1; text-decoration: none; }
@@ -981,7 +983,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v165<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v166<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="layBtn" type="button" hidden title="Tablets: switch between the phone layout (drawing fills the screen) and the full layout with every panel showing">🖥 Full layout</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
@@ -5569,7 +5571,7 @@ function renderTakeoff() {
     if (allRooms().length) h += `<tr class="sec ts-rooms-h"><td colspan="4">Typical rooms: one room, then times the rooms (already in the totals below)</td></tr>` + roomBreakRows() + `<tr class="sec ts-rooms-h"><td colspan="4">Whole job totals</td></tr>`;
     bySection(counts).forEach(sec => h += `<tr class="sec"><td colspan="4">${esc(sec.title)}</td></tr>` + sec.rows.map(c => `<tr><td><span class="sw" style="background:${c.color}"></span>${esc(c.name)}${c.what ? `<small>${esc(c.what)}</small>` : ""}<small>${esc(c.by.map(x => `${x[0]}: ${x[1]}`).join(" · "))}</small>${c.feed ? `<button type="button" class="feed-btn no-print" data-id="${esc(c.id)}">Wiring: ${esc(feedText(c.feed))} ✎</button>` : ""}</td><td class="n">${c.qty}</td><td></td><td class="n"><b>${c.qty}${c.unit === "LF" ? " ft" : c.unit === "CY" ? " CY" : ""}</b></td></tr>` + (c.feed && feedOpen === c.id ? editor(c) : "")).join(""));
     if (foot.length) h += `<tr class="sec"><td colspan="4">Conduit and wire footage</td></tr>` + foot.map(f => `<tr><td><span class="sw" style="background:${f.color}"></span>${esc(f.label)}<small>${esc(f.sub)}</small></td><td class="n">${fmtLF(f.base)}</td><td class="n"><input type="number" class="ts-pct" min="0" max="100" step="1" data-key="${esc(f.key)}" value="${f.pct || ""}" placeholder="0" aria-label="Extra percent for ${esc(f.label)}"> %</td><td class="n"><b>${f.total.toLocaleString()} LF</b></td></tr>`).join("");
-    t.innerHTML = h + redNotesRows(4, "Red notes") + `</tbody>`;
+    t.innerHTML = h + ghostSheetRows(false) + redNotesRows(4, "Red notes") + `</tbody>`;
     fillRedCrops(t);
     t.querySelectorAll(".feed-btn").forEach(bt => bt.onclick = () => { feedOpen = feedOpen === bt.dataset.id ? null : bt.dataset.id; renderTakeoff(); });
     t.querySelectorAll(".feed-grid [data-f]").forEach(el => {
@@ -5599,7 +5601,7 @@ function renderTakeoff() {
     if (fittings.length) h += `<tr class="sec"><td colspan="2">Conduit fittings</td></tr>` + fittings.map(m => `<tr><td>${esc(m.name)}</td><td class="n"><input type="number" class="sup-q${m.qty !== m.calc ? " over" : ""}" min="0" step="1" data-k="${esc(m.key)}" value="${m.qty || ""}" placeholder="${m.calc || "0"}" aria-label="Quantity of ${esc(m.name)}"> ea${m.qty !== m.calc ? `<span class="sup-was">was ${m.calc || "as needed"}</span>` : ""}</td></tr>`).join("");
     if (parts.length) h += `<tr class="sec"><td colspan="2">Installation parts</td></tr>` + parts.map(m => `<tr><td>${esc(m.name)}</td><td class="n"><input type="number" class="sup-q${m.qty !== m.calc ? " over" : ""}" min="0" step="1" data-k="${esc(m.key)}" value="${m.qty || ""}" placeholder="${m.calc || "0"}" aria-label="Quantity of ${esc(m.name)}"> ea${m.qty !== m.calc ? `<span class="sup-was">was ${m.calc || "as needed"}</span>` : ""}</td></tr>`).join("");
     if (need.length) h += `<tr class="sec${need.some(m => m.qty) ? "" : " need-blank"}"><td colspan="2">Your checklist, sized by the layout<small>Not on the supplier's copy unless you type a quantity</small></td></tr>` + need.map(m => `<tr${m.qty ? "" : ' class="need-blank"'}><td>${esc(m.name)}<small>For ${esc(m.for)}</small></td><td class="n"><input type="number" class="sup-q${m.qty !== m.calc ? " over" : ""}" min="0" step="1" data-k="${esc(m.key)}" value="${m.qty || ""}" placeholder="as needed" aria-label="Quantity of ${esc(m.name)}"> ea${m.qty !== m.calc ? `<span class="sup-was">was ${m.calc || "as needed"}</span>` : ""}</td></tr>`).join("");
-    t.innerHTML = h + roomRows(4) + redNotesRows(2, "Notes for supplier") + `</tbody>`;
+    t.innerHTML = h + ghostSheetRows(true) + roomRows(4) + redNotesRows(2, "Notes for supplier") + `</tbody>`;
     fillRedCrops(t);
     t.querySelectorAll("input.sup-q").forEach(inp => inp.onchange = () => {
       const ov = overOf(), v = inp.value.trim();
@@ -5837,6 +5839,31 @@ const roomBreakRows = () => roomBreak().map(x => `<tr class="sec"><td colspan="4
   (x.rows.length ? x.rows.map(r => `<tr><td><span class="sw" style="background:${r.color}"></span>${esc(r.name)}</td><td class="n">${r.one.toLocaleString()}${r.unit}</td><td class="n">× ${x.n}</td><td class="n"><b>${(Math.round(r.one * x.n * 100) / 100).toLocaleString()}${r.unit}</b></td></tr>`).join("") : `<tr><td colspan="4"><small>Nothing marked inside this room yet.</small></td></tr>`)).join("");
 const roomRows = cols => { const r = allRooms(); return r.length ? `<tr class="sec"><td colspan="${cols}">Typical rooms (counts above include every copy)</td></tr>` + r.map(x => `<tr><td colspan="${cols}"><b>${esc(x.m.name || "Typical room")}</b> × ${x.m.n} · Page ${x.i + 1}, ${esc(sheetName(x.pg, x.i))}</td></tr>`).join("") : ""; };
 // red highlights as table rows (count and supplier sheets), crops filled in after
+/* Jonathan 2026-11-05: on their own logins nobody could see what the field or precon added on the Count sheet or
+   Material list (only on the Order page). Each person's adds get their own section, after the estimate's lines. */
+const ghostWho = x => (x.by || "Field") + (x.pc ? " (Precon)" : "");
+function ghostByWho(fn) {
+  if (!ghostAny() || !(fieldMode || showGhost)) return [];
+  const whos = [...new Set(pages.flatMap(p => p.ghost ? [...p.ghost.devices, ...p.ghost.runs].map(ghostWho) : []))];
+  return whos.map(who => {
+    const keep = pages.map(p => [p.devices, p.runs, p.rooms]), hold = job ? [job.imports, job.supOver] : null;
+    pages.forEach(p => { const g = p.ghost || { devices: [], runs: [] }; p.devices = g.devices.filter(x => ghostWho(x) === who); p.runs = g.runs.filter(x => ghostWho(x) === who); p.rooms = []; });
+    if (job) { job.imports = []; job.supOver = {}; }
+    try { return { who, r: fn() }; }
+    finally { pages.forEach((p, i) => { [p.devices, p.runs, p.rooms] = keep[i]; }); if (job) { [job.imports, job.supOver] = hold; } }
+  }).filter(x => x.r && x.r.length);
+}
+function ghostSheetRows(sup) {
+  const cols = sup ? 2 : 4, n = v => (Math.round(v * 10) / 10).toLocaleString();
+  const list = ghostByWho(() => {
+    const { counts, foot } = takeoffRows(), rows = counts.filter(c => !c.brk && c.qty).map(c => [c.name + (c.what ? ` · ${c.what}` : ""), `${n(c.qty)} ${c.unit || "ea"}`]);
+    if (!sup) return [...rows, ...foot.filter(f => f.base).map(f => [f.label + (f.sub && !f.sub.startsWith(f.label) ? ` · ${f.sub}` : ""), fmtLF(f.base)])];
+    const { mat, parts, fittings } = supplierRows();
+    return [...rows.filter((r, i) => !counts.filter(c => !c.brk && c.qty)[i].misc), ...mat.map(m => [m.name, `${m.lf.toLocaleString()} ft`]), ...fittings.filter(f => f.qty).map(f => [f.name, `${f.qty} ea`]), ...parts.filter(p => p.qty).map(p => [p.name, `${p.qty} ea`])];
+  });
+  return list.map(({ who, r }) => `<tr class="sec ghost-sec"><td colspan="${cols}">Added by ${esc(who)}<small>Not in the estimate. It goes on the Order page.</small></td></tr>` +
+    r.map(([a, b]) => `<tr class="ghost-row"><td>${esc(a)}</td>${sup ? "" : "<td></td><td></td>"}<td class="n">+${esc(b)}</td></tr>`).join("")).join("");
+}
 function redNotesRows(cols, title) {
   const red = allNotes().filter(n => n.h.c === "r");
   return red.length ? `<tr class="sec"><td colspan="${cols}">${title}</td></tr>` + red.map(n => `<tr><td colspan="${cols}"><b>Note ${n.no}</b> · Page ${n.i + 1}, ${esc(sheetName(n.pg, n.i))}${n.h.note ? `<small style="color:inherit;font-size:14px">${esc(n.h.note)}</small>` : ""}<img class="sup-crop" data-k="${n.no}" alt=""></td></tr>`).join("") : "";
@@ -6241,7 +6268,7 @@ $("overlay").addEventListener("click", e => {
     if (e.detail > 1) return; // second click of a double-click deletes instead (dblclick below)
     const v = { t: placeType, x: q[0], y: q[1], ...(coScope ? { co: coScope } : {}) };
     if (fieldMode) { // the field's marks go in its own layer, never the estimate
-      const gv = { id: uid(), t: placeType, x: Math.round(q[0]), y: Math.round(q[1]), by: teamWho };
+      const gv = { id: uid(), t: placeType, x: Math.round(q[0]), y: Math.round(q[1]), by: teamWho, ...(isPc() ? { pc: 1 } : {}) };
       ghostOf(p).devices.push(gv); placed.push(gv); fieldTouch(); drawOverlay(); updateHint(); renderCounts(); return;
     }
     remember(); p.devices.push(v); placed.push(v);
@@ -6848,7 +6875,7 @@ function finishRun() {
   if (tool !== "run") return;
   if (draft.length < 2) { toast("Click at least two points to make a run."); return; }
   if (fieldMode) {
-    const g = ghostOf(p), r = { id: uid(), name: `Field run ${g.runs.length + 1}`, pts: draft, px: polyLen(draft), typeId: runType || null, by: teamWho };
+    const g = ghostOf(p), r = { id: uid(), name: `Field run ${g.runs.length + 1}`, pts: draft, px: polyLen(draft), typeId: runType || null, by: teamWho, ...(isPc() ? { pc: 1 } : {}) };
     g.runs.push(r); draft = []; hover = null; contRun = null; fieldTouch(); drawOverlay(); updateHint();
     return toast(`Field run added: ${fmtLF(r.px * p.ftPerPx)}. It's on the Order page, not in the estimate.`);
   }
