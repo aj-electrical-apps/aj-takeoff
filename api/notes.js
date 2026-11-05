@@ -1,4 +1,4 @@
-import { list, put } from "@vercel/blob";
+import { list, put, del } from "@vercel/blob";
 import { randomBytes } from "node:crypto";
 import { whoIs, has, roleKey } from "../lib/session.js";
 import { loadTeam, jobsFor } from "../lib/team-store.js";
@@ -11,6 +11,8 @@ import { translate } from "../lib/translate.js";
 // GET ?job=<id> -> { notes: [...] }   (no job = every note for me)
 // POST { op: "new", job, jobName, page, pageName, rect: {x,y,w,h}, to: [ids], text, lang }
 // POST { op: "reply", id, text, lang }
+// POST { op: "seen", id, n }  I have read the first n messages (Jonathan 2026-11-05: same login on several devices showed
+//   unread everywhere). Saved as team/notes/<id>/s-<my id>-<n>.json, so every device on that login sees it; GET adds seen: n.
 // POST { op: "delete", id }  only positions with "Delete sent messages" (and admins); leaves team/notes/<id>/d.json, so it can come back
 // Either can carry photo: "data:image/jpeg;base64,..." (stamped with date and time by the app) and photoAt; it's saved as
 // team/notes/<note id>/p-<time>-<random>.jpg and the message keeps its address (Jonathan 2026-10-31).
@@ -18,16 +20,19 @@ const H = { "Cache-Control": "no-store" };
 const bad = (error, status = 400) => Response.json({ error }, { status, headers: H });
 const okId = id => typeof id === "string" && /^[\w-]{1,80}$/.test(id);
 const meOf = who => who.id || "open";
+const seenKey = who => String(meOf(who)).replace(/[^\w]/g, "_");
+// my read markers on one note: [{ n, blob }]
+const seenOf = (note, who) => note.seen.map(b => { const m = new RegExp(`/s-${seenKey(who)}-(\\d+)\\.json$`).exec(b.pathname); return m && { n: +m[1], blob: b }; }).filter(Boolean);
 async function all() {
   const out = [];
   let cursor;
   do { const r = await list({ prefix: "team/notes/", limit: 1000, cursor }); out.push(...r.blobs); cursor = r.hasMore ? r.cursor : undefined; } while (cursor);
   const byNote = new Map();
   out.forEach(b => {
-    const m = /^team\/notes\/([\w-]+)\/(n|d|r-[\w-]+)\.json$/.exec(b.pathname);
+    const m = /^team\/notes\/([\w-]+)\/(n|d|r-[\w-]+|s-[\w-]+)\.json$/.exec(b.pathname);
     if (!m) return;
-    const n = byNote.get(m[1]) || { id: m[1], head: null, replies: [] };
-    if (m[2] === "n") n.head = b; else if (m[2] === "d") n.gone = b; else n.replies.push(b);
+    const n = byNote.get(m[1]) || { id: m[1], head: null, replies: [], seen: [] };
+    if (m[2] === "n") n.head = b; else if (m[2] === "d") n.gone = b; else if (m[2][0] === "s") n.seen.push(b); else n.replies.push(b);
     byNote.set(m[1], n);
   });
   return byNote;
@@ -65,7 +70,7 @@ export async function GET(request) {
       const h = await read(n.head);
       if (!h || (job && h.job !== job) || !canSee(h, who, jobs)) return null;
       const rs = (await Promise.all(n.replies.sort((a, b) => a.pathname.localeCompare(b.pathname)).map(read))).filter(Boolean);
-      return { ...h, id: n.id, msgs: [h.msg, ...rs] };
+      return { ...h, id: n.id, msgs: [h.msg, ...rs], seen: Math.max(0, ...seenOf(n, who).map(x => x.n)) };
     }))).filter(Boolean).map(n => { delete n.msg; return n; });
     notes.sort((a, b) => b.msgs[b.msgs.length - 1].at.localeCompare(a.msgs[a.msgs.length - 1].at));
     return Response.json({ me: meOf(who), notes }, { headers: H });
@@ -84,6 +89,19 @@ export async function POST(request) {
       if (!has(who, "admin") && !has(who, "notesdel")) return bad("Once a message is sent, only the COO or CEO can delete it.", 403);
       await put(`team/notes/${b.id}/d.json`, JSON.stringify({ by: who.n || "Someone", byId: meOf(who), at: new Date().toISOString() }), { access: "public", addRandomSuffix: false, contentType: "application/json", allowOverwrite: true });
       return Response.json({ ok: true }, { headers: H });
+    }
+    if (b.op === "seen") {
+      const k = Math.floor(Number(b.n));
+      if (!okId(b.id) || !(k > 0 && k < 100000)) return bad("Bad message.");
+      const n = (await all()).get(b.id), h = n && n.head && !n.gone && await read(n.head);
+      if (!h) return Response.json({ ok: true }, { headers: H });
+      const { users } = await loadTeam();
+      if (!canSee(h, who, jobsFor(users, who))) return bad("That message isn't yours.", 403);
+      const mine = seenOf(n, who), top = Math.max(0, ...mine.map(x => x.n));
+      if (k > top) await put(`team/notes/${b.id}/s-${seenKey(who)}-${k}.json`, "{}", { access: "public", addRandomSuffix: false, contentType: "application/json", allowOverwrite: true });
+      const old = mine.filter(x => x.n < Math.max(k, top)).map(x => x.blob.url);
+      if (old.length) await del(old).catch(() => {});
+      return Response.json({ ok: true, seen: Math.max(k, top) }, { headers: H });
     }
     let buf;
     try { buf = photoBytes(b); } catch (e) { return bad(e.message, e.status || 400); }
