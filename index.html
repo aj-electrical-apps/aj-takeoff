@@ -273,6 +273,9 @@ html.look-new body { font-family: var(--font-ui); }
 }
 .look-btn { font-size: 12px; }
 .brand { display: flex; align-items: center; gap: 8px; }
+.app-switch { color: inherit; text-decoration: none; border: 1px solid color-mix(in srgb, currentColor 55%, transparent); border-radius: 999px; padding: 5px 10px; font-weight: 700; font-size: .85rem; white-space: nowrap; flex: none; align-self: center; }
+.app-switch:hover { background: #f59f00; color: #1c2233; border-color: #f59f00; }
+@media print { .app-switch { display: none !important; } }
 .brand-logo { height: 28px; width: auto; flex: none; background: #fff; border-radius: 6px; padding: 3px 5px; box-sizing: content-box; }
 /* what each position can do (Admin page, Positions) */
 .no-cost :is(#bidBtn, #tsBidTab, #tsPropTab), .no-tracker #trkBtn, .no-lists :is(#tsAsmTab, #tsRateTab), .no-hours #tsHoursTab,
@@ -691,6 +694,12 @@ tr.ex-off .ex-row span { color: var(--muted); text-decoration: line-through; }
 .imp-cols { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
 .imp-cols label { display: flex; flex-direction: column; font-size: 12px; gap: 2px; }
 .imp-cols .imp-cat { margin-left: auto; font-weight: 600; }
+.fw-ai { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; margin: 8px 0; background: rgb(124 58 237 / .06); }
+.fw-ai .hint { margin: 2px 0 6px; } .fw-ai-btns { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+.fw-keys { margin: 6px 0; } .fw-keys summary { cursor: pointer; font-weight: 600; } .fw-keys textarea { width: 100%; box-sizing: border-box; font: inherit; }
+.ai-chip { background: #5b21b6; color: #fff; } .ai-chip b { font-weight: 600; }
+.adm-ai { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 8px; } .adm-ai h3 { margin: 0 0 4px; font-size: 1rem; }
+.adm-ai label { display: inline-flex; gap: 6px; align-items: center; margin: 4px 12px 4px 0; }
 .imp-cols select { font: inherit; font-size: 12px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 3px 4px; max-width: 170px; }
 .imp-tbl td.q { white-space: nowrap; text-align: right; }
 .imp-tbl td small { color: var(--muted); display: block; }
@@ -987,7 +996,8 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v174<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v175<span id="brandPos"></span></small></div>
+    <a class="app-switch" id="appSwitch" href="https://aj-pricing-bonuses.vercel.app/" title="Switch to the AJ Leadership app">&#8644; Leadership</a>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="layBtn" type="button" hidden title="Tablets: switch between the phone layout (drawing fills the screen) and the full layout with every panel showing">🖥 Full layout</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
@@ -1099,6 +1109,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
         <button class="btn sm" id="pnlWizSkip" type="button">Skip</button>
         <button class="btn sm" id="pnlWizStop" type="button">Stop and review</button>
       </div>
+      <div class="selbar ai-chip" id="aiChip" hidden role="status"><b id="aiChipT"></b><button class="btn sm" id="aiChipStop" type="button">Stop</button><button class="btn sm" id="aiChipX" type="button" hidden>OK</button></div>
       <div class="selbar fw-bar" id="fwBar" hidden role="status">
         <b id="fwBarT"></b>
         <button class="btn sm" id="fwPrev" type="button" aria-label="Previous one">‹</button>
@@ -1467,6 +1478,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
       <section class="adm-sec" data-sec="company" hidden>
         <div class="adm-co" id="admCo"></div>
         <p class="hint" id="admSetNote"></p>
+        <div class="adm-ai" id="admAi"></div>
         <div class="actions" style="justify-content:flex-start"><button class="btn" type="button" id="admSetPush">Send this computer's settings to everyone</button></div>
       </section>
       <section class="adm-sec" data-sec="approve" hidden>
@@ -1540,6 +1552,15 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
     <div class="row fw-row"><input type="search" id="fwText" placeholder="What to look for" maxlength="80" enterkeyhint="search"><button class="btn primary" type="submit" id="fwGo">Find</button></div>
     <label class="opt fw-ocr" id="fwOcrL" hidden><input type="checkbox" id="fwOcr"> <span id="fwOcrT"></span></label>
     <label class="opt fw-ocr"><input type="checkbox" id="fwWhole"> Whole word only (so WP doesn't find WPS)</label>
+    <div class="fw-ai" id="fwAi" hidden>
+      <p class="hint" id="fwAiSum"></p>
+      <div class="fw-ai-btns"><button class="btn sm" type="button" id="fwAiThis">Read this sheet with AI</button><button class="btn sm" type="button" id="fwAiAll">Read all sheets with AI</button><button class="btn sm" type="button" id="fwAiMean" title="The AI lists other ways the same thing is written on drawings (abbreviations, other wordings) and all of them are found. About a penny a search.">Find what I mean (AI)</button></div>
+    </div>
+    <details class="fw-keys" id="fwKeysD"><summary id="fwKeysS">Key phrases</summary>
+      <p class="hint">The words you look for on every job, one per line (like <b>EXISTING TO REMAIN</b>, <b>GFCI</b>, <b>BY OTHERS</b>, <b>NIC</b>). Everyone shares this list. Finding them is free.</p>
+      <textarea id="fwKeys" rows="6" placeholder="One phrase per line"></textarea>
+      <div class="fw-ai-btns"><button class="btn sm" type="button" id="fwKeysSave">Save list</button><button class="btn sm primary" type="button" id="fwKeysFind">Find all key phrases</button></div>
+    </details>
     <p class="hint" id="fwSum" aria-live="polite"></p>
     <div class="trk-wrap"><ul class="fw-list" id="fwResults"></ul></div>
     <div class="actions"><button class="btn" type="button" id="fwClose">Close</button></div>
@@ -7557,9 +7578,10 @@ function fwFind(pg, q, whole) {
 }
 function fwOpen() {
   if (!pages.length) return;
-  const none = pages.filter(p => !p.example && !(p.words || []).length).length;
+  const none = pages.filter(p => !p.example && !(p.words || []).length && !aiOf(p)).length;
   $("fwOcrL").hidden = !none; $("fwOcrT").textContent = `Also read the ${none} sheet${none === 1 ? "" : "s"} with no text in them first (picture reader, about half a minute a sheet, once)`;
-  $("fwModal").hidden = false; $("fwText").value = fw ? fw.q : $("fwText").value; $("fwText").focus(); $("fwText").select();
+  $("fwModal").hidden = false; $("fwText").value = fw ? (fw.typed != null ? fw.typed : fw.q) : $("fwText").value; $("fwText").focus(); $("fwText").select();
+  fwKeysShow(); aiBox(); aiLoad().then(() => { aiBox(); fwKeysShow(); if (!$("fwOcrL").hidden) { const n = pages.filter(p => !p.example && !(p.words || []).length && !aiOf(p)).length; $("fwOcrL").hidden = !n; } });
   if (fw) fwDrawList();
 }
 $("fwBtn").onclick = () => { if (tool) setTool(null); fwOpen(); };
@@ -7569,17 +7591,15 @@ $("fwForm").addEventListener("submit", async e => {
   e.preventDefault();
   const q = $("fwText").value.trim(); if (!q) return;
   if ($("fwOcr").checked) {
-    const todo = pages.filter(p => !p.example && !(p.words || []).length);
+    const todo = pages.filter(p => !p.example && !(p.words || []).length && !aiOf(p));
     for (let i = 0; i < todo.length; i++) { busy(`Reading sheet ${i + 1} of ${todo.length} with the picture reader…`, i / todo.length, sheetName(todo[i], pages.indexOf(todo[i]))); try { await symOcrSheet(todo[i]); } catch (er) {} }
     busy(null, null); $("fwOcr").checked = false; fwOpen();
   }
-  const hits = pages.flatMap(p => p.example ? [] : fwFind(p, q, $("fwWhole").checked));
-  fw = { q, hits, at: -1 };
-  fwDrawList(); drawOverlay(); fwBar();
+  fwSearch([q], q);
 });
 function fwDrawList() {
   const ul = $("fwResults"); ul.replaceChildren();
-  const noText = pages.filter(p => !p.example && !(p.words || []).length).length;
+  const noText = pages.filter(p => !p.example && !(p.words || []).length && !aiOf(p)).length;
   $("fwSum").textContent = !fw.hits.length ? `"${fw.q}" isn't written on any sheet${noText ? ` that has text. ${noText} sheet${noText === 1 ? " has" : "s have"} no text yet: check the box above to read them.` : "."}`
     : `Found "${fw.q}" ${fw.hits.length} time${fw.hits.length === 1 ? "" : "s"} on ${new Set(fw.hits.map(h => h.pg)).size} sheet${new Set(fw.hits.map(h => h.pg)).size === 1 ? "" : "s"}. Tap one to go to it.${noText ? ` (${noText} sheet${noText === 1 ? "" : "s"} not searched: no text in ${noText === 1 ? "it" : "them"} yet.)` : ""}`;
   let last = null;
@@ -7590,6 +7610,177 @@ function fwDrawList() {
     const sm = document.createElement("small"); sm.textContent = h.txt; b.append(sm); b.onclick = () => { $("fwModal").hidden = true; fwGo(i); };
     li.appendChild(b); ul.appendChild(li);
   });
+}
+// one search for several phrases at once (key phrases, or what the AI says means the same): the sheet's own text
+// and what the AI read on it; a spot found twice shows once
+const fwOver = (a, b) => { const cx = a[0] + a[2] / 2, cy = a[1] + a[3] / 2; return cx >= b[0] - 4 && cx <= b[0] + b[2] + 4 && cy >= b[1] - 4 && cy <= b[1] + b[3] + 4; };
+function fwSearch(qs, label, typed) {
+  const whole = $("fwWhole").checked, hits = [];
+  pages.forEach(p => {
+    if (p.example) return;
+    const mine = [];
+    qs.forEach(q => [...fwFind(p, q, whole), ...aiFind(p, q, whole)].forEach(h => {
+      if (mine.some(o => fwOver(h.r, o.r) || fwOver(o.r, h.r))) return;
+      if (qs.length > 1) h.txt = `${q}: ${h.txt}`; mine.push(h);
+    }));
+    hits.push(...mine.sort((u, v) => u.r[1] - v.r[1] || u.r[0] - v.r[0]));
+  });
+  fw = { q: label, typed: typed != null ? typed : label, hits, at: -1 };
+  fwDrawList(); drawOverlay(); fwBar();
+  return fw;
+}
+/* ---------- AI plan reading (Jonathan 2026-11-06: "build the system ... try it on LDS ... they can work away through the whole process") ----------
+   Claude reads a sheet once (api/aiscan): notes, keynotes, schedule rows, tags, room names. What it read is saved with the job
+   online, so every login searches it for free with Find words. Sheets are read in the background, two at a time, while you work.
+   Only when an admin has put ANTHROPIC_API_KEY in Vercel and the switch on the Admin page is on; otherwise none of this shows. */
+let aiSt = null, aiIdx = {}, aiRead = {}, aiJobId = null, aiQ = [], aiRun = 0, aiJob = { done: 0, tot: 0, err: 0, cost: 0, msg: "" };
+try { if (localStorage.getItem("aj-sub") != null) $("appSwitch").hidden = true; } catch (e) {}
+const aiOf = p => p && aiRead[segId(p.id)] || null;
+const aiStale = p => { const r = aiOf(p); return !!(r && r.sz && p.blob && p.blob.size !== r.sz); };
+const aiMoney = d => d < 0.995 ? `${Math.max(1, Math.round(d * 100))}¢` : `$${d.toFixed(2)}`;
+const AI_EST = { "claude-opus-5-5": 0.2, "claude-sonnet-5-5": 0.1, "claude-haiku-5-5": 0.01 }; // dollars a sheet before any is read
+function aiPerSheet() {
+  const rs = Object.values(aiRead).filter(r => r.cost && r.model === (aiSt && aiSt.model));
+  return rs.length ? rs.reduce((t, r) => t + r.cost, 0) / rs.length : AI_EST[aiSt && aiSt.model] || 0.2;
+}
+async function aiLoad() {
+  if (!teamOn || !job) { aiSt = null; return null; }
+  if (aiJobId !== job.id) { aiIdx = {}; aiRead = {}; aiJobId = job.id; aiQ = []; }
+  const jid = job.id;
+  try {
+    const r = await fetch("/api/ai?job=" + encodeURIComponent(jid), { cache: "no-store" }), o = await r.json();
+    if (!r.ok) throw new Error(o.error); if (aiJobId !== jid) return aiSt;
+    aiSt = o; aiIdx = Object.fromEntries((o.sheets || []).map(x => [x.id, x.at]));
+    if (Array.isArray(o.phrases)) lsSet("aj-ai-phrases", JSON.stringify(o.phrases));
+  } catch (e) { return aiSt; }
+  const want = pages.filter(p => !p.example && aiIdx[segId(p.id)] && (!aiOf(p) || aiOf(p).at < aiIdx[segId(p.id)]));
+  for (let i = 0; i < want.length; i += 6) await Promise.all(want.slice(i, i + 6).map(async p => {
+    try { const r = await fetch(`/api/ai?job=${encodeURIComponent(jid)}&sheet=${encodeURIComponent(p.id)}`, { cache: "no-store" }); if (r.ok && aiJobId === jid) aiRead[segId(p.id)] = await r.json(); } catch (e) {}
+  }));
+  return aiSt;
+}
+// what the AI read on a sheet, searched like the sheet's own words
+function aiFind(p, q, whole) {
+  const r = aiOf(p); if (!r || !q) return [];
+  const nq = fwNorm(q), re = new RegExp((whole ? "(^|[^a-z0-9])" : "()") + nq.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + (whole ? "(?![a-z0-9])" : ""));
+  return (r.notes || []).flatMap(n => { const t = fwNorm(n.t), m = re.exec(t); if (!m) return [];
+    const a = m.index + m[1].length, b = a + nq.length; return [{ pg: p, r: n.r.slice(), ai: true, txt: (a > 40 ? "…" : "") + n.t.slice(Math.max(0, a - 40), b + 60) + (b + 60 < n.t.length ? "…" : "") + " (AI)" }]; });
+}
+// the sheet in a few overlapping JPEG tiles, each small enough for Claude to see at full size (about 3.5 million pixels)
+async function aiTiles(p) {
+  const img = await symBmp(p), W = img.width, H = img.height, n = Math.max(W, H) <= 2200 ? 1 : 2, ov = n > 1 ? Math.round(Math.max(W, H) * .03) : 0;
+  const tw = n > 1 ? Math.min(W, Math.ceil(W / 2) + ov) : W, th = n > 1 ? Math.min(H, Math.ceil(H / 2) + ov) : H;
+  const spots = n > 1 ? [[0, 0], [W - tw, 0], [0, H - th], [W - tw, H - th]] : [[0, 0]];
+  const toB64 = b => new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(",")[1]); fr.onerror = no; fr.readAsDataURL(b); });
+  for (const [q, shrink] of [[.72, 1], [.55, 1], [.45, .8], [.4, .65]]) {
+    const sc = Math.min(1, 2576 / Math.max(tw, th), Math.sqrt(3.5e6 / (tw * th))) * shrink, tiles = [];
+    for (const [x, y] of spots) {
+      const iw = Math.max(1, Math.round(tw * sc)), ih = Math.max(1, Math.round(th * sc)), c = document.createElement("canvas"); c.width = iw; c.height = ih;
+      const g = c.getContext("2d"); if (!g) throw new Error("This device couldn't cut up the sheet.");
+      g.fillStyle = "#fff"; g.fillRect(0, 0, iw, ih); g.drawImage(img, x, y, tw, th, 0, 0, iw, ih);
+      const b = await new Promise(ok => c.toBlob(ok, "image/jpeg", q)); if (!b) throw new Error("This device couldn't cut up the sheet.");
+      tiles.push({ x, y, w: tw, h: th, iw, ih, data: await toB64(b) });
+    }
+    if (tiles.reduce((t, x) => t + x.data.length, 0) < 4e6) return { W, H, tiles };
+  }
+  throw new Error("This sheet is too big a picture to send.");
+}
+async function aiScan(p, jid) {
+  const { W, H, tiles } = await aiTiles(p);
+  const r = await fetch("/api/aiscan", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ job: jid, sheet: p.id, name: sheetName(p, pages.indexOf(p)), sz: p.blob ? p.blob.size : 0, w: W, h: H, tiles }) });
+  const o = await r.json().catch(() => ({ error: r.status === 504 ? "The AI took too long on this sheet." : "The AI didn't answer." }));
+  if (!r.ok) throw Object.assign(new Error(o.error || "The AI couldn't read this sheet."), { stop: [400, 402, 403].includes(r.status) });
+  if (aiJobId === jid) { aiRead[segId(p.id)] = { ...o, at: Date.now() }; aiIdx[segId(p.id)] = Date.now(); }
+  return o;
+}
+function aiQueue(list) {
+  if (!job || !aiSt || !aiSt.ready) return;
+  const jid = job.id; let added = 0;
+  if (!aiRun && !aiQ.length) aiJob = { done: 0, tot: 0, err: 0, cost: 0, msg: "" };
+  list.forEach(p => { if (!aiQ.some(x => x.p === p)) { aiQ.push({ p, jid }); added++; } });
+  aiJob.tot += added; aiPump(); aiChip();
+}
+function aiPump() {
+  while (aiRun < 2 && aiQ.length) {
+    const { p, jid } = aiQ.shift(); aiRun++;
+    aiScan(p, jid).then(o => { aiJob.done++; aiJob.cost += o.cost || 0; })
+      .catch(e => { aiJob.err++; aiJob.msg = e.message; if (e.stop) { aiJob.tot -= aiQ.length; aiQ = []; } })
+      .finally(() => { aiRun--; aiChip(); aiPump(); if (!$("fwModal").hidden) aiBox(); if (fw && !aiRun && !aiQ.length) fwSearch(fw.qs || [fw.typed], fw.q, fw.typed); });
+  }
+}
+function aiChip() {
+  const on = aiRun || aiQ.length, el = $("aiChip");
+  if (!aiJob.tot) { el.hidden = true; return; }
+  el.hidden = false; $("aiChipStop").hidden = !on; $("aiChipX").hidden = !!on;
+  $("aiChipT").textContent = on ? `AI reading sheets: ${aiJob.done + aiJob.err} of ${aiJob.tot} done${aiJob.cost ? ` · ${aiMoney(aiJob.cost)}` : ""}. Keep working.`
+    : `AI read ${aiJob.done} sheet${aiJob.done === 1 ? "" : "s"}${aiJob.cost ? ` (${aiMoney(aiJob.cost)})` : ""}. Search them with Find words.${aiJob.err ? ` ${aiJob.err} couldn't be read: ${aiJob.msg}` : ""}`;
+}
+$("aiChipStop").onclick = () => { aiJob.tot -= aiQ.length; aiQ = []; aiChip(); toast("Stopped. The sheets already sent finish and are saved."); };
+$("aiChipX").onclick = () => { aiJob = { done: 0, tot: 0, err: 0, cost: 0, msg: "" }; aiChip(); };
+function aiBox() {
+  const el = $("fwAi"), st = aiSt;
+  el.hidden = !teamOn || !st || (!st.key && !isAdmin);
+  if (el.hidden) return;
+  const real = pages.filter(p => !p.example), read = real.filter(aiOf), stale = read.filter(aiStale), todo = real.filter(p => !aiOf(p) || aiStale(p)).filter(p => !aiQ.some(x => x.p === p));
+  const edit = !fieldMode && can("edit"), ready = st.ready, cur = pages[current], spent = read.reduce((t, p) => t + (aiOf(p).cost || 0), 0);
+  $("fwAiSum").textContent = !st.key ? "AI plan reading isn't set up yet. An admin adds the AI key in Vercel (see Admin > Company & settings)."
+    : !st.on ? "AI plan reading is turned off on the Admin page. What it already read is still searched."
+    : `The AI has read ${read.length} of ${real.length} sheet${real.length === 1 ? "" : "s"} on this job${spent ? ` (${aiMoney(spent)} so far)` : ""}. Find searches what it read too, for free.`
+      + (stale.length ? ` ${stale.length} sheet${stale.length === 1 ? " was" : "s were"} replaced since, so read ${stale.length === 1 ? "it" : "them"} again.` : "")
+      + (!read.length && edit ? " Try it on this sheet first: about " + aiMoney(aiPerSheet()) + "." : "");
+  const curOk = cur && !cur.example && (!aiOf(cur) || aiStale(cur)) && !aiQ.some(x => x.p === cur);
+  $("fwAiThis").hidden = !ready || !edit || !curOk; $("fwAiThis").textContent = aiStale(cur) ? "Read this sheet again (replaced)" : "Read this sheet with AI";
+  const others = todo;
+  $("fwAiAll").hidden = !ready || !edit || !others.length || (others.length === 1 && others[0] === cur && curOk);
+  $("fwAiAll").textContent = `Read ${others.length === real.length ? "all " : "the other "}${others.length} sheet${others.length === 1 ? "" : "s"} with AI (about ${aiMoney(aiPerSheet() * others.length)})`;
+  $("fwAiMean").hidden = !ready;
+}
+$("fwAiThis").onclick = () => { const p = pages[current]; if (!p) return; aiQueue([p]); aiBox(); toast("The AI is reading this sheet. Keep working; it takes a minute or two."); };
+$("fwAiAll").onclick = () => {
+  const todo = pages.filter(p => !p.example && (!aiOf(p) || aiStale(p)) && !aiQ.some(x => x.p === p)); if (!todo.length) return;
+  if (!confirm(`Have the AI read ${todo.length} sheet${todo.length === 1 ? "" : "s"}? About ${aiMoney(aiPerSheet() * todo.length)} on the Anthropic account. It runs in the background while you keep working, and you can stop it any time.`)) return;
+  aiQueue(todo); aiBox();
+};
+$("fwAiMean").onclick = async () => {
+  const q = $("fwText").value.trim(); if (!q) return toast("Type what to look for first.");
+  $("fwAiMean").disabled = true; $("fwSum").textContent = "Asking the AI how else that's written…";
+  try {
+    const r = await fetch("/api/ai", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "ask", q }) }), o = await r.json();
+    if (!r.ok) throw new Error(o.error);
+    const f = fwSearch(o.phrases, `${q} (and ${o.phrases.length - 1} ways it's written)`, q); f.qs = o.phrases;
+    $("fwSum").textContent += ` Looked for: ${o.phrases.join(", ")}.`;
+  } catch (e) { $("fwSum").textContent = e.message || "The AI didn't answer."; }
+  finally { $("fwAiMean").disabled = false; }
+};
+// key phrases everyone looks for on every job (shared through api/ai; kept on this device too)
+const fwKeysList = () => { try { const a = JSON.parse(lsGet("aj-ai-phrases") || "[]"); return Array.isArray(a) ? a : []; } catch (e) { return []; } };
+function fwKeysShow() { const a = fwKeysList(); $("fwKeysS").textContent = `Key phrases (${a.length})`; if (document.activeElement !== $("fwKeys")) $("fwKeys").value = a.join("\n"); $("fwKeysSave").hidden = fieldMode; }
+async function fwKeysSave() {
+  const a = [...new Set($("fwKeys").value.split("\n").map(x => x.replace(/\s+/g, " ").trim()).filter(Boolean))].slice(0, 60);
+  lsSet("aj-ai-phrases", JSON.stringify(a)); fwKeysShow();
+  if (teamOn) try { const r = await fetch("/api/ai", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "set", phrases: a }) }); if (!r.ok) throw new Error((await r.json()).error); toast("Key phrases saved for everyone."); } catch (e) { toast("Saved on this computer. " + (e.message || "")); }
+  else toast("Key phrases saved on this computer.");
+  return a;
+}
+$("fwKeysSave").onclick = () => fwKeysSave();
+$("fwKeysFind").onclick = async () => {
+  const a = fieldMode ? fwKeysList() : await fwKeysSave(); if (!a.length) return toast("Type the phrases first, one per line.");
+  const f = fwSearch(a, `${a.length} key phrase${a.length === 1 ? "" : "s"}`, ""); f.qs = a;
+};
+// Admin > Company & settings: on/off, which model, and whether the key is in Vercel
+async function aiAdminBox() {
+  const box = $("admAi"); if (!box) return;
+  let st = null; try { const r = await fetch("/api/ai", { cache: "no-store" }); if (r.ok) st = await r.json(); } catch (e) {}
+  if (!st) { box.innerHTML = ""; return; }
+  box.innerHTML = `<h3>AI plan reading</h3><p class="hint">${st.key ? "The AI key is in Vercel." : "No AI key yet. To set it up: make a key at platform.claude.com, then in Vercel open aj-commercial-takeoff > Settings > Environment Variables, add ANTHROPIC_API_KEY with the key, and redeploy."}
+    The AI reads a sheet once (from Find words) and everyone searches what it read for free. Turn it off here any time; what it already read stays searchable.</p>
+    <label>AI reading <select id="admAiOn"><option value="1">On</option><option value="0">Off</option></select></label>
+    <label>Model <select id="admAiModel">${st.models.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join("")}</select></label>`;
+  $("admAiOn").value = st.on ? "1" : "0"; $("admAiModel").value = st.model;
+  const save = async o => { try { const r = await fetch("/api/ai", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "set", ...o }) }), j = await r.json(); if (!r.ok) throw new Error(j.error); aiSt = aiSt ? { ...aiSt, ...j } : null; toast("AI setting saved for everyone."); } catch (e) { toast(e.message || "Couldn't save that."); } aiAdminBox(); };
+  $("admAiOn").onchange = () => save({ on: $("admAiOn").value === "1" });
+  $("admAiModel").onchange = () => save({ model: $("admAiModel").value });
 }
 function fwGo(i) {
   if (!fw || !fw.hits.length) return;
@@ -9112,7 +9303,7 @@ async function showAdmin() {
   admSay(""); admDraft = null; admConfirm = null; admSaved = null;
   $("adminModal").hidden = false;
   if (!isAdmin) return;
-  drawCompanyBox(); drawSetNote(); drawEditLinks();
+  drawCompanyBox(); drawSetNote(); drawEditLinks(); if (teamOn) aiAdminBox();
   if (teamOffline) return admSay("No internet right now. People and passwords can be changed once WiFi is back.", true);
   try { admInfo = await admCall(); drawAdmin(); } catch (e) { admSay(e.message, true); }
   settingsPull().then(drawSetNote);

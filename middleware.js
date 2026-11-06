@@ -7,7 +7,7 @@ import { secret, readSession, basicWho, norm, same, has } from "./lib/session.js
 // backup script signs in with the backup key shown on the Admin page.
 // Without SESSION_SECRET it works the old way: a browser password box for APP_PASSWORD / FIELD_PASSWORD,
 // and if APP_PASSWORD isn't set either, the site stays open.
-const FIELD_BLOCKED = [/^\/api\/bids/, /^\/api\/team-upload/, /^\/api\/share-upload/, /^\/api\/admin/];
+const FIELD_BLOCKED = [/^\/api\/bids/, /^\/api\/team-upload/, /^\/api\/share-upload/, /^\/api\/admin/, /^\/api\/aiscan/];
 const OPEN = [/^\/login\.html$/, /^\/sw\.js$/, /^\/manifest\.webmanifest$/, /^\/(icon-\d+|apple-touch-icon|favicon)\.png$/, /^\/mark\.svg$/, /^\/api\/login$/, /^\/api\/logout$/, /^\/favicon/];
 const json = (o, status) => new Response(JSON.stringify(o), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
 function needs(path, method) {
@@ -15,6 +15,7 @@ function needs(path, method) {
   if (/^\/api\/admin/.test(path)) return ["admin"];
   if (/^\/api\/subs/.test(path)) return ["subs", "admin"];
   if (/^\/api\/bids/.test(path)) return ["tracker", "admin"];
+  if (/^\/api\/aiscan/.test(path) || (path === "/api/ai" && write)) return ["edit", "admin"];
   if (/^\/api\/(team-upload|share-upload)/.test(path) || (path === "/api/jobs" && write)) return ["edit"];
   if (path === "/api/settings" && write) return ["lists", "admin"];
   if (/^\/api\/field/.test(path) && write) return ["marks", "order", "scale", "edit"];
