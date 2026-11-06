@@ -987,7 +987,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v173<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v174<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="layBtn" type="button" hidden title="Tablets: switch between the phone layout (drawing fills the screen) and the full layout with every panel showing">🖥 Full layout</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
@@ -4222,7 +4222,7 @@ function takeoffRows() {
   const ex = extraOf();
   impRuns.forEach(r => foot.push({ key: "imp:" + r.id, label: r.label, sub: "Imported from another takeoff app", base: r.qty, pct: +ex["imp:" + r.id] || 0, sup: r.sup, color: r.color }));
   wiresList().forEach(w => {
-    const lf = lfOf(w.id);
+    const lf = lfOf(w.id) + impWireFt(w.id);
     if (!lf) return;
     const sets = w.sets || 1, mat = w.mat === "AL" || /AL/.test(w.ins) ? "AL" : "CU";
     const add = (key, label, sub, base, sup) => foot.push({ key, label, sub, base, pct: +ex[key] || 0, sup, color: w.color, wid: w.id, runLf: lf });
@@ -5662,6 +5662,19 @@ const impBy = id => {
   impList().forEach(im => { if ((im.co || null) !== (coScope || null)) return; im.rows.forEach(r => { if (r.cid !== id || !r.qty) return; const k = r.sheet ? `${r.sheet} (imported)` : `Imported · ${im.name}`; m.set(k, (m.get(k) || 0) + r.qty); }); });
   return [...m].map(([k, q]) => [k, Math.round(q * 100) / 100]);
 };
+// feet imported onto a conduit & wire run type (Jonathan 2026-11-06: "when i upload something by the ft i should get to select the conduit and amprage")
+const impWireFt = id => impList().reduce((t, im) => (im.co || null) !== (coScope || null) ? t : t + im.rows.filter(r => r.wid === id).reduce((a, r) => a + (+r.qty || 0), 0), 0);
+// a new run type from an imported footage line: conduit and size from its words, wire to pick next in the run type window
+function impWireNew(it) {
+  const t = `${it.desc} ${it.tag}`;
+  const conduit = /pvc[^,]*80|sch(edule)?\.?\s*80/i.test(t) ? "PVC Sch 80" : /pvc/i.test(t) ? "PVC Sch 40" : /rigid|\brmc\b|\bgrc\b/i.test(t) ? "Rigid (RMC)" : /\bimc\b/i.test(t) ? "IMC"
+    : /seal ?tite|lfmc|liquid/i.test(t) ? "Sealtite (LFMC)" : /flex|\bfmc\b/i.test(t) ? "Flex (FMC)" : /\bmc\b/i.test(t) ? "MC cable" : /romex|nm-?b/i.test(t) ? "Romex (NM-B)"
+    : /\bemt\b/i.test(t) ? "EMT" : /thhn|thwn|xhhw|\bwire\b/i.test(t) ? "No conduit" : "EMT";
+  const m = t.match(/(\d+(?:[- ]\d\/\d)?|\d\/\d)\s*(?:"|''|in\b\.?|inch)/i) || t.match(/\b(\d+(?:[- ]\d\/\d)?|\d\/\d)\b/);
+  const sz = m && `${m[1].replace(" ", "-")}"`, size = NOPIPE.includes(conduit) ? "" : CSIZES.includes(sz) ? sz : '3/4"';
+  const g = t.match(/#\s*(\d{1,2}|[1-4]\/0)\b/), gauge = g && GAUGES.includes(g[1]) ? g[1] : "12";
+  return { id: uid(), label: impTxt(it.desc || it.tag).slice(0, 60), conduit, size, count: 3, gauge, ins: "STR", ground: "", sets: 1, mat: "CU", amps: null, color: PALETTE[(wiresList().length + 3) % PALETTE.length], imp: true };
+}
 const impQty = id => impBy(id).reduce((t, x) => t + x[1], 0);
 const impNum = v => { if (typeof v === "number") return v; const m = String(v || "").replace(/,/g, "").trim().match(/^-?\d*\.?\d+/); return m ? +m[0] : NaN; };
 const impTxt = v => String(v == null ? "" : v).replace(/\s+/g, " ").trim();
@@ -5707,7 +5720,7 @@ function impGuess(it) {
   // one of this job's counts already: same type letter, or the same name
   const had = list.find(c => tag && [c.label, c.tag].some(x => impLow(x) === tag)) || list.find(c => { const n = impLow(it.desc); return n && [nameOf(devInfo(c.id)), c.label, c.desc].some(x => impLow(x) === n); });
   if (had) return { to: "c:" + had.id, sure: true };
-  if (it.unit === "LF" || (IMP_RUN.test(txt) && !IMP_LIGHT.test(txt) && !IMP_RULES.some(r => r[0].test(txt)))) return { to: "m:One-off wire or cable", sure: it.unit === "LF" || IMP_RUN.test(txt) };
+  if (it.unit === "LF" || (IMP_RUN.test(txt) && !IMP_LIGHT.test(txt) && !IMP_RULES.some(r => r[0].test(txt)))) return { to: "w:new", sure: it.unit === "LF" || IMP_RUN.test(txt) };
   for (const [re, cat, t] of IMP_RULES) if (re.test(txt)) return { to: `n:${cat}|${t}`, sure: true };
   if (IMP_LIGHT.test(txt) || (tag && /^[a-z]{1,3}-?\d{0,3}[a-z]?$/i.test(tag) && !it.desc)) { const g = guessKind(txt); return { to: "n:" + g.kind, sure: !!g.why }; }
   return { to: "m:Misc item", sure: false };
@@ -5775,7 +5788,7 @@ function impNoHeader(rows) {
 // with a category picked, every line that isn't one of this job's counts goes into a type in that category:
 // the guessed type when it's in there, else a type whose name is in the line, else the category's first type
 function impInCat(it, fam) {
-  const cats = fam ? CATS.filter(c => c.fam === fam && !c.misc) : []; if (!cats.length || it.to.startsWith("c:")) return it;
+  const cats = fam ? CATS.filter(c => c.fam === fam && !c.misc) : []; if (!cats.length || /^[cw]:/.test(it.to)) return it;
   const txt = `${it.desc} ${it.tag}`, keys = cats.map(c => c.key), ok = to => to && to.startsWith("n:") && keys.includes(to.slice(2).split("|")[0]) ? to : null;
   const rx = t => new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/[- ]/g, "[- ]?"), "i");
   const byName = cats.flatMap(c => c.types.filter(t => rx(t).test(txt)).map(t => `n:${c.key}|${t}`))[0];
@@ -5793,6 +5806,7 @@ function impLoad(rows, name) {
 function impOptions() {
   const fam = Object.fromEntries(FAMILIES);
   let o = countsList().length ? `<optgroup label="This job's counts">${countsList().map(c => `<option value="c:${c.id}">${esc(nameOf(devInfo(c.id)))}</option>`).join("")}</optgroup>` : "";
+  o += `<optgroup label="Conduit & wire run types (by the foot)">${wiresList().map(w => `<option value="w:${w.id}">${esc(wireLabel(w))}${w.label ? " · " + esc(w.label) : ""}</option>`).join("")}<option value="w:new">New run type: pick conduit, wire and amps next</option></optgroup>`;
   o += `<optgroup label="Not in the toolbox"><option value="m:Misc item">Misc item (keeps the name from the file)</option><option value="m:One-off wire or cable">Wire, cable or conduit by the foot</option></optgroup>`;
   CATS.filter(c => !c.misc).forEach(c => { o += `<optgroup label="New · ${esc(fam[c.fam] || "")}: ${esc(c.name)}">${c.types.map(t => `<option value="n:${c.key}|${esc(t)}">${esc(t)}</option>`).join("")}</optgroup>`; });
   return o;
@@ -5835,6 +5849,8 @@ function impRemove(id) {
   // counts this import made go too, unless they were placed on a sheet or another import uses them
   const gone = new Set(im.made.filter(cid => !pages.some(pg => countOn(pg, cid)) && !rest.some(x => x.rows.some(r => r.cid === cid))));
   if (gone.size) { if (job) job.counts = countsList().filter(c => !gone.has(c.id)); else exampleCounts = exampleCounts.filter(c => !gone.has(c.id)); }
+  const goneW = new Set((im.madeW || []).filter(id => !pages.some(pg => pg.runs.some(r => r.typeId === id)) && !rest.some(x => x.rows.some(r => r.wid === id))));
+  if (goneW.size) { if (job) job.wireTypes = wiresList().filter(w => !goneW.has(w.id)); else exampleWires = exampleWires.filter(w => !goneW.has(w.id)); renderWires(); }
   if (job) { job.updated = new Date().toISOString(); saveJob(job); }
   renderCounts(); drawOverlay(); impRender();
   toast(`Removed ${im.name} from the counts.`);
@@ -5861,9 +5877,15 @@ $("impForm").addEventListener("submit", e => {
   e.preventDefault();
   const st = impState; if (!st) return;
   const use = st.items.filter(it => it.use && it.qty > 0); if (!use.length) return;
-  const list = countsList(), im = { id: uid(), name: st.name, at: new Date().toISOString(), co: coScope || null, made: [], rows: [] };
+  const list = countsList(), im = { id: uid(), name: st.name, at: new Date().toISOString(), co: coScope || null, made: [], madeW: [], rows: [] };
   let made = 0;
   use.forEach(it => {
+    if (it.to.startsWith("w:")) {
+      let w = it.to === "w:new" ? null : wiresList().find(x => x.id === it.to.slice(2));
+      if (!w) { w = impWireNew(it); wiresList().push(w); im.madeW.push(w.id); made++; }
+      it.sheets.forEach((q, sh) => im.rows.push({ wid: w.id, qty: Math.round(q * 100) / 100, sheet: sh }));
+      return;
+    }
     let c = null;
     if (it.to.startsWith("c:")) c = list.find(x => x.id === it.to.slice(2));
     else if (it.to.startsWith("n:")) {
@@ -5885,7 +5907,8 @@ $("impForm").addEventListener("submit", e => {
   });
   impList().push(im);
   if (job) { job.updated = new Date().toISOString(); saveJob(job); }
-  $("impModal").hidden = true; renderCounts(); drawOverlay();
+  $("impModal").hidden = true; renderCounts(); renderWires(); drawOverlay();
+  impWireQ = im.madeW.slice(); impWireN = impWireQ.length; if (impWireN) setTimeout(impWireNext, 300);
   toast(`Imported ${use.length} line${use.length === 1 ? "" : "s"}${made ? ` (${made} new count${made === 1 ? "" : "s"})` : ""}. They're in your counts and on the count sheet. To take them back out, click Import and Remove.`);
 });
 /* Typical rooms on the count sheet: what's marked in one room first, then that times the number of rooms */
@@ -7066,7 +7089,7 @@ function renderWires() {
   $("wiresEmpty").hidden = list.length > 0;
   const lfOf = id => pages.reduce((t, pg) => t + (pg.ftPerPx ? pg.runs.filter(r => r.typeId === id && inScope(r)).reduce((a, r) => a + runPx(pg, r) * pg.ftPerPx, 0) : 0), 0);
   list.forEach(w => {
-    const lf = lfOf(w.id);
+    const lf = lfOf(w.id) + impWireFt(w.id);
     const li = document.createElement("li"); li.className = "cnt" + (w.pc ? " pc" : "") + (skip[w.id] ? " skipped" : "");
     const b = document.createElement("button"); b.type = "button"; b.className = "cnt-main";
     b.setAttribute("aria-pressed", tool === "run" && runType === w.id && !contRun);
@@ -7243,7 +7266,13 @@ function openWire(id) {
 }
 $("addWireBtn").onclick = () => openWire(null);
 $("addDitchBtn").onclick = () => { if (!pages.length) return; openWire(null); $("wKind").value = "ditch"; $("wLabel").value = ""; $("wFill").value = "None"; $("wFillDepth").value = "full"; $("wColor").value = "#8d5524"; wirePreview(); $("wDepth").focus(); };
-$("wireCancel").onclick = () => { $("wireModal").hidden = true; };
+$("wireCancel").onclick = () => { $("wireModal").hidden = true; if (impWireQ.length) setTimeout(impWireNext, 100); };
+let impWireQ = [], impWireN = 0;
+function impWireNext() {
+  const id = impWireQ.shift(), w = id && wiresList().find(x => x.id === id); if (!w) return impWireQ.length ? impWireNext() : null;
+  openWire(id);
+  $("wireTitle").textContent = `Imported footage${impWireN > 1 ? ` ${impWireN - impWireQ.length} of ${impWireN}` : ""}: ${w.label || wireLabel(w)}. Pick the conduit, wire and amps`;
+}
 $("wireModal").addEventListener("keydown", e => { if (e.key === "Escape") $("wireModal").hidden = true; });
 $("wireDelete").onclick = () => {
   const w = editingWire; if (!w) return;
@@ -7262,6 +7291,7 @@ $("wireForm").addEventListener("submit", e => {
   $("wireModal").hidden = true;
   renderWires(); renderRuns(); drawOverlay();
   if (!editingWire) startRunType(w.id);
+  if (impWireQ.length) setTimeout(impWireNext, 100);
 });
 
 function renderRuns() {
