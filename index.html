@@ -690,6 +690,7 @@ tr.ex-off .ex-row span { color: var(--muted); text-decoration: line-through; }
 .imp-src textarea { flex: 1 1 260px; min-height: 36px; font: inherit; font-size: 12px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 6px; }
 .imp-cols { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
 .imp-cols label { display: flex; flex-direction: column; font-size: 12px; gap: 2px; }
+.imp-cols .imp-cat { margin-left: auto; font-weight: 600; }
 .imp-cols select { font: inherit; font-size: 12px; background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 3px 4px; max-width: 170px; }
 .imp-tbl td.q { white-space: nowrap; text-align: right; }
 .imp-tbl td small { color: var(--muted); display: block; }
@@ -986,7 +987,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v172<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v173<span id="brandPos"></span></small></div>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="layBtn" type="button" hidden title="Tablets: switch between the phone layout (drawing fills the screen) and the full layout with every panel showing">🖥 Full layout</button>
     <button class="btn sm look-btn" id="meBtn" type="button" hidden title="Who is signed in, sign out, and the Admin page">Admin</button>
@@ -1698,7 +1699,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 <div class="modal" id="impModal" hidden role="dialog" aria-modal="true" aria-labelledby="impTitle">
   <form class="modal-card wide" id="impForm" autocomplete="off">
     <h2 id="impTitle">Import counts from another takeoff app</h2>
-    <p class="hint">In the other app, export the counts to Excel or CSV. Load that file here, or copy the rows (with their header row) and paste them in the box. Each line goes into one of your counts, so it shows on the count sheet, bid and proposal like counts you placed.</p>
+    <p class="hint">In the other app, export the counts to Excel or CSV. Load that file here, or copy the rows and paste them in the box (a header row is fine but not needed). Pick a Category (Lights, Switching and so on) to keep every line in that category. Each line goes into one of your counts, so it shows on the count sheet, bid and proposal like counts you placed.</p>
     <div class="imp-src">
       <button class="btn primary" type="button" id="impFileBtn">Load a file</button><input type="file" id="impFile" accept=".xlsx,.xls,.csv,.txt" hidden>
       <textarea id="impPaste" rows="2" placeholder="Or paste rows here"></textarea>
@@ -5672,7 +5673,7 @@ const IMP_RULES = [
   [/duct (smoke )?det/i, "fa", "Duct detector"], [/smoke/i, "fa", "Smoke detector"], [/heat det/i, "fa", "Heat detector"], [/monitor module/i, "fa", "Monitor module"], [/control module|relay module/i, "fa", "Control module"],
   [/lighting control panel/i, "ctl", "Lighting control panel"], [/contactor/i, "ctl", "Lighting contactor"], [/vacancy/i, "ctl", "Vacancy sensor"], [/ceiling.*(occ|motion)|(occ|motion).*ceiling/i, "ctl", "Ceiling occupancy sensor"],
   [/occupancy|occ\.? sensor|motion sensor/i, "ctl", "Wall occupancy sensor"], [/photo ?cell|photo ?sensor/i, "ctl", "Photocell"], [/power pack|\brelay\b/i, "ctl", "Power pack/relay"], [/low.?voltage (wall )?station|lv station|keypad/i, "ctl", "Low-voltage wall station"],
-  [/disconnect|safety switch|\bdisc\b/i, "gr", "Disconnect"], [/transformer|xfmr/i, "gr", "Transformer"], [/meter (base|socket)|\bmeter\b/i, "gr", "Meter base"], [/service entrance/i, "gr", "Service entrance"], [/panel|panelboard|load ?center|switchboard|\bmdp\b/i, "gr", "Panel"],
+  [/disconnect|safety switch|\bdisc\b/i, "gr", "Disconnect"], [/transformer|xfmr/i, "gr", "Transformer"], [/meter (base|socket)|\bmeter\b/i, "gr", "Meter base"], [/service entrance/i, "gr", "Service entrance"], [/(?<!flat |led |light |lay-in |troffer )panel\b(?! light| fixt)|panelboard|load ?center|switchboard|\bmdp\b/i, "gr", "Panel"],
   [/ev charg|evse|electric vehicle/i, "spec", "EV charging outlet"], [/welder/i, "spec", "Welder"], [/\brange\b/i, "spec", "Range"], [/dryer/i, "spec", "Dryer"], [/washer/i, "spec", "Washer"], [/water heater/i, "spec", "Water heater"],
   [/twist.?lock|\bl\d{1,2}-\d{2}/i, "spec", "Twist-lock"], [/\brv\b/i, "spec", "RV"], [/forklift/i, "spec", "Forklift charger"], [/plasma/i, "spec", "Plasma cutter"],
   [/request.?to.?exit|\brex\b/i, "lv", "Request-to-exit device"], [/\bdata\b|cat ?[56]|network|\brj-?45/i, "lv", "Data outlet"], [/phone|\btel\b|voice/i, "lv", "Telephone outlet"], [/coax|catv|\btv\b/i, "lv", "Coax outlet"],
@@ -5684,7 +5685,7 @@ const IMP_RULES = [
   [/duplex|recep|outlet|convenience|\brecpt?\b/i, "rcp", "Duplex"],
   [/dimmer/i, "sw", "Dimmer"], [/3.?way|three.?way/i, "sw", "3-way"], [/4.?way|four.?way/i, "sw", "4-way"], [/key(ed)? switch/i, "sw", "Keyed switch"], [/timer/i, "sw", "Timer switch"], [/double.?pole|2.?pole switch/i, "sw", "Double-pole"],
   [/switch|\bsw\b|toggle|single.?pole/i, "sw", "Single-pole"]];
-const IMP_LIGHT = /light|lite\b|fixture|luminaire|lamp|\bled\b|troffer|downlight|\bcan\b|exit|emergency|high ?bay|wall ?pack|flood|sconce|pendant|bollard|strip|wrap|lay-?in|[12]\s*x\s*[24]/i;
+const IMP_LIGHT = /light|lite\b|\bpole\b|scon|bowl|vanity|\bcove\b|track|flat panel|fixture|luminaire|lamp|\bled\b|troffer|downlight|\bcan\b|exit|emergency|high ?bay|wall ?pack|flood|sconce|pendant|bollard|strip|wrap|lay-?in|[12]\s*x\s*[24]/i;
 const IMP_RUN = /wire|cable|thhn|thwn|xhhw|\bmc\b|romex|nm-?b|conduit|\bemt\b|\bpvc\b|rigid|\brmc\b|\bimc\b|flex|seal ?tite|liquid ?tight|#\d+\s*(awg|cu|al)?\b/i;
 // a footage line as the supplier/labor name drawn runs use: 3/4" EMT conduit, 12/2 MC cable, #12 THHN copper wire
 function impRunSup(t) {
@@ -5716,6 +5717,7 @@ function impHeader(rows) {
   const isNum = v => impTxt(v) !== "" && !isNaN(impNum(v)) && /^[-\d.,\s]+[a-z'"]{0,4}$/i.test(impTxt(v));
   for (let i = 0; i < Math.min(25, rows.length); i++) {
     const r = rows[i] || [], txt = r.filter(v => impTxt(v) && !isNum(v)).length;
+    if (r.some(isNum)) continue;
     if (txt >= 2 && rows.slice(i + 1, i + 4).some(n => (n || []).some(isNum))) return i;
   }
   return -1;
@@ -5747,14 +5749,45 @@ function impItems() {
     const it = by.get(key) || { desc, tag, unit, qty: 0, sheets: new Map(), use: true };
     const sh = get(r, cols.sheet); it.qty += qty; it.sheets.set(sh, (it.sheets.get(sh) || 0) + qty); by.set(key, it);
   });
-  impState.items = [...by.values()].map(it => ({ ...it, qty: Math.round(it.qty * 100) / 100, ...impGuess(it) }));
+  impState.items = [...by.values()].map(it => impInCat({ ...it, qty: Math.round(it.qty * 100) / 100, ...impGuess(it) }, impState.cat));
+}
+// Rows pasted with no header row (Jonathan 2026-11-06: "F1 - 1x4 recessed mount flat panel <tab><tab> 109 <tab> EA"):
+// a column of numbers is Qty, EA / LF is Unit, the longest words are the Description, and a leading type tag
+// (F1, F20C, LP-2 ...) before a dash goes into its own Type column. "F1E - w/ BB" gets F1's description in front.
+const IMP_TAG = /^([A-Za-z]{1,4}-?\d{1,4}[A-Za-z]{0,3})(?:\s*[-–:]+(?:\s*[-–]+)*\s*(.*))?$/;
+function impNoHeader(rows) {
+  const n = Math.max(...rows.map(r => r.length)), filled = c => rows.map(r => impTxt(r[c])).filter(Boolean);
+  const share = (c, f) => { const v = filled(c); return v.length ? v.filter(f).length / v.length : 0; };
+  const kind = Array.from({ length: n }, (_, c) => !filled(c).length ? "" : share(c, v => /^(ea|each|lf|ft|feet|pcs?|pc|ls|lot)\.?$/i.test(v)) > .6 ? "Unit"
+    : share(c, v => /^[-\d.,\s]+$/.test(v)) > .6 ? "Qty" : "text");
+  const texts = kind.map((k, c) => k === "text" ? c : -1).filter(c => c >= 0);
+  const desc = texts.sort((a, b) => filled(b).join(" ").length - filled(a).join(" ").length)[0];
+  const names = kind.map((k, c) => k === "text" ? (c === desc ? "Description" : `Column ${String.fromCharCode(65 + c)}`) : k || `Column ${String.fromCharCode(65 + c)}`);
+  if (desc != null && share(desc, v => IMP_TAG.test(v)) > .6) {
+    const byTag = {};
+    rows = rows.map(r => { const m = IMP_TAG.exec(impTxt(r[desc])); const t = m ? m[1] : "", d = m ? impTxt(m[2]) : impTxt(r[desc]); if (t && d && !/^w\/?\s/i.test(d)) byTag[t.toUpperCase()] = byTag[t.toUpperCase()] || d; return [...r.slice(0, n), ...Array(Math.max(0, n - r.length)).fill(""), t, d]; });
+    rows.forEach(r => { const t = r[n].toUpperCase(), base = byTag[t.replace(/E$/, "")] || byTag[t.replace(/[A-Z]$/, "")]; let d = r[n + 1];
+      if (!d) d = byTag[t] || base || ""; else if (/^w\/?\s/i.test(d) && base) d = `${base} ${d}`; r[n + 1] = d; r[desc] = ""; });
+    names[desc] = "(split in two)"; names.push("Type", "Description");
+  }
+  return [names, ...rows];
+}
+// with a category picked, every line that isn't one of this job's counts goes into a type in that category:
+// the guessed type when it's in there, else a type whose name is in the line, else the category's first type
+function impInCat(it, fam) {
+  const cats = fam ? CATS.filter(c => c.fam === fam && !c.misc) : []; if (!cats.length || it.to.startsWith("c:")) return it;
+  const txt = `${it.desc} ${it.tag}`, keys = cats.map(c => c.key), ok = to => to && to.startsWith("n:") && keys.includes(to.slice(2).split("|")[0]) ? to : null;
+  const rx = t => new RegExp(t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/[- ]/g, "[- ]?"), "i");
+  const byName = cats.flatMap(c => c.types.filter(t => rx(t).test(txt)).map(t => `n:${c.key}|${t}`))[0];
+  const g = ok(it.to) || ok(IMP_RULES.filter(r => keys.includes(r[1]) && r[0].test(txt)).map(r => `n:${r[1]}|${r[2]}`)[0]) || ok("n:" + guessKind(txt).kind) || byName || `n:${cats[0].key}|${cats[0].types[0]}`;
+  return { ...it, to: g, sure: true };
 }
 function impLoad(rows, name) {
   rows = (rows || []).map(r => (r || []).map(v => v == null ? "" : v)).filter(r => r.some(v => impTxt(v)));
   if (!rows.length) return toast("That had no rows in it.");
   let h = impHeader(rows);
-  if (h < 0) { rows.unshift(rows[0].map((v, i) => `Column ${String.fromCharCode(65 + i)}`)); h = 0; }
-  impState = { rows, h, name, cols: impGuessCols(rows, h) };
+  if (h < 0) { rows = impNoHeader(rows); h = 0; }
+  impState = { rows, h, name, cols: impGuessCols(rows, h), cat: impState && impState.cat || "" };
   impItems(); impRender();
 }
 function impOptions() {
@@ -5768,8 +5801,10 @@ function impRender() {
   const st = impState; $("impBody").hidden = !st; impPast();
   if (!st) { $("impSave").disabled = true; return; }
   const heads = st.rows[st.h].map(impTxt), colSel = (f, lab) => `<label>${lab}<select data-col="${f}"><option value="-1">(none)</option>${heads.map((x, i) => `<option value="${i}"${st.cols[f] === i ? " selected" : ""}>${esc(x || "Column " + String.fromCharCode(65 + i))}</option>`).join("")}</select></label>`;
-  $("impCols").innerHTML = colSel("desc", "Description") + colSel("qty", "Quantity") + colSel("unit", "Unit") + colSel("tag", "Type / tag") + colSel("sheet", "Sheet");
-  $("impCols").querySelectorAll("select").forEach(el => el.onchange = () => { st.cols[el.dataset.col] = +el.value; impItems(); impRender(); });
+  $("impCols").innerHTML = colSel("desc", "Description") + colSel("qty", "Quantity") + colSel("unit", "Unit") + colSel("tag", "Type / tag") + colSel("sheet", "Sheet")
+    + `<label class="imp-cat">Category for these<select id="impCat"><option value="">Guess for each line</option>${FAMILIES.filter(f => f[0] !== "misc").map(([fk, fn]) => `<option value="${fk}"${st.cat === fk ? " selected" : ""}>${esc(fn)}</option>`).join("")}</select></label>`;
+  $("impCols").querySelectorAll("select[data-col]").forEach(el => el.onchange = () => { st.cols[el.dataset.col] = +el.value; impItems(); impRender(); });
+  $("impCat").onchange = () => { st.cat = $("impCat").value; impItems(); impRender(); };
   const opts = impOptions(), unsure = st.items.filter(it => it.use && !it.sure).length;
   $("impMsg").innerHTML = !st.items.length ? "No lines with a quantity were found. Pick the right Description and Quantity columns above."
     : `<b>${st.items.length}</b> line${st.items.length === 1 ? "" : "s"} from ${esc(st.name)}. Check where each one goes${unsure ? `. The <b>${unsure}</b> in yellow were a guess` : ""}. Uncheck any you don't want.`;
@@ -5814,7 +5849,7 @@ function impText(t) {
   t = String(t || "").replace(/\r/g, "").trim(); if (!t) return toast("Paste the rows in the box first.");
   const lines = t.split("\n"), tab = lines.some(l => l.includes("\t"));
   const csv = l => { const out = []; let cur = "", q = false; for (let i = 0; i < l.length; i++) { const ch = l[i]; if (q) { if (ch === '"' && l[i + 1] === '"') { cur += '"'; i++; } else if (ch === '"') q = false; else cur += ch; } else if (ch === '"') q = true; else if (ch === ",") { out.push(cur); cur = ""; } else cur += ch; } out.push(cur); return out; };
-  impLoad(lines.map(l => tab ? l.split("\t") : csv(l)), "Pasted rows");
+  impLoad(lines.map(l => tab ? l.replace(/^\s+/, "").split("\t") : csv(l)), "Pasted rows");
 }
 $("impBtn").onclick = () => { if (tool) setTool(null); impState = null; $("impPaste").value = ""; impRender(); $("impModal").hidden = false; };
 $("impFileBtn").onclick = () => $("impFile").click();
@@ -5833,7 +5868,7 @@ $("impForm").addEventListener("submit", e => {
     if (it.to.startsWith("c:")) c = list.find(x => x.id === it.to.slice(2));
     else if (it.to.startsWith("n:")) {
       const [cat, kindName] = it.to.slice(2).split("|"), base = "C-" + cat, cdef = catOf(cat), label = it.tag || "";
-      const em = !!cdef && catEm(cdef, kindName) && /\bem\b|emergency|battery/i.test(it.desc);
+      const em = !!cdef && catEm(cdef, kindName) && /\bem\b|emergency|battery|\bbb\b/i.test(it.desc);
       c = list.find(x => x.base === base && x.kindName === kindName && impLow(x.label) === impLow(label) && !!x.em === em && !x.amps && !x.brk && !x.drop);
       if (!c) {
         c = { id: uid(), base, tag: "", desc: impLow(it.desc) === kindName.toLowerCase() ? "" : it.desc, color: PALETTE[list.length % PALETTE.length], maker: "", model: "", watts: isLightCat(cdef) ? String(LIGHT_W[kindName] || "") : "", mount: "", amps: "", kindName, label, em, ...(label && isLightCat(cdef) ? { sched: true } : {}) };
