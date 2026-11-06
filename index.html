@@ -96,6 +96,11 @@ button { cursor: pointer; }
 .tab-go .tl { font-size: 13.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tab-x { width: 26px; height: 26px; margin-right: 4px; border: 0; border-radius: 4px; background: none; color: var(--muted); font-size: 17px; line-height: 1; padding: 0; flex: none; }
 .tab-x:hover { background: var(--warn-soft); color: var(--warn); }
+.rail-menu { position: fixed; z-index: 60; background: var(--panel, #fff); color: var(--ink, #1c2233); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.25); padding: 4px; min-width: 210px; }
+.rail-menu b { display: block; padding: 6px 10px 4px; font-size: 12px; color: var(--muted); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 240px; }
+.rail-menu button { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 7px 10px; font: inherit; color: inherit; cursor: pointer; border-radius: 6px; }
+.rail-menu button:hover:not(:disabled) { background: var(--accent-soft, rgb(255 212 59 / .25)); } .rail-menu button:disabled { opacity: .4; cursor: default; }
+.rail-menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
 .rail { overflow-y: auto; border-right: 1px solid var(--line); background: var(--panel); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
 .thumb { position: relative; }
 .thumb .pop { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 5px; background: var(--panel); border: 1px solid var(--line); font-size: 13px; line-height: 1; opacity: .6; cursor: pointer; }
@@ -996,7 +1001,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v175<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v176<span id="brandPos"></span></small></div>
     <a class="app-switch" id="appSwitch" href="https://aj-pricing-bonuses.vercel.app/" title="Switch to the AJ Leadership app">&#8644; Leadership</a>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="layBtn" type="button" hidden title="Tablets: switch between the phone layout (drawing fills the screen) and the full layout with every panel showing">🖥 Full layout</button>
@@ -1089,6 +1094,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
   <main class="desk">
     <nav class="rail" id="rail" aria-label="Sheets"></nav>
+    <div class="rail-menu no-print" id="railMenu" hidden role="menu"></div>
     <div class="center">
     <div class="tabs" id="tabs">
       <button class="btn sm railbtn" id="railBtn" type="button" title="Show or hide the full list of sheets" aria-pressed="true">
@@ -2418,7 +2424,11 @@ function renderRail() {
       b.className = "thumb"; b.type = "button"; b.dataset.id = p.id;
       b.innerHTML = `<span class="num">${String(i + 1).padStart(3, "0")}</span><span class="pic"><img alt="" loading="lazy" decoding="async"><span class="q" hidden></span></span><span class="name"></span><span class="pop no-print" role="button" tabindex="0" title="Open this sheet as a floating reference you can keep on top, or pop out to another screen">⧉</span>`;
       const pin = document.createElement("span"); pin.className = "pin no-print"; pin.setAttribute("role", "button"); pin.tabIndex = 0; pin.textContent = "📌"; b.appendChild(pin);
-      b.onclick = e => { if (e.target.closest(".pin")) { e.stopPropagation(); return togglePin(p); } if (e.target.closest(".pop")) { e.stopPropagation(); return refOpen(p); } go(i); };
+      b.onclick = e => { if (railLong) { railLong = false; return; } if (e.target.closest(".pin")) { e.stopPropagation(); return togglePin(p); } if (e.target.closest(".pop")) { e.stopPropagation(); return refOpen(p); } go(pages.indexOf(p)); };
+      b.oncontextmenu = e => { e.preventDefault(); railMenu(p, e.clientX, e.clientY); };
+      // touch: hold a sheet for the same menu
+      b.addEventListener("pointerdown", e => { if (e.pointerType !== "touch") return; clearTimeout(railHold); const x = e.clientX, y = e.clientY; railHold = setTimeout(() => { railLong = true; railMenu(p, x, y); }, 600); });
+      ["pointerup", "pointercancel", "pointerleave", "pointermove"].forEach(t => b.addEventListener(t, e => { if (t !== "pointermove" || e.pointerType === "touch") clearTimeout(railHold); }));
       rail.appendChild(b);
     });
   }
@@ -2434,6 +2444,73 @@ function renderRail() {
   rail.children[current]?.scrollIntoView({ block: "nearest", inline: "nearest" });
   if (refs.length) refDraw();
   if (rsWin && !rsWin.closed && rsWin.rs && rsWin.rs.fill) rsWin.rs.fill();
+}
+/* Right-click a sheet in the list (Jonathan 2026-11-06: "right click it and have the option to move the place of the drawing on
+   the list. Also ... a rotate option"). On a phone or tablet, hold the sheet. */
+let railHold = null, railLong = false;
+function railMenu(p, x, y) {
+  const m = $("railMenu"), i = pages.indexOf(p), n = pages.length; if (i < 0 || p.example) return;
+  const item = (t, f, off) => { const b = document.createElement("button"); b.type = "button"; b.setAttribute("role", "menuitem"); b.textContent = t; b.disabled = !!off; b.onclick = () => { railMenuClose(); f(); }; return b; };
+  const head = document.createElement("b"); head.textContent = `${String(i + 1).padStart(3, "0")} · ${p.name || "Not named yet"}`;
+  m.replaceChildren(head,
+    item("↑ Move up", () => sheetMove(i, i - 1), !i), item("↓ Move down", () => sheetMove(i, i + 1), i === n - 1),
+    item("⤒ Move to the top", () => sheetMove(i, 0), !i), item("⤓ Move to the bottom", () => sheetMove(i, n - 1), i === n - 1),
+    item("Move to spot number…", () => { const v = prompt(`Move "${p.name || "this sheet"}" to which spot? (1 to ${n})`, String(i + 1)); const k = parseInt(v, 10); if (k >= 1 && k <= n) sheetMove(pages.indexOf(p), k - 1); else if (v != null && v !== "") toast(`Type a number from 1 to ${n}.`); }, n < 2),
+    document.createElement("hr"),
+    item("↻ Rotate right (clockwise)", () => sheetRotate(p, 90)), item("↺ Rotate left", () => sheetRotate(p, -90)), item("⟳ Turn upside down", () => sheetRotate(p, 180)));
+  m.hidden = false;
+  const w = m.offsetWidth, h = m.offsetHeight;
+  m.style.left = Math.max(4, Math.min(x, innerWidth - w - 4)) + "px"; m.style.top = Math.max(4, Math.min(y, innerHeight - h - 4)) + "px";
+  m.querySelector("button:not(:disabled)")?.focus();
+}
+function railMenuClose() { $("railMenu").hidden = true; }
+addEventListener("pointerdown", e => { if (!$("railMenu").hidden && !e.target.closest("#railMenu")) railMenuClose(); }, true);
+addEventListener("keydown", e => { if (e.key === "Escape" && !$("railMenu").hidden) railMenuClose(); });
+$("rail").addEventListener("scroll", railMenuClose);
+function sheetMove(from, to) {
+  if (fieldMode) return fieldNo();
+  to = Math.max(0, Math.min(pages.length - 1, to)); if (from === to || !pages[from]) return;
+  const on = pages[current], [p] = pages.splice(from, 1); pages.splice(to, 0, p);
+  current = Math.max(0, pages.indexOf(on));
+  for (let i = Math.min(from, to); i <= Math.max(from, to); i++) savePage(pages[i], i);
+  touchJob(); renderAll();
+  toast(`${p.name || "Sheet"} is now number ${to + 1} of ${pages.length}.`);
+}
+// turn a sheet a quarter (90 = clockwise, -90) or half way round; the marks, notes and text turn with it
+let rotating = false;
+async function sheetRotate(p, deg) {
+  if (fieldMode) return fieldNo();
+  if (rotating) return toast("Still turning the last sheet.");
+  rotating = true; busy("Turning the sheet…", .4, p.name || "");
+  try {
+    const turn = async blob => {
+      const b = await createImageBitmap(blob), W = b.width, H = b.height, side = deg !== 180, c = document.createElement("canvas");
+      c.width = side ? H : W; c.height = side ? W : H;
+      const g = c.getContext("2d"); if (!g) throw new Error("no canvas");
+      g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.translate(c.width / 2, c.height / 2); g.rotate(deg * Math.PI / 180); g.drawImage(b, -W / 2, -H / 2);
+      b.close && b.close(); return { c, W, H };
+    };
+    const { c, W, H } = await turn(p.blob);
+    const fn = deg === 90 ? q => [H - q[1], q[0]] : deg === -90 ? q => [q[1], W - q[0]] : q => [W - q[0], H - q[1]];
+    const prev = p.prevBlob ? await canvasBlob((await turn(p.prevBlob)).c) : null;
+    const [big, small] = await encodeSheet(c);
+    replMap(p, fn, 1);
+    if (p.ghost) replMap(p.ghost, fn, 1);
+    if (p.words) p.words = p.words.map(w => { const a = fn([w[1], w[2]]), b = fn([w[1] + w[3], w[2] + w[4]]);
+      return [w[0], Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]), deg === 180 ? w[5] : w[5] ? 0 : 1, ...w.slice(6)]; });
+    URL.revokeObjectURL(p.url); p.thumbUrl && URL.revokeObjectURL(p.thumbUrl); p.prevUrl && URL.revokeObjectURL(p.prevUrl);
+    p.blob = big; p.url = URL.createObjectURL(big); p.thumb = small; p.thumbUrl = small ? URL.createObjectURL(small) : null;
+    if (prev) { p.prevBlob = prev; p.prevUrl = null; }
+    p.vec = null; vecForget(p); bitmaps.delete(p.id); p.view = null;
+    if (fw) fw.hits = fw.hits.filter(h => h.pg !== p);
+    // undo would put the marks back where they were on the unturned sheet
+    undoStack = undoStack.filter(st => !st.p.some(([id]) => id === p.id)); redoStack = redoStack.filter(st => !st.p.some(([id]) => id === p.id)); updHist();
+    savePage(p, pages.indexOf(p)); touchJob();
+    if (p.ghost && (p.ghost.devices.length || p.ghost.runs.length || (p.ghost.pins || []).length || (p.ghost.hl || []).length)) try { fieldTouch(); } catch (e) {}
+    busy(null, null); renderAll(); if (fw) fwBar();
+    toast(`${p.name || "Sheet"} turned ${deg === 180 ? "upside down" : deg > 0 ? "right" : "left"}. Your marks turned with it.`);
+  } catch (e) { busy(null, null); toast("Couldn't turn that sheet. Try again."); }
+  finally { rotating = false; }
 }
 function renderSheet() {
   const p = pages[current];
