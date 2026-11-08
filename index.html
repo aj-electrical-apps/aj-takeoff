@@ -1001,7 +1001,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v178<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v179<span id="brandPos"></span></small></div>
     <a class="app-switch" id="appSwitch" href="https://aj-pricing-bonuses.vercel.app/" title="Switch to the AJ Leadership app">&#8644; Leadership</a>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="layBtn" type="button" hidden title="Tablets: switch between the phone layout (drawing fills the screen) and the full layout with every panel showing">🖥 Full layout</button>
@@ -5117,9 +5117,26 @@ function trkRowOf(j, rows = trkRows) {
   const id = segId(j.id), no = jobNoOf(j), nm = trkNorm(j.name);
   return rows.find(r => r.jobId && (r.jobId === j.id || segId(r.jobId) === id)) || (no && rows.find(r => r.jobNo === no)) || (nm && rows.find(r => trkNorm(r.job) === nm)) || null;
 }
-async function trkAddJob(quiet) {
+/* the numbers that matter in a job's row, without the "at" times, so a job whose numbers didn't change isn't sent again */
+const trkSig = r => r ? JSON.stringify([r.job, r.gc, r.date, r.jobNo || "", +r.ours || 0, r.est ? { ...r.est, at: 0 } : null, (r.cos || []).map(c => ({ ...c, at: 0 }))]) : "";
+/* v179: the Bid tracker row follows the proposal (Jonathan 2026-11-08: "i updated the proposal and it wont update in
+   the bid tracker"). Before, the row only changed on Make proposal or Add this job. Now any change to a job that's
+   already in the list (proposal, bid sheet, counts, name, GC) updates its row a few seconds later. Jobs not in the list
+   aren't added; that's still Add this job. */
+let trkAutoT = 0;
+function trkAuto() { clearTimeout(trkAutoT); trkAutoT = setTimeout(trkAutoRun, 4000); }
+async function trkAutoRun() {
+  if (!job || job.example || document.documentElement.classList.contains("no-tracker")) return;
+  try {
+    if (!trkRows.length) trkRows = trkGet(TRK_LS) || [];
+    if (!trkRows.length) await trkFlush();
+    if (trkRowOf(job)) await trkAddJob(true, true);
+  } catch (e) {}
+}
+async function trkAddJob(quiet, ifChanged) {
   if (!job) return quiet || toast("Open a job first.");
   try { await trkFlush(); } catch (e) {} // the newest list first, so a row added on another computer is updated, not doubled
+  if (ifChanged && !trkRowOf(job)) return;
   // est: the estimate numbers the Pricing, Production & Bonuses app reads when a won bid becomes a job there
   let ours = 0, est = null, cos = null;
   const was = coScope; coScope = null; // the base bid, even while a change order is picked
@@ -5151,6 +5168,7 @@ async function trkAddJob(quiet) {
   if (ours) row.ours = ours;
   if (est) row.est = est;
   if (cos) row.cos = cos;
+  if (ifChanged && trkSig(row) === trkSig(had)) return;
   await trkSend([row]);
   if (!$("trkModal").hidden) renderTrk();
   if (!quiet) toast(had ? `Updated ${job.name} in the Bid tracker.` : `Added ${job.name} to the Bid tracker.`);
@@ -5208,6 +5226,7 @@ async function openTrk() {
   $("trkModal").hidden = false; $("trkWhere").textContent = "Loading the list…";
   trkRows = trkRows.length ? trkRows : (trkGet(TRK_LS) || []); renderTrk();
   await trkFlush(); renderTrk();
+  if (job && trkRowOf(job)) { await trkAddJob(true, true); renderTrk(); }
 }
 $("trkBtn").onclick = openTrk;
 $("trkClose").onclick = () => { $("trkModal").hidden = true; };
@@ -8776,7 +8795,7 @@ let job = null, jobs = [];
 const lsGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 const lsSet = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} };
 const putJobLocal = j => store(s => s.put(j), "jobs");
-const saveJob = j => { if (job && j.id === job.id) { scheduleSync(); if (isPc()) pcMark(); } return putJobLocal(j); };
+const saveJob = j => { if (job && j.id === job.id) { scheduleSync(); if (isPc()) pcMark(); trkAuto(); } return putJobLocal(j); };
 /* Precon's own types (v164): anything a precon login makes is marked pc, saved in the field layer (types / wires), merged into
    the job on every computer, and left out whenever the office saves the estimate. */
 let pcEst = null, pcEstFor = null;
