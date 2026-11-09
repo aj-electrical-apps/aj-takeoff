@@ -109,6 +109,8 @@ button { cursor: pointer; }
 .thumb:hover .pin, .thumb:focus-within .pin { opacity: .7; } .thumb .pin.on { opacity: 1; filter: none; }
 .ref-dock { display: flex; gap: 4px; flex-wrap: wrap; }
 .ref-dock:empty { display: none; }
+#refDockPh { position: fixed; top: 8px; left: 50%; transform: translateX(-50%); z-index: 61; max-width: calc(100vw - 24px); justify-content: center; }
+#refDockPh .ref-chip { font-size: 15px; padding: 7px 12px; box-shadow: 0 4px 14px rgba(0,0,0,.2); } #refDockPh .ref-chip .x { font-size: 18px; padding: 0 4px; }
 .ref-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; border: 1px solid #1c7ed6; background: #e7f5ff; color: #1864ab; font-size: 12px; cursor: pointer; }
 .ref-chip b { font-weight: 600; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ref-chip .x { border: 0; background: none; color: inherit; cursor: pointer; font-size: 14px; padding: 0 2px; }
@@ -117,10 +119,13 @@ button { cursor: pointer; }
 .ref-win .ref-edge-r { position: absolute; right: 0; top: 30px; bottom: 22px; width: 7px; cursor: ew-resize; z-index: 2; touch-action: none; }
 .ref-win .ref-edge-b { position: absolute; bottom: 0; left: 0; right: 22px; height: 7px; cursor: ns-resize; z-index: 2; touch-action: none; }
 .ref-win .ref-edge-l { position: absolute; left: 0; top: 30px; bottom: 0; width: 7px; cursor: ew-resize; z-index: 2; touch-action: none; }
-.ref-win .ref-bar { display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; background: #1c7ed6; color: #fff; cursor: move; user-select: none; font-size: 13px; }
+.ref-win .ref-bar { touch-action: none; display: flex; align-items: center; gap: 6px; padding: 4px 6px 4px 10px; background: #1c7ed6; color: #fff; cursor: move; user-select: none; font-size: 13px; }
 .ref-win .ref-bar b { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ref-win .ref-bar button { border: 0; background: rgba(255,255,255,.18); color: #fff; border-radius: 4px; padding: 3px 8px; cursor: pointer; font-size: 12px; }
 .ref-win .ref-bar button:hover { background: rgba(255,255,255,.35); }
+/* v181: finger-size buttons on the floating sheet for phones and tablets */
+@media (max-width: 760px) { .ref-win .ref-bar button { font-size: 15px; padding: 6px 10px; } }
+html.ph-lay .ref-win .ref-bar button { font-size: 15px; padding: 6px 10px; }
 .ref-win .ref-view { flex: 1; overflow: hidden; position: relative; background: #f1f3f5; cursor: grab; touch-action: none; }
 .ref-win .ref-view img { position: absolute; left: 0; top: 0; transform-origin: 0 0; user-select: none; pointer-events: none; max-width: none; }
 .thumb { display: grid; grid-template-columns: 28px 1fr; gap: 8px; align-items: start; text-align: left; padding: 6px; border: 1px solid transparent; border-radius: 6px; background: none; }
@@ -1001,7 +1006,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v180<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v181<span id="brandPos"></span></small></div>
     <a class="app-switch" id="appSwitch" href="https://aj-pricing-bonuses.vercel.app/" title="Switch to the AJ Leadership app">&#8644; Leadership</a>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
     <button class="btn sm look-btn" id="layBtn" type="button" hidden title="Tablets: switch between the phone layout (drawing fills the screen) and the full layout with every panel showing">🖥 Full layout</button>
@@ -2332,11 +2337,14 @@ function refFit(r) {
 const refXf = r => { r.el.querySelector("img").style.transform = `translate(${r.tx}px,${r.ty}px) scale(${r.z})`; };
 function refDraw() {
   refs.slice().forEach(r => { if (!pages.includes(r.p)) refClose(r, true); });
-  const dock = $("refDock"); dock.replaceChildren();
+  // phone/tablet layout hides the top bar, so tucked-away sheets wait in a strip floating at the top instead (v181)
+  let fl = $("refDockPh"); if (!fl) { fl = document.createElement("div"); fl.id = "refDockPh"; fl.className = "ref-dock no-print"; document.body.appendChild(fl); }
+  fl.replaceChildren(); $("refDock").replaceChildren();
+  const dock = isPhone() ? fl : $("refDock");
   refs.forEach(r => {
     if (!r.el) {
       const el = r.el = document.createElement("div"); el.className = "ref-win no-print";
-      el.innerHTML = `<div class="ref-bar"><b></b><button type="button" data-a="fit" title="Fit the whole sheet">Fit</button><button type="button" data-a="pop" title="Send it to your Reference screen window, which holds several sheets side by side on another screen">↗ Reference screen</button><button type="button" data-a="min" title="Tuck it into the top bar">−</button><button type="button" data-a="x" title="Close">×</button></div><div class="ref-view"><img alt="" draggable="false"></div><span class="ref-edge-l" data-rz="l"></span><span class="ref-edge-r" data-rz="r"></span><span class="ref-edge-b" data-rz="b"></span><span class="ref-grip" data-rz="rb" title="Drag to make it any size"></span>`;
+      el.innerHTML = `<div class="ref-bar"><button type="button" data-a="prev" title="Show the sheet before this one">◀</button><b></b><button type="button" data-a="next" title="Show the next sheet">▶</button><button type="button" data-a="fit" title="Fit the whole sheet">Fit</button><button type="button" data-a="pop" title="Send it to your Reference screen window, which holds several sheets side by side on another screen">↗ Reference screen</button><button type="button" data-a="min" title="Tuck it into the top bar">−</button><button type="button" data-a="x" title="Close">×</button></div><div class="ref-view"><img alt="" draggable="false"></div><span class="ref-edge-l" data-rz="l"></span><span class="ref-edge-r" data-rz="r"></span><span class="ref-edge-b" data-rz="b"></span><span class="ref-grip" data-rz="rb" title="Drag to make it any size"></span>`;
       document.body.appendChild(el);
       const im = el.querySelector("img"), v = el.querySelector(".ref-view");
       im.onload = () => refFit(r); im.src = r.p.url;
@@ -2344,10 +2352,15 @@ function refDraw() {
         if (e.target.closest("button")) return;
         const sx = e.clientX - r.x, sy = e.clientY - r.y;
         const mv = ev => { r.x = Math.max(-r.w + 80, Math.min(innerWidth - 80, ev.clientX - sx)); r.y = Math.max(0, Math.min(innerHeight - 30, ev.clientY - sy)); el.style.left = r.x + "px"; el.style.top = r.y + "px"; };
-        const up = () => { removeEventListener("pointermove", mv); removeEventListener("pointerup", up); };
-        addEventListener("pointermove", mv); addEventListener("pointerup", up);
+        const up = () => { removeEventListener("pointermove", mv); removeEventListener("pointerup", up); removeEventListener("pointercancel", up); };
+        addEventListener("pointermove", mv); addEventListener("pointerup", up); addEventListener("pointercancel", up);
       };
-      el.querySelector(".ref-bar").onclick = e => { const a = e.target.closest("button")?.dataset.a; if (a === "fit") refFit(r); if (a === "min") { r.min = true; refDraw(); } if (a === "x") refClose(r); if (a === "pop") refPop(r); };
+      el.querySelector(".ref-bar").onclick = e => { const a = e.target.closest("button")?.dataset.a; if (a === "fit") refFit(r); if (a === "min") { r.min = true; refDraw(); } if (a === "x") refClose(r); if (a === "pop") refPop(r);
+        if ((a === "prev" || a === "next") && pages.length) { // v181: flip this floating sheet through the drawings
+          const k = pages.indexOf(r.p), j = ((k < 0 ? 0 : k) + (a === "prev" ? -1 : 1) + pages.length) % pages.length, q = pages[j];
+          if (refs.some(x => x !== r && x.p === q)) return toast("That sheet is already open as a reference.");
+          r.p = q; r.z = 0; im.src = q.url; el.querySelector(".ref-bar b").textContent = `Reference: ${refName(r)}`;
+        } };
       pzBind(v, r, () => refXf(r));
       // size: drag the corner grip or the left, right or bottom edge, as big or small as you like
       el.querySelectorAll("[data-rz]").forEach(g => g.onpointerdown = e => {
@@ -2359,7 +2372,7 @@ function refDraw() {
           if (d === "l") { r.w = Math.max(150, w0 - (ev.clientX - x0)); r.x = l0 + w0 - r.w; el.style.left = r.x + "px"; }
           el.style.width = r.w + "px"; el.style.height = r.h + "px";
         };
-        g.onpointerup = () => { g.onpointermove = null; };
+        g.onpointerup = g.onpointercancel = () => { g.onpointermove = null; };
       });
       el.style.width = r.w + "px"; el.style.height = r.h + "px";
     }
@@ -2377,83 +2390,118 @@ function refDraw() {
 }
 function refClose(r, quiet) { const i = refs.indexOf(r); if (i < 0) return; refs.splice(i, 1); r.el && r.el.remove(); if (!quiet) refDraw(); }
 function refPop(r) { refScreenAdd(r.p); refClose(r); }
-/* Reference screen: one separate window holding several sheets side by side (tiled), meant for a second monitor.
-   Pick sheets in its Add sheet list, or send them from a floating reference. Each pane zooms and pans on its own;
-   ⤢ makes one pane fill the window. The sheets it had open are remembered per job and come back next time. */
-let rsWin = null;
+/* Reference screen: several sheets side by side (tiled). Pick sheets in its Add sheet list, or send them from a floating
+   reference. Each pane zooms and pans on its own; ◀ ▶ flip that pane to the sheet before or after; ⤢ makes one pane fill
+   the screen. The sheets it had open are remembered per job and come back next time.
+   v181 (Jonathan 2026-11-09: "the arrows ... nothing happens, ... it just freezes up, ... you can't back out of it, so you
+   close the whole app"): on a computer with a mouse it is still its own window for a second monitor. On an iPad or phone
+   that window became a tab of its own that the iPad paused (its buttons ran in the app's tab), with no way back to the
+   app, so there it now opens inside the app, on top of everything, with a big ✕ Close. */
+let rsCur = null;
 const rsKey = () => `aj-refscreen-${job ? job.id : "example"}`;
 const rsLoad = () => { try { return JSON.parse(localStorage.getItem(rsKey()) || "null") || { ids: [], cols: 0 }; } catch (e) { return { ids: [], cols: 0 }; } };
 const rsSave = st => { try { localStorage.setItem(rsKey(), JSON.stringify(st)); } catch (e) {} };
-function rsOpen() {
-  if (rsWin && !rsWin.closed && rsWin.rs && rsWin.rs.job === (job ? job.id : null)) { rsWin.focus(); return rsWin; }
-  if (rsWin && !rsWin.closed) rsWin.close();
-  const w = window.open("", "ajrefscreen", `width=${Math.min(1600, screen.availWidth)},height=${Math.min(1000, screen.availHeight)}`);
-  if (!w) { toast("Your browser blocked the Reference screen window. Click the blocked pop-up icon in the address bar, pick Always allow, then try again."); return null; }
-  rsWin = w; const d = w.document, jn = job ? job.name : "Example job";
-  d.open(); d.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"><title>Reference screen · ${esc(jn)}</title></head><body></body></html>`); d.close();
-  const st = d.createElement("style");
-  st.textContent = `html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;touch-action:manipulation;font:13px system-ui,-apple-system,Segoe UI,sans-serif;background:#dee2e6}
-  #bar{display:flex;gap:8px;align-items:center;padding:6px 10px;background:#1c7ed6;color:#fff;height:34px;box-sizing:border-box}
-  #bar b{margin-right:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#bar select,#bar button{font:inherit;padding:3px 8px;border-radius:5px;border:0}
+const rsInApp = () => matchMedia("(pointer: coarse)").matches || document.documentElement.classList.contains("ph-lay") || innerWidth <= 1024 && navigator.maxTouchPoints > 1;
+const RS_CSS = `#rsRoot{position:fixed;inset:0;display:flex;flex-direction:column;font:13px system-ui,-apple-system,Segoe UI,sans-serif;background:#dee2e6;color:#212529;overscroll-behavior:none}
+  #bar{flex:none;display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;padding:6px 10px;background:#1c7ed6;color:#fff;min-height:34px;box-sizing:border-box}
+  #bar b{margin-right:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;max-width:100%}#bar select,#bar button{font:inherit;padding:3px 8px;border-radius:5px;border:0}
   #bar button{background:rgba(255,255,255,.2);color:#fff;cursor:pointer}#bar button:hover{background:rgba(255,255,255,.35)}
-  #grid{position:absolute;top:34px;left:0;right:0;bottom:0;display:grid;gap:4px;padding:4px;box-sizing:border-box}
+  #bar #close{background:#fff;color:#1864ab;font-weight:700}
+  #grid{flex:1;position:relative;min-height:0;display:grid;gap:4px;padding:4px;box-sizing:border-box}
   .pane{position:relative;display:flex;flex-direction:column;background:#fff;border:1px solid #adb5bd;border-radius:6px;overflow:hidden;min-height:0;min-width:0}
   .pane.big{position:absolute;inset:4px;z-index:5}
-  .ph{display:flex;align-items:center;gap:4px;padding:3px 6px;background:#f1f3f5;border-bottom:1px solid #dee2e6}.ph b{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .ph button{font:inherit;font-size:12px;border:1px solid #ced4da;background:#fff;border-radius:4px;padding:1px 7px;cursor:pointer}
-  .pv{flex:1;position:relative;overflow:hidden;cursor:grab;touch-action:none;background:#f8f9fa}.pv img{position:absolute;left:0;top:0;transform-origin:0 0;max-width:none;pointer-events:none;user-select:none}
-  #empty{position:absolute;top:50%;left:0;right:0;text-align:center;color:#495057;font-size:16px}`;
-  d.head.appendChild(st);
-  // iPad Safari would pinch-zoom the whole window (bar and all) instead of the sheet; the panes do their own zoom (v180)
-  ["gesturestart", "gesturechange"].forEach(t => d.addEventListener(t, e => e.preventDefault(), { passive: false }));
+  .ph{display:flex;align-items:center;gap:4px;padding:3px 6px;background:#f1f3f5;border-bottom:1px solid #dee2e6}.ph b{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+  .ph button{font:inherit;font-size:12px;border:1px solid #ced4da;background:#fff;color:#212529;border-radius:4px;padding:1px 7px;cursor:pointer}
+  .pv{flex:1;position:relative;overflow:hidden;cursor:grab;touch-action:none;background:#f8f9fa}.pv img{position:absolute;left:0;top:0;transform-origin:0 0;max-width:none;pointer-events:none;user-select:none;-webkit-user-select:none}
+  #empty{position:absolute;top:50%;left:0;right:0;text-align:center;color:#495057;font-size:16px;padding:0 16px}
+  .touch #bar{padding:8px 10px}.touch #bar select,.touch #bar button{font-size:15px;padding:8px 12px}
+  .touch .ph{padding:5px 6px;gap:6px}.touch .ph button{font-size:15px;padding:6px 11px}`;
+function rsOpen() {
+  const jid = job ? job.id : null;
+  if (rsCur && rsCur.alive() && rsCur.job === jid) { rsCur.focus(); return rsCur; }
+  if (rsCur && rsCur.alive()) rsCur.close();
+  rsCur = null;
+  const jn = job ? job.name : "Example job";
+  let w = null, d = document, host = null, C;
+  if (!rsInApp()) {
+    w = window.open("", "ajrefscreen", `width=${Math.min(1600, screen.availWidth)},height=${Math.min(1000, screen.availHeight)}`);
+    if (!w) toast("Your browser blocked the Reference screen window, so it opened here in the app. To get its own window for your other screen, click the blocked pop-up icon in the address bar and pick Always allow.");
+  }
+  if (w) {
+    d = w.document;
+    d.open(); d.write(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"><title>Reference screen · ${esc(jn)}</title></head><body style="margin:0"></body></html>`); d.close();
+    const st = d.createElement("style"); st.textContent = RS_CSS; d.head.appendChild(st);
+    C = d.createElement("div"); C.id = "rsRoot"; d.body.appendChild(C);
+    // pinch on the window itself would zoom the bar and all; the panes do their own zoom (v180)
+    ["gesturestart", "gesturechange"].forEach(t => d.addEventListener(t, e => e.preventDefault(), { passive: false }));
+  } else {
+    host = document.createElement("div"); host.className = "no-print"; host.style.cssText = "position:fixed;inset:0;z-index:100";
+    const sr = host.attachShadow({ mode: "open" });
+    const st = document.createElement("style"); st.textContent = RS_CSS; sr.appendChild(st);
+    C = document.createElement("div"); C.id = "rsRoot"; C.className = rsInApp() ? "touch" : ""; sr.appendChild(C);
+    document.body.appendChild(host);
+  }
+  const W = w || window, $r = id => C.querySelector("#" + id);
   const bar = d.createElement("div"); bar.id = "bar";
-  bar.innerHTML = `<b>Reference screen · ${esc(jn)}</b><select id="add"></select><select id="cols" title="How many sheets across"><option value="0">Layout: auto</option><option value="1">1 across</option><option value="2">2 across</option><option value="3">3 across</option><option value="4">4 across</option></select><button id="fitall" type="button">Fit all</button><button id="clear" type="button">Clear</button>`;
+  bar.innerHTML = `<b>Reference screen · ${esc(jn)}</b><select id="add"></select><select id="cols" title="How many sheets across"><option value="0">Layout: auto</option><option value="1">1 across</option><option value="2">2 across</option><option value="3">3 across</option><option value="4">4 across</option></select><button id="fitall" type="button">Fit all</button><button id="clear" type="button" title="Take every sheet off this screen">Remove all</button><button id="close" type="button" title="Close the Reference screen and go back to the drawing">✕ Close</button>`;
   const grid = d.createElement("div"); grid.id = "grid";
-  const empty = d.createElement("div"); empty.id = "empty"; empty.textContent = "Pick a sheet in Add sheet above, or click ↗ Reference screen on a floating sheet in the app.";
-  d.body.append(bar, grid, empty);
-  const S = w.rs = { job: job ? job.id : null, panes: [], cols: rsLoad().cols || 0 };
-  const fill = () => { d.getElementById("add").innerHTML = `<option value="">+ Add sheet…</option>` + pages.map((pg, i) => `<option value="${esc(pg.id)}">${esc(sheetName(pg, i))}</option>`).join(""); };
+  const empty = d.createElement("div"); empty.id = "empty"; empty.textContent = "Pick a sheet in Add sheet above, or tap ↗ Reference screen on a floating sheet in the app.";
+  C.append(bar, grid, empty);
+  const keys = e => { if (e.key === "Escape") S.close(); e.stopPropagation(); }; // the drawing's shortcuts stay off while it is open
+  const S = rsCur = { job: jid, panes: [], cols: rsLoad().cols || 0, inApp: !w,
+    alive: () => w ? !w.closed : host.isConnected,
+    focus: () => { if (w) w.focus(); },
+    close: () => { if (w) { if (!w.closed) w.close(); } else { host.remove(); window.removeEventListener("keydown", keys, true); window.removeEventListener("resize", refit); } if (rsCur === S) rsCur = null; } };
+  if (host) window.addEventListener("keydown", keys, true);
+  const fill = () => { $r("add").innerHTML = `<option value="">+ Add sheet…</option>` + pages.map((pg, i) => `<option value="${esc(pg.id)}">${esc(sheetName(pg, i))}</option>`).join(""); S.panes.forEach(x => x.name()); };
   fill(); S.fill = fill;
-  d.getElementById("cols").value = String(S.cols);
+  $r("cols").value = String(S.cols);
   const save = () => rsSave({ ids: S.panes.map(x => x.id), cols: S.cols });
   const layout = () => {
     const n = S.panes.length, c = S.cols || Math.max(1, Math.ceil(Math.sqrt(n))), r = Math.max(1, Math.ceil(n / c));
     grid.style.gridTemplateColumns = `repeat(${Math.min(c, Math.max(n, 1))}, minmax(0, 1fr))`; grid.style.gridTemplateRows = `repeat(${r}, minmax(0, 1fr))`;
     empty.hidden = n > 0; S.panes.forEach(x => grid.appendChild(x.el));
-    w.requestAnimationFrame(() => S.panes.forEach(x => x.fit()));
+    W.requestAnimationFrame(() => S.panes.forEach(x => x.fit()));
   };
   S.add = pg => {
     if (S.panes.some(x => x.id === pg.id)) return;
     const el = d.createElement("div"); el.className = "pane";
-    el.innerHTML = `<div class="ph"><b></b><button data-a="l" title="Move left">◀</button><button data-a="r" title="Move right">▶</button><button data-a="fit" title="Fit the whole sheet">Fit</button><button data-a="big" title="Fill the window (click again to go back)">⤢</button><button data-a="x" title="Remove from the reference screen">×</button></div><div class="pv"><img alt=""></div>`;
-    el.querySelector("b").textContent = sheetName(pg, pages.indexOf(pg));
-    const im = el.querySelector("img"), v = el.querySelector(".pv"), P = { id: pg.id, el, z: 1, tx: 0, ty: 0 };
+    el.innerHTML = `<div class="ph"><button data-a="prev" title="Show the sheet before this one">◀</button><b></b><button data-a="next" title="Show the next sheet">▶</button><button data-a="fit" title="Fit the whole sheet">Fit</button><button data-a="big" title="Fill the screen (tap again to go back)">⤢</button><button data-a="x" title="Take this sheet off the reference screen">×</button></div><div class="pv"><img alt="" draggable="false"></div>`;
+    const im = el.querySelector("img"), v = el.querySelector(".pv"), P = { id: pg.id, el, z: 0, tx: 0, ty: 0 };
     const xf = () => { im.style.transform = `translate(${P.tx}px,${P.ty}px) scale(${P.z})`; };
     P.fit = () => { if (!im.naturalWidth || !v.clientWidth) return; P.z = Math.min(v.clientWidth / im.naturalWidth, v.clientHeight / im.naturalHeight); P.tx = (v.clientWidth - im.naturalWidth * P.z) / 2; P.ty = (v.clientHeight - im.naturalHeight * P.z) / 2; xf(); };
+    P.name = () => { const p = pages.find(x => x.id === P.id); el.querySelector("b").textContent = p ? sheetName(p, pages.indexOf(p)) : "Sheet removed"; };
+    P.show = p => {
+      P.id = p.id; P.z = 0; P.name(); im.removeAttribute("src");
+      if (p.url) im.src = p.url; // same page, same pictures: no copy needed
+      else if (p.blob) { const fr = new FileReader(); fr.onload = () => { if (P.id === p.id) im.src = fr.result; }; fr.readAsDataURL(p.blob); }
+    };
     im.onload = P.fit;
-    const fr = new FileReader(); fr.onload = () => { im.src = fr.result; }; fr.readAsDataURL(pg.blob);
     pzBind(v, P, xf);
     v.addEventListener("dblclick", P.fit);
     el.querySelector(".ph").addEventListener("click", e => {
       const a = e.target.closest("button") && e.target.closest("button").dataset.a, i = S.panes.indexOf(P); if (!a) return;
       if (a === "x") { S.panes.splice(i, 1); el.remove(); save(); return layout(); }
       if (a === "fit") return P.fit();
-      if (a === "big") { el.classList.toggle("big"); return w.requestAnimationFrame(P.fit); }
-      const j = a === "l" ? i - 1 : i + 1; if (j < 0 || j >= S.panes.length) return;
-      S.panes.splice(i, 1); S.panes.splice(j, 0, P); save(); layout();
+      if (a === "big") { el.classList.toggle("big"); return W.requestAnimationFrame(P.fit); }
+      if (!pages.length) return;
+      const k = pages.findIndex(x => x.id === P.id), j = ((k < 0 ? 0 : k) + (a === "prev" ? -1 : 1) + pages.length) % pages.length;
+      P.show(pages[j]); save();
     });
-    S.panes.push(P); save(); layout();
+    P.show(pg); S.panes.push(P); save(); layout();
   };
-  d.getElementById("add").onchange = e => { const pg = pages.find(x => x.id === e.target.value); e.target.value = ""; if (pg) S.add(pg); };
-  d.getElementById("cols").onchange = e => { S.cols = +e.target.value; save(); layout(); };
-  d.getElementById("fitall").onclick = () => S.panes.forEach(x => x.fit());
-  d.getElementById("clear").onclick = () => { S.panes.forEach(x => x.el.remove()); S.panes = []; save(); layout(); };
-  w.addEventListener("resize", () => S.panes.forEach(x => x.fit()));
+  $r("add").onchange = e => { const pg = pages.find(x => x.id === e.target.value); e.target.value = ""; if (pg) S.add(pg); };
+  $r("cols").onchange = e => { S.cols = +e.target.value; save(); layout(); };
+  $r("fitall").onclick = () => S.panes.forEach(x => x.fit());
+  $r("clear").onclick = () => { S.panes.forEach(x => x.el.remove()); S.panes = []; save(); layout(); };
+  $r("close").onclick = () => S.close();
+  const refit = () => S.panes.forEach(x => x.fit());
+  W.addEventListener("resize", refit);
   rsLoad().ids.forEach(id => { const pg = pages.find(x => x.id === id); if (pg) S.add(pg); });
   layout();
-  return w;
+  return S;
 }
-function refScreenAdd(p) { const w = rsOpen(); if (w && w.rs) { w.rs.add(p); w.focus(); } }
+function refScreenAdd(p) { const S = rsOpen(); if (S) { S.add(p); S.focus(); } }
 function renderRail() {
   const rail = $("rail");
   const same = rail.children.length === pages.length && pages.every((p, i) => rail.children[i].dataset.id === p.id);
@@ -2483,7 +2531,7 @@ function renderRail() {
   });
   rail.children[current]?.scrollIntoView({ block: "nearest", inline: "nearest" });
   if (refs.length) refDraw();
-  if (rsWin && !rsWin.closed && rsWin.rs && rsWin.rs.fill) rsWin.rs.fill();
+  if (rsCur && rsCur.alive()) rsCur.fill();
 }
 /* Right-click a sheet in the list (Jonathan 2026-11-06: "right click it and have the option to move the place of the drawing on
    the list. Also ... a rotate option"). On a phone or tablet, hold the sheet. */
@@ -6937,7 +6985,7 @@ function setRail(show) {
   lsSet("aj-rail-hidden", show ? null : "1");
 }
 $("railBtn").onclick = () => setRail(document.querySelector(".desk").classList.contains("no-rail"));
-$("rsBtn").onclick = () => { const w = rsOpen(); if (w && w.rs && !w.rs.panes.length && pages[current]) w.rs.add(pages[current]); };
+$("rsBtn").onclick = () => { const S = rsOpen(); if (S && !S.panes.length && pages[current]) S.add(pages[current]); };
 
 /* Overlay: up to 3 sheets, each tinted its own color, multiplied together on white.
    Lines that match on every sheet come out dark; lines on only one sheet keep that sheet's color.
