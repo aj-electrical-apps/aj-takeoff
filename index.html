@@ -1008,7 +1008,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v183<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v184<span id="brandPos"></span></small></div>
     <a class="app-switch" id="appSwitch" href="https://aj-pricing-bonuses.vercel.app/" title="Switch to the AJ Leadership app">&#8644; Leadership</a>
     <a class="app-switch" id="subsBtn" href="https://aj-pricing-bonuses.vercel.app/" hidden title="This job's submittal PDFs in the AJ Leadership app">&#128196; Submittals</a>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
@@ -3087,7 +3087,10 @@ const CATS = [
   { key: "gr", fam: "gear", shape: "hexagon", name: "Panels & gear", amps: "all", types: ["Panel", "Service entrance", "Disconnect", "Meter base", "Transformer"] },
   { key: "misc", fam: "misc", shape: "diamond", name: "Misc item", misc: true, types: ["Misc item", "One-off wire or cable"] },
   { key: "wall", fam: "lights", shape: "circle", name: "Wall-mount fixtures", em: true, mount: true, types: ["Vanity light", "Wall sconce", "Bed / reading light", "Wall wash", "Linear wall bracket", "Step / stair light", "Night / path light", "Picture light", "Interior wall pack"] },
-  { key: "flr", fam: "recept", shape: "square", name: "Floor receptacles", types: ["Floor duplex", "Floor quad", "Floor GFCI", "Floor combo power/data", "Floor 4-gang multi-service", "Poke-through duplex", "Poke-through combo power/data"] }
+  { key: "flr", fam: "recept", shape: "square", name: "Floor receptacles", types: ["Floor duplex", "Floor quad", "Floor GFCI", "Floor combo power/data", "Floor 4-gang multi-service", "Poke-through duplex", "Poke-through combo power/data"] },
+  // v184 (Jonathan 2026-11-10: "there needs to be a category add to the counts for generators"). Same heading the Leadership app
+  // approves submittals under. No labor rows yet: type the hours on the Bid tab.
+  { key: "gen", fam: "gear", shape: "hexagon", name: "Generators", amps: ["Automatic transfer switch", "Manual transfer switch"], types: ["Generator", "Automatic transfer switch", "Manual transfer switch", "Fuel tank", "Generator e-stop", "Generator docking station / inlet"] }
 ];
 const catOf = key => CATS.find(c => c.key === key);
 const catAmps = (cat, t) => !!cat.amps && (cat.amps === "all" || cat.amps.includes(t));
@@ -4521,7 +4524,7 @@ function dboRows(counts) {
 }
 // counts broken out by section, in toolbox order
 // count sections in sheet order: the older groups sit with their family (sconces and other fixture types go with the lights)
-const SEC_ORDER = [/* misc last */"ceil", "open", "wall", "ext", "emer", "fans", "lights", "sw", "ctl", "switches", "rcp", "flr", "spec", "rmt", "recept", "special", "lv", "lvp", "fa", "fire", "gr", "gear", "misc"];
+const SEC_ORDER = [/* misc last */"ceil", "open", "wall", "ext", "emer", "fans", "lights", "sw", "ctl", "switches", "rcp", "flr", "spec", "rmt", "recept", "special", "lv", "lvp", "fa", "fire", "gr", "gen", "gear", "misc"];
 const secRank = k => { const i = SEC_ORDER.indexOf(k); return i < 0 ? 999 : i; };
 const SECTION = { lights: "Other lights", switches: "Switching", recept: "Outlets", special: "240V, welder plugs and special", gear: "Gear and disconnects", fire: "Fire alarm" };
 const bySection = counts => CATS.map(c => ({ k: c.key, title: c.name, rows: counts.filter(x => x.group === c.key) }))
@@ -5894,6 +5897,8 @@ const IMP_RULES = [
   [/duct (smoke )?det/i, "fa", "Duct detector"], [/smoke/i, "fa", "Smoke detector"], [/heat det/i, "fa", "Heat detector"], [/monitor module/i, "fa", "Monitor module"], [/control module|relay module/i, "fa", "Control module"],
   [/lighting control panel/i, "ctl", "Lighting control panel"], [/contactor/i, "ctl", "Lighting contactor"], [/vacancy/i, "ctl", "Vacancy sensor"], [/ceiling.*(occ|motion)|(occ|motion).*ceiling/i, "ctl", "Ceiling occupancy sensor"],
   [/occupancy|occ\.? sensor|motion sensor/i, "ctl", "Wall occupancy sensor"], [/photo ?cell|photo ?sensor/i, "ctl", "Photocell"], [/power pack|\brelay\b/i, "ctl", "Power pack/relay"], [/low.?voltage (wall )?station|lv station|keypad/i, "ctl", "Low-voltage wall station"],
+  [/generator.*(e-?stop|emergency stop)|(e-?stop|emergency stop).*generator/i, "gen", "Generator e-stop"], [/manual transfer/i, "gen", "Manual transfer switch"], [/transfer switch|\bats\b/i, "gen", "Automatic transfer switch"],
+  [/fuel tank|belly tank|day tank/i, "gen", "Fuel tank"], [/\b\d{2,4}\s?kw\b.*(diesel|natural gas)|(diesel|natural gas).*\b\d{2,4}\s?kw\b/i, "gen", "Generator"], [/docking station|generator (inlet|connection)/i, "gen", "Generator docking station / inlet"], [/(?<!(pad|base) .{0,20})\b(generator|genset)\b(?!.{0,20}\b(pad|crane|setting|package)\b)/i, "gen", "Generator"],
   [/disconnect|safety switch|\bdisc\b/i, "gr", "Disconnect"], [/transformer|xfmr/i, "gr", "Transformer"], [/meter (base|socket)|\bmeter\b/i, "gr", "Meter base"], [/service entrance/i, "gr", "Service entrance"], [/(?<!flat |led |light |lay-in |troffer )panel\b(?! light| fixt)|panelboard|load ?center|switchboard|\bmdp\b/i, "gr", "Panel"],
   [/ev charg|evse|electric vehicle/i, "spec", "EV charging outlet"], [/welder/i, "spec", "Welder"], [/\brange\b/i, "spec", "Range"], [/dryer/i, "spec", "Dryer"], [/washer/i, "spec", "Washer"], [/water heater/i, "spec", "Water heater"],
   [/twist.?lock|\bl\d{1,2}-\d{2}/i, "spec", "Twist-lock"], [/\brv\b/i, "spec", "RV"], [/forklift/i, "spec", "Forklift charger"], [/plasma/i, "spec", "Plasma cutter"],
