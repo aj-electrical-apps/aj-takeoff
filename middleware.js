@@ -19,6 +19,7 @@ function needs(path, method) {
   if (/^\/api\/(team-upload|share-upload)/.test(path) || (path === "/api/jobs" && write)) return ["edit"];
   if (path === "/api/settings" && write) return ["lists", "admin"];
   if (/^\/api\/field/.test(path) && write) return ["marks", "order", "scale", "edit"];
+  if (path === "/api/cos" && write) return ["edit", "cost", "marks", "order", "scale"]; // change orders (v185): everyone who works on a job
   return null;
 }
 const fieldBlocked = (path, method) => FIELD_BLOCKED.some(r => r.test(path)) || (["/api/jobs", "/api/settings"].includes(path) && method !== "GET");
