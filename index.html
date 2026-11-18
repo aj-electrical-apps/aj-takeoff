@@ -180,7 +180,7 @@ html, html * { -webkit-tap-highlight-color: transparent; }
 .cmpbar b { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
 .cmp-item { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .cmp-help { flex-basis: 100%; }
-.cmpbar .btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.cmpbar .btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
 .file-acts { display: grid; gap: 8px; }
 .job-find { width: 100%; height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-size: 15px; color: var(--fg); }
 .file-find { display: grid; gap: 8px; }
@@ -520,7 +520,7 @@ li.cnt.pc .cnt-main b::after { content: " · Precon"; font-weight: 600; color: #
 .mk-pin.done .mk-pin-dot { fill: #2f9e44; }
 .mk-pin.done .mk-pin-lbl { fill: #1b6e2f; }
 .pin-picks { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-.pin-picks .btn[aria-pressed="true"] { background: #ffe3e3; border-color: #e03131; }
+.pin-picks .btn[aria-pressed="true"], .look-new .pin-picks .btn[aria-pressed="true"] { background: #c92a2a !important; border-color: #c92a2a !important; color: #fff !important; font-weight: 700; } /* v191: was pale pink with white text in dark mode */
 .btn.pin-done { width: 100%; justify-content: center; background: #2f9e44; border-color: #2f9e44; color: #fff; font-weight: 700; padding: 12px; margin-bottom: 10px; }
 .btn.tool.pin-tool[aria-pressed="true"] { background: #ffe3e3; border-color: #e03131; color: #5a0000; }
 .cnt-n .gq { color: #7048e8; font-weight: 600; }
@@ -559,7 +559,7 @@ li.cnt.pc .cnt-main b::after { content: " · Precon"; font-weight: 600; color: #
 .cnt-sec > button.cnt-sh { flex: 1; width: auto; }
 .cnt-sec .sec-eye, .cnt-sec .sec-only { flex: none; width: auto; padding: 2px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); font-size: 11px; font-weight: 500; color: var(--muted); }
 .cnt-sec .sec-eye[aria-pressed="true"] { background: #495057; color: #fff; border-color: #495057; }
-.cnt-sec .sec-only[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+.cnt-sec .sec-only[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: 700; }
 /* Jonathan 2026-11-04: "the categories (panels, switching...) need to stand out more, they're hard to find when you scroll,
    and the tools at the top need to be smaller so there's more room for the counts" */
 .runs > .psec > h2:first-child, .runs > .psec > .sec-head > h2 { font-size: 15px; letter-spacing: .05em; padding: 6px 8px; margin: 0 -4px; border-radius: 6px; background: var(--accent-soft); color: var(--fg); border-left: 4px solid var(--accent); }
@@ -1020,7 +1020,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v190<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v191<span id="brandPos"></span></small></div>
     <a class="app-switch" id="appSwitch" href="https://aj-pricing-bonuses.vercel.app/" title="Switch to the AJ Leadership app">&#8644; Leadership</a>
     <a class="app-switch" id="subsBtn" href="https://aj-pricing-bonuses.vercel.app/" hidden title="This job's submittal PDFs in the AJ Leadership app">&#128196; Submittals</a>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
