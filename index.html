@@ -1020,7 +1020,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v192<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v193<span id="brandPos"></span></small></div>
     <a class="app-switch" id="appSwitch" href="https://aj-pricing-bonuses.vercel.app/" title="Switch to the AJ Leadership app">&#8644; Leadership</a>
     <a class="app-switch" id="subsBtn" href="https://aj-pricing-bonuses.vercel.app/" hidden title="This job's submittal PDFs in the AJ Leadership app">&#128196; Submittals</a>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
@@ -5034,6 +5034,13 @@ function renderProp() {
   <tr class="no-print pr-int"><td>Production cost at $<input type="number" class="ts-pct" min="0" step="1" id="prProd" value="${tt.prod}" aria-label="Production cost per man hour"> per man hour (${fmtH(tt.hrs)} man hours)</td><td></td><td class="n"><b>${fmt$(tt.hrs * tt.prod)}</b></td></tr>
   <tr class="no-print pr-int"><td>Overhead and retained earnings (the other $${Math.max(0, tt.rate - tt.prod).toLocaleString()} of the $${tt.rate} rate)</td><td></td><td class="n"><b>${fmt$(tt.hrs * Math.max(0, tt.rate - tt.prod))}</b></td></tr>
   ${tt.laborUp ? `<tr class="no-print pr-int"><td>Plus labor markup</td><td></td><td class="n">${fmt$(tt.laborUp)}</td></tr>` : ""}
+  <tr class="sec"><td colspan="3"><label class="ex-row" style="display:inline-flex"><input type="checkbox" id="scShow"${scopeShow(p) ? " checked" : ""}> <span>Break the proposal into sections (what we're installing, no material list)</span></label></td></tr>
+  ${scopeShow(p) ? (() => { const L = scopeLines(), off = p.scopeOff || {}, tx = p.scopeTxt || {}; let last = null;
+    return (L.length ? "" : `<tr class="no-print"><td colspan="3"><small>Nothing placed or drawn${coCur() ? " on this change order" : ""} yet. Add your own lines below.</small></td></tr>`) +
+      L.map(l => { const on = !off[l.key], head = l.sec !== last ? `<tr class="pr-head"><td colspan="3">${esc(l.sec)}</td></tr>` : ""; last = l.sec;
+        return head + `<tr class="${on ? "" : "no-print ex-off"}"><td colspan="3"><label class="ex-row"><input type="checkbox" data-scon="${esc(l.key)}"${on ? " checked" : ""} aria-label="Show this line"> <input class="bid-ln" data-sct="${esc(l.key)}" value="${esc(tx[l.key] != null ? tx[l.key] : l.def)}" style="flex:1"></label></td></tr>`; }).join("") +
+      `<tr class="pr-head"><td colspan="3">Your own lines</td></tr>` + listRows("scopeAdd", p.scopeAdd || (p.scopeAdd = []), "Add a line, like: Gravel backfill is not included") +
+      `<tr class="no-print"><td colspan="3"><small>Uncheck a line to leave it off the proposal. Type over any line to reword it.</small></td></tr>`; })() : ""}
   <tr class="sec"><td colspan="3">Included</td></tr>
   ${listRows("incl", p.incl, "Add an included item, like Temporary power for the job")}
   <tr class="sec"><td colspan="3">Excluded <span class="no-print" style="float:right;display:flex;gap:6px"><button class="btn sm" type="button" id="exAll">${exclStd().every(x => !(p.exclOff || []).includes(x)) ? "Uncheck all" : "Check all"}</button><button class="btn sm" type="button" id="exEdit">${exclEditing ? "Done editing" : "Edit standard list"}</button></span></td></tr>
@@ -5054,7 +5061,6 @@ function renderProp() {
     <label>Bid date<input type="date" data-j="bidDate" value="${esc(job ? job.bidDate || "" : "")}"></label>
     <label>Price good for (days)<input type="number" min="1" data-i="valid" value="${p.info.valid || 30}"></label>
     <label class="wide">Scope of work<textarea data-i="scope" rows="3" placeholder="A few lines about the job, like: Furnish and install the electrical shown on sheets E-001 to E-401.">${esc(p.info.scope || "")}</textarea></label>
-    ${coCur() ? `<div class="wide co-inst"><b>Installing on this change order</b> <small>(goes on the PDF from what's placed and drawn on this change order)</small>${(() => { const li = coInstall(); return li.length ? `<table class="ts-table">${li.map(([k, v]) => `<tr><td>${esc(k)}</td><td class="n">${esc(v)}</td></tr>`).join("")}</table>` : `<p class="hint">Nothing placed or drawn on this change order yet.</p>`; })()}</div>` : ""}
     <label>Your company<input data-c="name" value="${esc(c.name)}"></label>
     <label>Phone<input data-c="phone" value="${esc(c.phone)}"></label>
     <label>Email<input data-c="email" value="${esc(c.email)}"></label>
@@ -5087,6 +5093,12 @@ function renderProp() {
   t.querySelectorAll("[data-mk]").forEach(el => el.onchange = () => { p.mk[el.dataset.mk] = num(el.value); save(); });
   $("prTax").onchange = e => { p.tax = e.target.value === "" ? 10 : num(e.target.value); save(); };
   bindList(t, "incl", p.incl, save); bindList(t, "excl", p.excl, save);
+  $("scShow").onchange = e => { p.scopeShow = e.target.checked; save(); };
+  if (scopeShow(p)) {
+    bindList(t, "scopeAdd", p.scopeAdd, save);
+    t.querySelectorAll("[data-scon]").forEach(el => el.onchange = () => { const o = p.scopeOff || (p.scopeOff = {}); if (el.checked) delete o[el.dataset.scon]; else o[el.dataset.scon] = 1; save(); });
+    t.querySelectorAll("[data-sct]").forEach(el => el.onchange = () => { const o = p.scopeTxt || (p.scopeTxt = {}), d = (scopeLines().find(l => l.key === el.dataset.sct) || {}).def; if (!el.value.trim() || el.value.trim() === d) delete o[el.dataset.sct]; else o[el.dataset.sct] = el.value.trim(); save(false); });
+  }
   t.querySelectorAll("[data-exon]").forEach(el => el.onchange = () => { const x = exclStd()[+el.dataset.exon], off = (p.exclOff || []).filter(y => y !== x); if (!el.checked) off.push(x); p.exclOff = off; save(); });
   $("exAll").onclick = () => { const allOn = exclStd().every(x => !(p.exclOff || []).includes(x)); p.exclOff = allOn ? exclStd() : []; save(); };
   $("exEdit").onclick = () => { exclEditing = !exclEditing; renderTakeoff(); };
@@ -5120,8 +5132,36 @@ function bindList(t, k, list, save) {
   t.querySelector(`[data-ladd="${k}"]`).onclick = add;
   inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); add(); } });
 }
-// change order proposals list what's being installed: every count and footage line on that change order
-const coInstall = () => { const { counts, foot } = takeoffRows(); return [...counts.map(c => [c.name, `${c.qty.toLocaleString()} ${c.unit === "LF" ? "ft" : c.unit || "ea"}`]), ...foot.map(f => [f.label, `${f.total.toLocaleString()} ft`])]; };
+/* Scope breakdown (v193, Jonathan 2026-11-18): the proposal can list the work in sections, like "1,000 ft of 2000A service" or
+   "Gravel backfill", without the material (no "7,200 ft of conduit"). Each line has a checkbox and can be reworded; p.scopeOff and
+   p.scopeTxt hold that by line key, p.scopeAdd holds lines typed in by hand. On by default for change orders, off for the base bid. */
+const scopeShow = p => p.scopeShow != null ? !!p.scopeShow : !!coCur();
+const scopeSecName = k => catOf(k) ? catOf(k).name : k === "other" ? "Other" : SECTION[k] || (GROUPS.find(g => g.key === k) || {}).name || "Devices and equipment";
+function scopeLines() {
+  const { counts, foot } = takeoffRows(), out = [], ft = n => Math.round(n).toLocaleString(), seen = new Set();
+  foot.forEach(f => {
+    if (!f.wid || seen.has(f.wid)) return; seen.add(f.wid);
+    const w = wiresList().find(x => x.id === f.wid); if (!w) return;
+    const ug = hasTrench(w), what = w.label || (isDitch(w) ? "ditch, open and close" : isJH(w) ? "J-hook pathway" : wireShort(w));
+    out.push({ sec: ug ? "Underground" : "Service, feeders and runs", rank: ug ? 1 : 0, key: "w:" + w.id, def: `${ft(f.runLf)} ft of ${what}` });
+  });
+  counts.forEach(c => {
+    if (!c.qty || c.brk) return;
+    if (c.wid) { if (/:fill$/.test(c.id)) { const w = wiresList().find(x => x.id === c.wid); out.push({ sec: "Underground", rank: 1, key: "f:" + c.wid, def: `${w ? w.backfill : "Gravel"} backfill${w && w.label ? " for the " + w.label : ""}` }); } return; }
+    if (c.gravel || c.misc) return;
+    if (wiresList().some(w => w.id === c.id)) return; // J-hooks: the run line covers it
+    out.push({ sec: scopeSecName(c.group), rank: 2 + secRank(c.group) / 1000, key: "d:" + c.id, def: `${(+c.qty).toLocaleString()} ${c.name}` });
+  });
+  return out.sort((a, b) => a.rank - b.rank);
+}
+// what prints: [[section, [text, ...]], ...]
+function scopePrinted(p) {
+  if (!scopeShow(p)) return [];
+  const off = p.scopeOff || {}, tx = p.scopeTxt || {}, secs = new Map();
+  scopeLines().forEach(l => { if (off[l.key]) return; const t = (tx[l.key] != null ? tx[l.key] : l.def).trim(); if (!t) return; if (!secs.has(l.sec)) secs.set(l.sec, []); secs.get(l.sec).push(t); });
+  const add = (p.scopeAdd || []).map(x => x.trim()).filter(Boolean); if (add.length) secs.set("Other items", add);
+  return [...secs];
+}
 async function makeProposal() {
   const JsPDF = await loadJsPdf(), p = propOf(), c = company(), tt = propTotals(), j = job || { name: "Example job" };
   const doc = new JsPDF({ unit: "pt", format: "letter" }), W = 612, M = 54;
@@ -5151,7 +5191,8 @@ async function makeProposal() {
   [["Project", j.name], ["Customer", j.customer], ["Attention", p.info.attn], ["Job address", j.address], ["Bid date", j.bidDate && new Date(j.bidDate + "T12:00").toLocaleDateString()]].filter(r => r[1]).forEach(([k, v]) => { doc.setFont("helvetica", "bold"); doc.setFontSize(10.5); doc.text(k, M, y); doc.setFont("helvetica", "normal"); doc.text(String(v), M + 90, y); y += 15; });
   y += 6;
   if (p.info.scope) { text("Scope of work", 12, "bold"); text(p.info.scope); y += 6; }
-  if (coCur()) { const li = coInstall(); if (li.length) { text("Installing on this change order", 12, "bold"); li.forEach(([k, v]) => { need(15); doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.splitTextToSize(k, W - 2 * M - 110).forEach((ln, i) => { if (i) need(14); doc.text(ln, M + 10, y); if (!i) doc.text(v, W - M, y, { align: "right" }); y += 14; }); y += 1; }); y += 6; } }
+  { const secs = scopePrinted(p); if (secs.length) { text(coCur() ? "Work on this change order" : "Work included", 12, "bold");
+    secs.forEach(([sec, list]) => { need(30); text(sec, 10.5, "bold", M + 6); list.forEach(x => { need(14); doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.text("•", M + 14, y); doc.splitTextToSize(x, W - 2 * M - 28).forEach((ln, i) => { if (i) need(14); doc.text(ln, M + 26, y); y += 14; }); }); y += 3; }); y += 6; } }
   text("Price", 12, "bold");
   if (p.showBreak) {
     const line = (k, v) => { need(15); doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.text(k, M + 10, y); doc.text(money(v), W - M, y, { align: "right" }); y += 15; };
