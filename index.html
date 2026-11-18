@@ -293,7 +293,7 @@ html.look-new body { font-family: var(--font-ui); }
 @media print { .app-switch { display: none !important; } }
 .brand-logo { height: 28px; width: auto; flex: none; background: #fff; border-radius: 6px; padding: 3px 5px; box-sizing: content-box; }
 /* what each position can do (Admin page, Positions) */
-.no-cost :is(#bidBtn, #tsBidTab, #tsPropTab), .no-tracker #trkBtn, .no-lists :is(#tsAsmTab, #tsRateTab), .no-hours #tsHoursTab,
+.no-cost :is(#bidBtn, #tsBidTab, #tsPropTab, #tsCoTab), .no-tracker #trkBtn, .no-lists :is(#tsAsmTab, #tsRateTab), .no-hours #tsHoursTab,
 .no-counts :is(#tsCountTab, #tsSupTab, #tsUgTab), .no-order #tsOrderTab, .no-scale :is(#measureBtn, #scaleBtn) { display: none !important; }
 .role-field.can-scale:not(.no-scale) #scaleBtn { display: inline-flex !important; }
 .role-field .mk-office { opacity: .3; }
@@ -609,6 +609,7 @@ li.cnt.pc .cnt-main b::after { content: " · Precon"; font-weight: 600; color: #
 
 /* Scale dialog */
 .modal { position: fixed; inset: 0; z-index: 25; display: grid; place-items: center; background: rgb(0 0 0 / .35); padding: 16px; }
+#coModal { z-index: 26; } /* v189: opens over the Change orders tab */
 .modal-card { width: min(460px, 100%); max-height: 100%; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; display: grid; gap: 14px; }
 .modal-card h2 { margin: 0; font-size: 20px; text-wrap: balance; cursor: move; user-select: none; }
 .modal-card.dragging { user-select: none; box-shadow: 0 10px 30px rgb(0 0 0 / .3); }
@@ -1016,7 +1017,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v188<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v189<span id="brandPos"></span></small></div>
     <a class="app-switch" id="appSwitch" href="https://aj-pricing-bonuses.vercel.app/" title="Switch to the AJ Leadership app">&#8644; Leadership</a>
     <a class="app-switch" id="subsBtn" href="https://aj-pricing-bonuses.vercel.app/" hidden title="This job's submittal PDFs in the AJ Leadership app">&#128196; Submittals</a>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
@@ -1692,6 +1693,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
       <button class="btn" type="button" id="tsHoursTab" aria-pressed="false">Man hours</button>
       <button class="btn" type="button" id="tsRateTab" aria-pressed="false">Labor rates</button>
       <button class="btn" type="button" id="tsPropTab" aria-pressed="false">Proposal</button>
+      <button class="btn" type="button" id="tsCoTab" aria-pressed="false">Change orders</button>
       <button class="btn ts-dbo" type="button" id="tsDbo" aria-pressed="false" title="Adds a breaker for every dedicated item, plus one 20A breaker per 5 lights and per 6 receptacles">Design build options</button>
       <button class="btn" type="button" id="tsRomex" aria-pressed="false" title="Switches every MC feed and every MC cable wire type to Romex (NM-B) of the same size. Conduit and low-voltage feeds stay as they are. Click again to put them back to MC.">All Romex</button>
       <label class="ts-all" id="tsAllBox"><span>Add to all footage</span><input type="number" id="tsAll" class="ts-pct" min="0" max="100" step="1" placeholder="%"><span>%</span><button class="btn sm" type="button" id="tsAllSet">Apply</button></label>
@@ -5094,7 +5096,7 @@ function renderProp() {
   t.querySelectorAll("[data-appd]").forEach(b => b.onclick = async () => { await appxPut(b.dataset.appd, null); save(); });
   ["A", "B", "C"].forEach(async L => { const r = await appxGet(L), el = $("prF" + L); if (!el) return; el.textContent = r ? r.name : "No file yet"; const d = t.querySelector(`[data-appd="${L}"]`); if (d) d.hidden = !r; });
   $("prBreak").onchange = e => { p.showBreak = e.target.checked; save(false); };
-  $("prMake").onclick = saveProposal;
+  $("prMake").onclick = () => saveProposal();
 }
 function listRows(k, list, ph) {
   return list.map((x, i) => `<tr><td colspan="2"><input class="bid-ln" data-l="${k}" data-li="${i}" value="${esc(x)}"></td><td class="n no-print"><button class="btn sm" type="button" data-ldel="${k}" data-li="${i}">Delete</button></td></tr>`).join("") +
@@ -5189,10 +5191,13 @@ async function makeProposal() {
   for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(120); const pw = doc.internal.pageSize.getWidth(), ph = doc.internal.pageSize.getHeight(); doc.text(`${c.name || "AJ Electrical"} · ${j.name} · page ${i} of ${n}`, pw / 2, ph - 14, { align: "center" }); doc.setTextColor(0); }
   return new File([doc.output("blob")], coCur() ? `${safeName(j.name)} CO${coCur().n}.pdf` : `${safeName(j.name)} proposal.pdf`, { type: "application/pdf" });
 }
-async function saveProposal() {
+async function saveProposal(forCo) {
   let file;
   busy("Making the proposal…", 0.2);
-  try { file = await makeProposal(); } catch (e) { busy(null, null); return toast("Couldn't make the proposal. Check your internet and try again."); }
+  // forCo (Change orders tab): make that change order's proposal (null = the base bid) without switching what's being worked on
+  const was = coScope; if (forCo !== undefined && typeof forCo !== "object") coScope = forCo || null;
+  try { file = await makeProposal(); } catch (e) { coScope = was; busy(null, null); return toast("Couldn't make the proposal. Check your internet and try again."); }
+  coScope = was;
   busy(null, null);
   trkAddJob(true); // the base bid's numbers and every change order's, whichever was just made
   if (await mcpReady) {
@@ -5470,7 +5475,7 @@ $("coTbl").addEventListener("click", e => {
   }
 });
 $("coBtn").onclick = () => { if (!job) return toast("Open a job first."); renderCo(); $("coModal").hidden = false; };
-$("coClose").onclick = () => { $("coModal").hidden = true; };
+$("coClose").onclick = () => { $("coModal").hidden = true; if (!$("takeoffModal").hidden && tsView === "cos") renderTakeoff(); };
 $("coModal").addEventListener("keydown", e => { if (e.key === "Escape") $("coModal").hidden = true; });
 $("coNew").onclick = () => {
   const list = coList(), n = list.reduce((m, c) => Math.max(m, c.n), 0) + 1;
@@ -5867,6 +5872,13 @@ function renderTakeoff() {
   $("tsCountTab").setAttribute("aria-pressed", tsView === "count"); $("tsSupTab").setAttribute("aria-pressed", sup); $("tsNotesTab").setAttribute("aria-pressed", notes); $("tsAsmTab").setAttribute("aria-pressed", tsView === "asm");
   $("tsBidTab").setAttribute("aria-pressed", tsView === "bid"); $("tsRateTab").setAttribute("aria-pressed", tsView === "rate"); $("tsPropTab").setAttribute("aria-pressed", tsView === "prop"); $("tsDbo").setAttribute("aria-pressed", dboOn()); $("tsRomex").setAttribute("aria-pressed", romexOn()); $("tsRomex").textContent = romexOn() ? "Back to MC" : "All Romex"; $("tsRomex").hidden = tsView !== "count";
   $("tsOrderTab").setAttribute("aria-pressed", tsView === "order"); $("tsHoursTab").setAttribute("aria-pressed", tsView === "hours");
+  $("tsCoTab").setAttribute("aria-pressed", tsView === "cos"); $("tsCopy").hidden = $("tsEmail").hidden = tsView === "cos";
+  if (tsView === "cos") {
+    $("tsTitle").textContent = "Change orders"; $("tsAllBox").hidden = true;
+    $("tsJob").innerHTML = `<b>${esc(job ? job.name : "Example job")}</b> · ${new Date().toLocaleDateString()}<br>AJ Electrical`;
+    $("tsHint").textContent = "Every change order on this job. Tap Open proposal to look at one and change it, or Print or save PDF to make its proposal right away.";
+    return renderCoTab();
+  }
   if (tsView === "hours") {
     $("tsTitle").textContent = "Man hours"; $("tsAllBox").hidden = true;
     $("tsJob").innerHTML = `<b>${esc(job ? job.name : "Example job")}</b> · ${new Date().toLocaleDateString()}<br>AJ Electrical`;
@@ -6396,6 +6408,25 @@ $("tsBidTab").onclick = () => { tsView = "bid"; renderTakeoff(); };
 $("tsHoursTab").onclick = () => { tsView = "hours"; renderTakeoff(); };
 $("tsRateTab").onclick = () => { tsView = "rate"; renderTakeoff(); };
 $("tsPropTab").onclick = () => { tsView = "prop"; renderTakeoff(); };
+$("tsCoTab").onclick = () => { tsView = "cos"; renderTakeoff(); };
+/* Change orders tab (v189, Jonathan 2026-11-18: "add a tab for the change orders so I can look at and print proposals for each one") */
+function renderCoTab() {
+  const t = $("tsTable"), list = job ? coList().slice().sort((a, b) => a.n - b.n) : [];
+  $("tsEmpty").hidden = true;
+  const btns = id => `<td class="no-print co-acts" style="text-align:right;white-space:nowrap"><button class="btn sm" type="button" data-coopen="${esc(id)}">Open proposal</button> <button class="btn sm primary" type="button" data-copdf="${esc(id)}">Print or save PDF</button></td>`;
+  t.innerHTML = `<thead><tr><th>Change order</th><th>Date</th><th>What changed</th><th class="n">Price</th><th class="no-print"></th></tr></thead><tbody>` +
+    list.map(c => `<tr class="${c.id === coScope ? "on" : ""}"><td><b>CO ${c.n}</b>${c.name ? ` · ${esc(c.name)}` : ""}${c.id === coScope ? ` <small class="hint no-print">(working on it)</small>` : ""}</td><td>${esc(c.date || "")}</td><td>${esc(c.desc || "")}</td><td class="n"><b>${fmt$(coTotal(c.id))}</b></td>${btns(c.id)}</tr>`).join("") +
+    (list.length ? "" : `<tr><td colspan="5"><p class="hint">${job ? "No change orders on this job yet. Tap Add a change order to start one." : "Open a job to see its change orders."}</p></td></tr>`) +
+    (job ? `<tr class="sec no-print"><td colspan="5">Base bid (not a change order)</td></tr><tr class="no-print"><td>Base bid proposal</td><td></td><td></td><td class="n"><b>${fmt$(coTotal(null))}</b></td>${btns("")}</tr>
+    <tr class="no-print"><td colspan="5"><button class="btn" type="button" id="coTabNew">+ Add a change order</button></td></tr>` : "") + `</tbody>`;
+  t.querySelectorAll("[data-coopen]").forEach(b => b.onclick = () => {
+    const id = b.dataset.coopen || null; if (id !== (coScope || null)) coSet(id);
+    tsView = "prop"; renderTakeoff(); tsTop();
+    const c = coCur(); toast(c ? `Now on ${coLabel(c)}. Anything you place or draw goes on it. Tap Base bid at the top to go back.` : "Showing the base bid proposal.");
+  });
+  t.querySelectorAll("[data-copdf]").forEach(b => b.onclick = () => saveProposal(b.dataset.copdf || null));
+  const nb = $("coTabNew"); if (nb) nb.onclick = () => { renderCo(); $("coModal").hidden = false; $("coNew").click(); };
+}
 $("tsOrderTab").onclick = () => { tsView = "order"; renderTakeoff(); tsTop(); };
 /* All Romex: one click turns every MC feed (and MC cable wire type) into Romex of the same size; job.romexBack remembers what changed so a second click puts it back */
 let exampleRomexBack = null;
@@ -6430,7 +6461,7 @@ $("tsAll").addEventListener("keydown", e => { if (e.key === "Enter") { e.prevent
 $("tsClose").onclick = $("tsCloseTop").onclick = () => { $("takeoffModal").hidden = true; };
 // every sheet opens at the top (the Done at the bottom used to pull it down)
 const tsTop = () => { const c = $("takeoffModal").querySelector(".modal-card"); if (c) c.scrollTop = 0; $("takeoffModal").scrollTop = 0; };
-["tsCountTab", "tsSupTab", "tsUgTab", "tsNotesTab", "tsAsmTab", "tsBidTab", "tsRateTab", "tsPropTab"].forEach(id => $(id).addEventListener("click", tsTop));
+["tsCountTab", "tsSupTab", "tsUgTab", "tsNotesTab", "tsAsmTab", "tsBidTab", "tsRateTab", "tsPropTab", "tsCoTab"].forEach(id => $(id).addEventListener("click", tsTop));
 $("takeoffModal").addEventListener("keydown", e => { if (e.key === "Escape") $("takeoffModal").hidden = true; });
 $("tsCopy").onclick = async () => {
   try { await navigator.clipboard.writeText(tsView === "order" ? orderText() : tsView === "bid" ? bidText() : tsView === "ug" ? ugText() : takeoffText()); toast(tsView === "bid" ? "Bid sheet copied." : tsView === "ug" ? "Underground sheet copied. Paste it into an email or text." : "Material list copied. Paste it into an email or text."); }
