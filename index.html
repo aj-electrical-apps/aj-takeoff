@@ -1020,7 +1020,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v191<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v192<span id="brandPos"></span></small></div>
     <a class="app-switch" id="appSwitch" href="https://aj-pricing-bonuses.vercel.app/" title="Switch to the AJ Leadership app">&#8644; Leadership</a>
     <a class="app-switch" id="subsBtn" href="https://aj-pricing-bonuses.vercel.app/" hidden title="This job's submittal PDFs in the AJ Leadership app">&#128196; Submittals</a>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
@@ -4920,7 +4920,15 @@ const propOf = () => {
   const o = coCur() || job || (window.exampleProp = window.exampleProp || {});
   // a change order starts with the base bid's markups, tax and company info
   const p = o.prop || (o.prop = coCur() && job.prop ? JSON.parse(JSON.stringify({ mk: job.prop.mk, tax: job.prop.tax, prod: job.prop.prod, info: { ...(job.prop.info || {}), scope: coCur().desc || "" } })) : {});
-  if (!p.quotes) p.quotes = [["gear", "Gear"], ["light", "Lighting"], ["switch", "Switching"]].map(([k, name]) => ({ k, name, base: 0, ve: 0, useVe: false }));
+  // v192 (Jonathan 2026-11-18): Misc material, Wire and Conduit quote lines under Switching
+  const QX = [["misc", "Misc material"], ["wire", "Wire"], ["conduit", "Conduit"]];
+  if (!p.quotes) { p.quotes = [["gear", "Gear"], ["light", "Lighting"], ["switch", "Switching"], ...QX].map(([k, name]) => ({ k, name, base: 0, ve: 0, useVe: false })); p.q192 = 1; }
+  if (!p.q192) { // older proposals get them once (deleting one later keeps it gone)
+    let at = p.quotes.findIndex(q => q.k === "switch"); at = at < 0 ? p.quotes.length : at + 1;
+    const have = new Set(p.quotes.map(q => (q.name || "").trim().toLowerCase()));
+    p.quotes.splice(at, 0, ...QX.filter(([k, name]) => !p.quotes.some(q => q.k === k) && !have.has(name.toLowerCase())).map(([k, name]) => ({ k, name, base: 0, ve: 0, useVe: false })));
+    p.q192 = 1;
+  }
   if (!p.subs) p.subs = ["Fire alarm", "Low voltage", "Lightning protection", "Underground"].map(name => ({ name, amt: 0, ve: 0, useVe: false }));
   if (!p.mk) p.mk = { mat: 0, labor: 0, sub: 0 };
   if (p.tax == null) p.tax = 10;
