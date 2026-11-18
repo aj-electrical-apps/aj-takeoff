@@ -1016,7 +1016,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v187<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v188<span id="brandPos"></span></small></div>
     <a class="app-switch" id="appSwitch" href="https://aj-pricing-bonuses.vercel.app/" title="Switch to the AJ Leadership app">&#8644; Leadership</a>
     <a class="app-switch" id="subsBtn" href="https://aj-pricing-bonuses.vercel.app/" hidden title="This job's submittal PDFs in the AJ Leadership app">&#128196; Submittals</a>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
@@ -3679,14 +3679,31 @@ async function symOcrSheet(pg) {
   if (out.length) { pg.words = out; savePage(pg, pages.indexOf(pg)); }
   return out;
 }
-function symBest(img, cx, cy, R, rots, set = sym.fine) { // best match of the sharp template near cx,cy (page px) within R
-  const sc = sym.sc, T0 = set[0], half = Math.max(T0.w, T0.h) / 2 / sc, rx = Math.max(0, cx - R - half), ry = Math.max(0, cy - R - half);
+function symBest(img, cx, cy, R, rots, set = sym.fine, sc = sym.scP || sym.sc) { // best match of the sharp template near cx,cy (page px) within R
+  const T0 = set[0], half = Math.max(T0.w, T0.h) / 2 / sc, rx = Math.max(0, cx - R - half), ry = Math.max(0, cy - R - half);
   const rw = Math.min(img.width - rx, 2 * (R + half)), rh = Math.min(img.height - ry, 2 * (R + half)); if (rw < 4 || rh < 4) return null;
   const P = symInk(img, rx, ry, rw, rh, sc, true), I = symIntegral(P); let best = null;
   rots.forEach(ri => { const T = set[ri];
-    for (let y = 0; y + T.h <= P.h; y++) for (let x = 0; x + T.w <= P.w; x++) { const s = symScore(P, I, T, x, y); if (!best || s > best.s) best = { s, x: rx + (x + T.w / 2) / sc, y: ry + (y + T.h / 2) / sc }; } });
+    for (let y = 0; y + T.h <= P.h; y++) for (let x = 0; x + T.w <= P.w; x++) { const s = symScore(P, I, T, x, y); if (!best || s > best.s) best = { s, x: rx + (x + T.w / 2) / sc, y: ry + (y + T.h / 2) / sc, ri }; } });
   return best;
 }
+/* v188 size check (Jonathan 2026-11-18: "if I scale the drawings first, could it check measurement, so it matches the same size
+   symbols that look the same"). When the sheet has a scale, the boxed symbol's real size is known. Each match is compared with the
+   symbol at its own size and at a quarter bigger and smaller. If a bigger or smaller version fits it better, it's a look-alike of a
+   different size (a 4" can vs a 6" can, a 1x1 vs a 2x2), so its circle starts unchecked. Click it to bring it back.
+   A sheet with a different scale than the one the symbol was boxed on is searched with the symbol resized to the same real size. */
+function symSizeOk(img, c, set) {
+  const sc = sym.scP || sym.sc, R = Math.max(4, sym.size * sym.k * .12), rots = c.ri == null ? [0, 1, 2, 3] : [c.ri];
+  const here = symBest(img, c.x, c.y, R, rots, set, sc); if (!here) return true;
+  for (const f of [.8, 1.25]) { const o = symBest(img, c.x, c.y, R, rots, set, sc * f); if (o && o.s > .35 && o.s > here.s + .04) return false; }
+  return true;
+}
+function symInkBox(img, q) { // tight box (page px) around the ink of rect q, for showing the symbol's real size
+  const sc = Math.min(1, 200 / Math.max(q.w, q.h)), t = symInk(img, q.x, q.y, q.w, q.h, sc, false); let x0 = t.w, y0 = t.h, x1 = -1, y1 = -1;
+  for (let y = 0; y < t.h; y++) for (let x = 0; x < t.w; x++) if (t.d[y * t.w + x] > .4) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  return x1 < 0 ? { w: q.w, h: q.h } : { w: (x1 - x0 + 1) / sc, h: (y1 - y0 + 1) / sc };
+}
+const symFtIn = ft => { const i = Math.round(ft * 12); return i < 12 ? `${i}"` : fmtFt(ft).replace(" 0\"", ""); };
 async function symLearn(pg, r) {
   if (r.w < 6 || r.h < 6) return toast("That box was too small. Drag a box around one symbol and its label.");
   const img = await symBmp(pg), size = Math.max(r.w, r.h), sc = Math.min(1, 40 / size), cs = Math.min(sc * .5, Math.sqrt(2.5e6 / (img.width * img.height)));
@@ -3705,16 +3722,21 @@ async function symLearn(pg, r) {
       { x: L.x + L.w, y: r.y, w: r.x + r.w - L.x - L.w, h: r.h }, { x: r.x, y: r.y, w: L.x - r.x, h: r.h }].filter(q => q.w >= 6 && q.h >= 4);
     let bestQ = null, bestInk = 0;
     parts.forEach(q => { const t = symInk(img, q.x, q.y, q.w, q.h, sc, false); let ink = 0; for (const v of t.d) ink += v; if (ink > bestInk) { bestInk = ink; bestQ = q; } });
-    if (bestQ) { sym.body = rots(symInk(img, bestQ.x, bestQ.y, bestQ.w, bestQ.h, sc, true), 3); sym.bodySize = Math.max(bestQ.w, bestQ.h); }
+    if (bestQ) { sym.body = rots(symInk(img, bestQ.x, bestQ.y, bestQ.w, bestQ.h, sc, true), 3); sym.bodySize = Math.max(bestQ.w, bestQ.h); sym.bodyQ = bestQ; }
   }
+  sym.ftPerPx = pg.ftPerPx || null; // the sheet's scale, for the size check
+  if (sym.ftPerPx) { const ib = symInkBox(img, sym.bodyQ || r); sym.realW = ib.w * sym.ftPerPx; sym.realH = ib.h * sym.ftPerPx; }
   sym.mode = (pg.words || []).length && sym.tag ? "tag" : "shape";
   sym.thr = sym.mode === "tag" ? 50 : 80; $("symThr").value = sym.thr;
   await symSearch(pg);
 }
 async function symSearch(pg) {
   if (!sym) return;
-  const img = await symBmp(pg), out = []; let noSym = 0;
+  const img = await symBmp(pg), out = []; let noSym = 0, wrongSize;
   const words = pg.words || [], tagMode = words.length && sym.tag;
+  // size check only when both sheets have a scale; k = how many times bigger the same real size is on this sheet
+  const sizeOn = !!(sym.ftPerPx && pg.ftPerPx), k0 = sizeOn ? sym.ftPerPx / pg.ftPerPx : 1, k = k0 > .2 && k0 < 5 ? k0 : 1;
+  sym.k = k; sym.scP = sym.sc / k; sym.sizeOn = sizeOn;
   busy("Finding symbols…", 0, tagMode ? `Looking for ${sym.tag} next to its symbol, on this computer` : "Comparing the symbol across the sheet, on this computer");
   try {
     if (tagMode) {
@@ -3726,34 +3748,40 @@ async function symSearch(pg) {
       for (let i = 0; i < hits.length; i++) {
         const w = hits[i], [lx, ly] = symCenter(w);
         let b = null;
-        if (sym.off && !sym.body) b = symBest(img, lx + sym.off[0], ly + sym.off[1], Math.max(6, sym.size * .2), [0]);
-        const R = Math.max(30, Math.min(bs * 1.6, w[4] * 4)); // fixtures sit within a few letter heights of their tag
+        if (sym.off && !sym.body) b = symBest(img, lx + sym.off[0] * k, ly + sym.off[1] * k, Math.max(6, sym.size * k * .2), [0]);
+        const R = Math.max(30, Math.min(bs * k * 1.6, w[4] * 4)); // fixtures sit within a few letter heights of their tag
         const near = symBest(img, lx, ly, R, [0, 1, 2, 3], set);
         if (near) { near.s -= .3 * Math.hypot(near.x - lx, near.y - ly) / R; if (!b || near.s > b.s) b = near; } // closer wins ties
         // the tag is what counts: one dot per tag, on the symbol when one is found beside it, else on the tag itself
-        if (b && b.s >= .35) out.push({ x: b.x, y: b.y, s: 1, tag: true }); else { out.push({ x: lx, y: ly, s: 1, tag: true, onTag: true }); noSym++; }
+        if (b && b.s >= .35) { const okSz = !sizeOn || symSizeOk(img, b, b === near ? set : sym.fine);
+          out.push({ x: b.x, y: b.y, s: 1, tag: true, ...(okSz ? {} : { off: true, wrongSize: true }) }); } else if (sizeOn && (() => { // no symbol of the right size beside the tag: is a bigger or smaller one there?
+          let o = null; for (const f of [.67, .8, 1.25, 1.5]) { const q = symBest(img, lx, ly, R, [0, 1, 2, 3], set, sym.scP * f); if (q && q.s >= .5 && (!o || q.s > o.s)) o = q; }
+          if (o) out.push({ x: o.x, y: o.y, s: 1, tag: true, off: true, wrongSize: true }); return !!o; })()) {} else { out.push({ x: lx, y: ly, s: 1, tag: true, onTag: true }); noSym++; }
         if (i % 5 === 0) { busy("Finding symbols…", i / hits.length); await new Promise(res => setTimeout(res)); }
       }
       sym.hits = hits.length;
     } else {
       // no text on this sheet: shape only, strict. A blurred quick pass, then each spot is checked sharp.
-      const PC = symInk(img, 0, 0, img.width, img.height, sym.cs, true), IC = symIntegral(PC), coarse = [];
+      const cs = sym.cs / k, PC = symInk(img, 0, 0, img.width, img.height, cs, true), IC = symIntegral(PC), coarse = [];
       for (let ri = 0; ri < 4; ri++) {
         const T = sym.coarse[ri];
         for (let y = 0; y + T.h <= PC.h; y++) {
-          for (let x = 0; x + T.w <= PC.w; x++) { const s = symScore(PC, IC, T, x, y); if (s > .5) coarse.push({ x: (x + T.w / 2) / sym.cs, y: (y + T.h / 2) / sym.cs, s }); }
+          for (let x = 0; x + T.w <= PC.w; x++) { const s = symScore(PC, IC, T, x, y); if (s > .5) coarse.push({ x: (x + T.w / 2) / cs, y: (y + T.h / 2) / cs, s }); }
           if (y % 40 === 0) { busy("Finding symbols…", (ri + y / PC.h) / 6); await new Promise(res => setTimeout(res)); }
         }
       }
       coarse.sort((a, b) => b.s - a.s);
-      const keep = []; coarse.forEach(c => { if (keep.length < 400 && !keep.some(k => Math.hypot(k.x - c.x, k.y - c.y) < sym.size * .6)) keep.push(c); });
-      keep.forEach(c => { const b = symBest(img, c.x, c.y, sym.size * .25, [0, 1, 2, 3]); if (b && b.s > .5) out.push(b); });
+      const keep = []; coarse.forEach(c => { if (keep.length < 400 && !keep.some(q => Math.hypot(q.x - c.x, q.y - c.y) < sym.size * k * .6)) keep.push(c); });
+      for (let i = 0; i < keep.length; i++) { const c = keep[i], b = symBest(img, c.x, c.y, sym.size * k * .25, [0, 1, 2, 3]); if (b && b.s > .5) out.push(b);
+        if (i % 20 === 0) { busy("Finding symbols…", (4 + 2 * i / keep.length) / 6); await new Promise(res => setTimeout(res)); } }
     }
   } finally { busy(null, null); }
   out.sort((a, b) => b.s - a.s);
-  const fin = []; out.forEach(c => { if (tagMode || !fin.some(k => Math.hypot(k.x - c.x, k.y - c.y) < sym.rad)) fin.push(c); }); // tags never merge: each one is a fixture
-  sym.cands = fin.filter(c => !pg.devices.some(v => Math.hypot(v.x - c.x, v.y - c.y) < sym.rad)); // already has a dot
-  sym.had = fin.length - sym.cands.length; sym.noSym = noSym; sym.mode = tagMode ? "tag" : "shape"; sym.pgId = pg.id;
+  const rad = sym.rad * k, fin = []; out.forEach(c => { if (tagMode || !fin.some(q => Math.hypot(q.x - c.x, q.y - c.y) < rad)) fin.push(c); }); // tags never merge: each one is a fixture
+  if (sizeOn && !tagMode) fin.forEach(c => { if (c.s * 100 >= sym.thr && !symSizeOk(img, c, sym.fine)) { c.off = true; c.wrongSize = true; } });
+  sym.cands = fin.filter(c => !pg.devices.some(v => Math.hypot(v.x - c.x, v.y - c.y) < rad)); // already has a dot
+  wrongSize = sym.cands.filter(c => c.wrongSize).length;
+  sym.had = fin.length - sym.cands.length; sym.noSym = noSym; sym.wrongSize = wrongSize; sym.radP = rad; sym.mode = tagMode ? "tag" : "shape"; sym.pgId = pg.id;
   symShow(); drawOverlay();
 }
 function symShow() {
@@ -3763,7 +3791,8 @@ function symShow() {
   $("symThr").closest(".row").hidden = sym.mode === "tag"; // by tag every exact tag counts, so there's nothing to slide
   $("symMsg").innerHTML = sym.pgId !== (pages[current] || {}).id ? `Looking for <b>${esc(nm)}</b>. Click <b>Search this sheet</b> to look on this sheet.`
     : (sym.mode === "tag" ? `Found <b>${on}</b> ${esc(sym.tag)} symbol${on === 1 ? "" : "s"} by the <b>${esc(sym.tag)}</b> tags on this sheet${sym.had ? ` (${sym.had} already had a dot)` : ""}${sym.sched ? `. Skipped ${sym.sched} in a schedule` : ""}${sym.noSym ? `. ${sym.noSym} didn't have a clear symbol beside the tag, so ${sym.noSym === 1 ? "its dot sits" : "their dots sit"} on the tag. Check ${sym.noSym === 1 ? "that one" : "those"}` : ""}.`
-      : `Found <b>${on}</b> look-alike${on === 1 ? "" : "s"} for <b>${esc(nm)}</b> by shape only, since this sheet has no text to read the tag from${sym.had ? ` (${sym.had} already had a dot)` : ""}.`) + ` Click a blue circle to drop a wrong one.${sym.mode === "tag" ? "" : " Slide right to be pickier."}`;
+      : `Found <b>${on}</b> look-alike${on === 1 ? "" : "s"} for <b>${esc(nm)}</b> by shape only, since this sheet has no text to read the tag from${sym.had ? ` (${sym.had} already had a dot)` : ""}.`) + (sym.sizeOn ? ` <b>Size check is on</b>${sym.realW ? ` (the symbol you boxed is about ${symFtIn(sym.realW)} × ${symFtIn(sym.realH)})` : ""}${sym.wrongSize ? `: <b>${sym.wrongSize}</b> look${sym.wrongSize === 1 ? "s" : ""} the same but ${sym.wrongSize === 1 ? "is" : "are"} a different size, so ${sym.wrongSize === 1 ? "it's" : "they're"} left out (faded circle${sym.wrongSize === 1 ? "" : "s"}). Click one to bring it back.` : "."}`
+      : (sym.ftPerPx || (pages[current] || {}).ftPerPx ? "" : " Tip: set the scale on the sheet first and it also checks each symbol's size.")) + ` Click a blue circle to drop a wrong one.${sym.mode === "tag" ? "" : " Slide right to be pickier."}`;
   $("symAdd").textContent = on ? `Add ${on} dot${on === 1 ? "" : "s"}` : "Add dots"; $("symAdd").disabled = !on;
 }
 $("symBtn").onclick = () => {
@@ -3785,7 +3814,7 @@ $("symAdd").onclick = () => {
 // clicking a found circle drops it (or brings it back)
 $("sheet").addEventListener("click", e => {
   if (!sym || !sym.cands.length || tool || hlMode || sym.pgId !== (pages[current] || {}).id) return;
-  const q = imgPoint(e); let best = null, bd = sym.rad;
+  const q = imgPoint(e); let best = null, bd = sym.radP || sym.rad;
   sym.cands.forEach(c => { if (c.s * 100 < sym.thr) return; const d = Math.hypot(c.x - q[0], c.y - q[1]); if (d <= bd) { bd = d; best = c; } });
   if (!best) return; e.stopImmediatePropagation(); best.off = !best.off; symShow(); drawOverlay();
 }, true);
@@ -6666,8 +6695,8 @@ function drawOverlay() {
     g.appendChild(svgEl("rect", { x: Math.min(a[0], b[0]), y: Math.min(a[1], b[1]), width: Math.abs(a[0] - b[0]), height: Math.abs(a[1] - b[1]), class: "mk-box", ...ns }));
   }
   if (sym && sym.pgId === p.id) sym.cands.forEach(c => { if (c.s * 100 < sym.thr) return;
-    const el = svgEl("circle", { cx: c.x, cy: c.y, r: sym.rad, class: "mk-cand" + (c.off ? " off" : ""), ...ns });
-    el.appendChild(svgEl("title", {}, c.off ? "Dropped. Click to bring it back." : `Match ${Math.round(c.s * 100)}%. Click to drop it.`)); g.appendChild(el); });
+    const el = svgEl("circle", { cx: c.x, cy: c.y, r: sym.radP || sym.rad, class: "mk-cand" + (c.off ? " off" : ""), ...ns });
+    el.appendChild(svgEl("title", {}, c.off ? (c.wrongSize ? "Looks the same but is a different size, so it was left out. Click to bring it back." : "Dropped. Click to bring it back.") : `Match ${Math.round(c.s * 100)}%. Click to drop it.`)); g.appendChild(el); });
   svg.appendChild(g);
 }
 
