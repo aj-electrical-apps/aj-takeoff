@@ -652,6 +652,7 @@ td .bid-ln[data-q], td .bid-ln[data-s] { width: calc(100% - 80px); }
 .pr-other { width: 180px !important; }
 #tsTable input[data-f="name"] { width: 170px; }
 .pr-natl { width: 110px !important; margin-right: 6px; }
+.pr-qtax { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; white-space: nowrap; font-size: 12px; } .pr-qtax .ts-pct { width: 76px !important; padding-left: 4px; padding-right: 4px; }
 .pr-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 8px; }
 .pr-lists label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
 .pr-lists textarea { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 6px; font: inherit; }
@@ -1020,7 +1021,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v193<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v194<span id="brandPos"></span></small></div>
     <a class="app-switch" id="appSwitch" href="https://aj-pricing-bonuses.vercel.app/" title="Switch to the AJ Leadership app">&#8644; Leadership</a>
     <a class="app-switch" id="subsBtn" href="https://aj-pricing-bonuses.vercel.app/" hidden title="This job's submittal PDFs in the AJ Leadership app">&#128196; Submittals</a>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
@@ -4986,15 +4987,17 @@ const AJ_LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABLAAAAEBCAYAAABoj
 const company = () => { if (!companyCache) { try { companyCache = JSON.parse(localStorage.getItem("aj-company") || "null"); } catch (e) {} companyCache = companyCache || { name: "AJ Electrical", phone: "", email: "", address: "", license: "" }; } return companyCache; };
 const saveCompany = () => { try { localStorage.setItem("aj-company", JSON.stringify(company())); } catch (e) {} settingsTouch("aj-company"); };
 const qAmt = q => +(q.useVe && +q.ve ? q.ve : q.base) || 0;
+// v194 (Jonathan 2026-11-18): each supplier quote can have its own tax %; blank uses the "Tax on material" % below
+const qTax = (q, p) => q.tax != null && q.tax !== "" ? +q.tax || 0 : +p.tax || 0;
 function propTotals() {
   const p = propOf(), bt = bidTotals(bidRows());
   const mat = p.quotes.reduce((t, q) => t + qAmt(q), 0), sub = p.subs.reduce((t, s) => t + (+(s.useVe && +s.ve ? s.ve : s.amt) || 0), 0);
   const matUp = mat * (+p.mk.mat || 0) / 100, labor = bt.total, laborUp = labor * (+p.mk.labor || 0) / 100, subUp = sub * (+p.mk.sub || 0) / 100;
-  const tax = mat * (+p.tax || 0) / 100; // on the supplier material cost
+  const tax = p.quotes.reduce((t, q) => t + qAmt(q) * qTax(q, p) / 100, 0); // on the supplier material cost, each quote at its own %
   const total = mat + matUp + tax + labor + laborUp + sub + subUp;
   // VE alternates not taken show as deducts
   const ve = p.quotes.concat(p.subs.map(s => ({ name: s.name, base: s.amt, ve: s.ve, useVe: s.useVe, sub: true })))
-    .filter(q => +q.ve && !q.useVe && +q.ve < +q.base).map(q => { const d = +q.base - +q.ve, up = q.sub ? +p.mk.sub : +p.mk.mat; return { name: q.name, deduct: d * (1 + (up || 0) / 100) + (q.sub ? 0 : d * (+p.tax || 0) / 100) }; });
+    .filter(q => +q.ve && !q.useVe && +q.ve < +q.base).map(q => { const d = +q.base - +q.ve, up = q.sub ? +p.mk.sub : +p.mk.mat; return { name: q.name, deduct: d * (1 + (up || 0) / 100) + (q.sub ? 0 : d * qTax(q, p) / 100) }; });
   return { hrs: bt.hrs, rate: bt.rate, prod: p.prod != null ? +p.prod : 33, labor, laborUp, mat, matUp, tax, sub, subUp, total, ve };
 }
 // appendix files live in this browser, one per letter
@@ -5014,8 +5017,8 @@ function renderProp() {
   let h = `<tbody>
   <tr class="sec"><td colspan="3">Supplier quotes <button class="btn sm no-print" type="button" id="prLists" style="float:right">${prShowLists ? "Close name lists" : "Edit name lists"}</button></td></tr>
   ${prShowLists ? `<tr class="no-print"><td colspan="3"><div class="pr-lists">${Object.keys(VLISTS).map(k => `<label>${VLISTS[k].title} (one per line)<textarea rows="8" data-vl="${k}">${esc(vendors(k).join("\n"))}</textarea></label>`).join("")}</div><button class="btn sm primary" type="button" id="prListsSave">Save the lists</button> <button class="btn sm" type="button" id="prListsReset">Put back the starting names</button></td></tr>` : ""}
-  <tr class="pr-head"><td>Item</td><td class="n">Supplier · National account · Quote $</td><td class="n">VE price $ · use VE</td></tr>
-  ${p.quotes.map((q, i) => `<tr><td><input class="bid-ln" data-q="${i}" data-f="name" value="${esc(q.name)}" aria-label="Quote name"> <button class="btn sm no-print" type="button" data-qdel="${i}">Delete</button></td><td class="n">${vendorIn(`data-q="${i}"`, q.vendor, "Supplier", "sup")} ${vendorIn(`data-q="${i}"`, q.natl, "National acct", "natl", "natl", "pr-natl")} ${money(q.base, `data-q="${i}" data-f="base" aria-label="${esc(q.name)} quote"`)}</td><td class="n">${money(q.ve, `data-q="${i}" data-f="ve" aria-label="${esc(q.name)} VE price"`)} <input type="checkbox" data-q="${i}" data-f="useVe"${q.useVe ? " checked" : ""} aria-label="Use VE price for ${esc(q.name)}"></td></tr>`).join("")}
+  <tr class="pr-head"><td>Item</td><td class="n">Supplier · National account · Quote $ · Tax %</td><td class="n">VE price $ · use VE</td></tr>
+  ${p.quotes.map((q, i) => `<tr><td><input class="bid-ln" data-q="${i}" data-f="name" value="${esc(q.name)}" aria-label="Quote name"> <button class="btn sm no-print" type="button" data-qdel="${i}">Delete</button></td><td class="n">${vendorIn(`data-q="${i}"`, q.vendor, "Supplier", "sup")} ${vendorIn(`data-q="${i}"`, q.natl, "National acct", "natl", "natl", "pr-natl")} ${money(q.base, `data-q="${i}" data-f="base" aria-label="${esc(q.name)} quote"`)} <span class="pr-qtax" title="Tax % on this quote. Leave it blank to use the Tax on material % below."><input type="number" class="ts-pct" min="0" max="30" step="0.01" data-q="${i}" data-f="tax" value="${q.tax != null && q.tax !== "" ? q.tax : ""}" placeholder="${+p.tax || 0}" aria-label="Tax percent on ${esc(q.name)}">% tax</span></td><td class="n">${money(q.ve, `data-q="${i}" data-f="ve" aria-label="${esc(q.name)} VE price"`)} <input type="checkbox" data-q="${i}" data-f="useVe"${q.useVe ? " checked" : ""} aria-label="Use VE price for ${esc(q.name)}"></td></tr>`).join("")}
   <tr class="no-print"><td colspan="3"><button class="btn sm" type="button" id="prAddQ">+ Add a quote</button></td></tr>
   <tr class="sec"><td colspan="3">Sub-contractor quotes</td></tr>
   ${p.subs.map((s, i) => `<tr><td><input class="bid-ln" data-s="${i}" data-f="name" value="${esc(s.name)}" aria-label="Sub name"> <button class="btn sm no-print" type="button" data-sdel="${i}">Delete</button></td><td class="n">${vendorIn(`data-s="${i}"`, s.vendor, "Sub company", subList(s.name))} ${money(s.amt, `data-s="${i}" data-f="amt" aria-label="${esc(s.name)} quote"`)}</td><td class="n">${money(s.ve, `data-s="${i}" data-f="ve" aria-label="${esc(s.name)} VE price"`)} <input type="checkbox" data-s="${i}" data-f="useVe"${s.useVe ? " checked" : ""} aria-label="Use VE price for ${esc(s.name)}"></td></tr>`).join("")}
@@ -5025,7 +5028,7 @@ function renderProp() {
   <tr><td>Labor markup <input type="number" class="ts-pct" min="0" max="200" step="0.5" data-mk="labor" value="${p.mk.labor || ""}" placeholder="0"> %</td><td></td><td class="n">${fmt$(tt.laborUp)}</td></tr>
   ${row("Supplier material (quotes, with VE where picked)", tt.mat)}
   <tr><td>Material markup <input type="number" class="ts-pct" min="0" max="200" step="0.5" data-mk="mat" value="${p.mk.mat || ""}" placeholder="0"> %</td><td></td><td class="n">${fmt$(tt.matUp)}</td></tr>
-  <tr><td>Tax on material <input type="number" class="ts-pct" min="0" max="30" step="0.25" id="prTax" value="${p.tax}"> %</td><td></td><td class="n">${fmt$(tt.tax)}</td></tr>
+  <tr><td>Tax on material <small>(a quote with its own tax % uses that)</small> <input type="number" class="ts-pct" min="0" max="30" step="0.25" id="prTax" value="${p.tax}"> %</td><td></td><td class="n">${fmt$(tt.tax)}</td></tr>
   ${row("Sub-contractors", tt.sub)}
   <tr><td>Sub markup <input type="number" class="ts-pct" min="0" max="200" step="0.5" data-mk="sub" value="${p.mk.sub || ""}" placeholder="0"> %</td><td></td><td class="n">${fmt$(tt.subUp)}</td></tr>
   ${row("Proposal total", tt.total, "bid-tot grand")}
@@ -5072,7 +5075,7 @@ function renderProp() {
   t.innerHTML = h + Object.keys(VLISTS).map(k => `<datalist id="prList-${k}">${vendors(k).map(v => `<option value="${esc(v)}">`).join("")}</datalist>`).join("");
   const save = (re = true) => { if (job) saveJob(job); if (re) renderTakeoff(); };
   const num = v => Math.max(0, +v || 0);
-  t.querySelectorAll("[data-q]").forEach(el => el.onchange = () => { const q = p.quotes[el.dataset.q], f = el.dataset.f; if (f === "natl") { q.natl = el.value.trim(); addVendor("natl", q.natl); return save(false); } if (f === "vendor") { q.vendor = el.value.trim(); return save(false); } q[f] = f === "name" ? el.value : f === "useVe" ? el.checked : num(el.value); save(); });
+  t.querySelectorAll("[data-q]").forEach(el => el.onchange = () => { const q = p.quotes[el.dataset.q], f = el.dataset.f; if (f === "natl") { q.natl = el.value.trim(); addVendor("natl", q.natl); return save(false); } if (f === "vendor") { q.vendor = el.value.trim(); return save(false); } q[f] = f === "name" ? el.value : f === "useVe" ? el.checked : f === "tax" ? (el.value === "" ? null : num(el.value)) : num(el.value); save(); });
   t.querySelectorAll("[data-s]").forEach(el => el.onchange = () => { const q = p.subs[el.dataset.s], f = el.dataset.f; if (f === "vendor") { q.vendor = el.value.trim(); return save(false); } q[f] = f === "name" ? el.value : f === "useVe" ? el.checked : num(el.value); save(); });
   t.querySelectorAll("[data-vsel]").forEach(sel => sel.onchange = () => {
     const [kind, i] = sel.dataset.vsel.split("="), q = (kind === "data-q" ? p.quotes : p.subs)[i], box = sel.nextElementSibling;
@@ -5196,7 +5199,7 @@ async function makeProposal() {
   text("Price", 12, "bold");
   if (p.showBreak) {
     const line = (k, v) => { need(15); doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.text(k, M + 10, y); doc.text(money(v), W - M, y, { align: "right" }); y += 15; };
-    line("Labor", tt.labor + tt.laborUp); line("Material", tt.mat + tt.matUp); line(`Tax (${p.tax}%)`, tt.tax);
+    line("Labor", tt.labor + tt.laborUp); line("Material", tt.mat + tt.matUp); { const rs = [...new Set(p.quotes.filter(q => qAmt(q)).map(q => qTax(q, p)))]; line(rs.length > 1 ? "Tax" : `Tax (${rs.length ? rs[0] : p.tax}%)`, tt.tax); }
     p.subs.filter(s => +s.amt).forEach(s => line(s.name, (+(s.useVe && +s.ve ? s.ve : s.amt)) * (1 + (+p.mk.sub || 0) / 100)));
   }
   need(24); doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.text(coCur() ? "Total change order" : "Total base bid", M + 10, y + 4); doc.text(money(tt.total), W - M, y + 4, { align: "right" }); y += 24;
