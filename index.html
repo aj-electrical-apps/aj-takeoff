@@ -413,7 +413,8 @@ html.look-new body { font-family: var(--font-ui); }
 .ug-check small { font-weight: 400; color: var(--muted); }
 #wireForm .ug-check { display: flex; flex-direction: row; align-items: center; flex-wrap: wrap; }
 #wireForm .ug-check input { width: 18px; height: 18px; margin: 0; flex: none; }
-#wireForm.nosweep .sweep-opt, #wireForm.dt .wire-only, #wireForm.dt .pipe-row, #wireForm.dt .jh-hide, #wireForm.dt .ugk-only, #wireForm.dt .spacer-opt, #wireForm.ug .wire-only, #wireForm:not(.ug):not(.tr):not(.ptr):not(.dt) .ug-only, #wireForm.tr .ugk-only, #wireForm.jh .wire-only, #wireForm.jh .pipe-row, #wireForm.jh .jh-hide, #wireForm:not(.jh) .jh-only, #wireForm.pl .wire-only:not(.ug-check) { display: none; }
+#wIdBox { display: grid; gap: 10px; }
+#wireForm:not(.idx) .idx-only, #wireForm.nopipe #wIdBox, #wireForm.nosweep .sweep-opt, #wireForm.dt .wire-only, #wireForm.dt .pipe-row, #wireForm.dt .jh-hide, #wireForm.dt .ugk-only, #wireForm.dt .spacer-opt, #wireForm.ug .wire-only, #wireForm:not(.ug):not(.tr):not(.ptr):not(.dt) .ug-only, #wireForm.tr .ugk-only, #wireForm.jh .wire-only, #wireForm.jh .pipe-row, #wireForm.jh .jh-hide, #wireForm:not(.jh) .jh-only, #wireForm.pl .wire-only:not(.ug-check) { display: none; }
 .ug-sheets { display: none; }
 @media print { body.print-ts .ug-sheets { display: block; } .ug-sheets figure { break-before: page; margin: 0; } .ug-sheets figcaption { font: 600 12pt sans-serif; margin-bottom: 6px; } .ug-sheets img { width: 100%; max-height: 9.3in; object-fit: contain; } }
 .amp-box { display: grid; gap: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
@@ -1035,7 +1036,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v197<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v198<span id="brandPos"></span></small></div>
     <a class="app-switch" id="appSwitch" href="https://aj-pricing-bonuses.vercel.app/" title="Switch to the AJ Leadership app">&#8644; Leadership</a>
     <a class="app-switch" id="subsBtn" href="https://aj-pricing-bonuses.vercel.app/" hidden title="This job's submittal PDFs in the AJ Leadership app">&#128196; Submittals</a>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
@@ -1921,6 +1922,13 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
     <div class="sched two pipe-row">
       <div class="opt"><label for="wConduit">Conduit</label><select id="wConduit"></select></div>
       <div class="opt"><label for="wSize">Conduit size</label><select id="wSize"></select></div>
+    </div>
+    <div class="idx-box pipe-row" id="wIdBox">
+      <label class="opt ug-check"><input type="checkbox" id="wInner"> Inner duct <small>(off unless you check it; when on, it goes on the count and supplier sheets)</small></label>
+      <div class="sched two idx-only">
+        <div class="opt"><label for="wInnerN">Inner ducts in each conduit</label><select id="wInnerN"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></div>
+        <div class="opt"><label for="wInnerSz">Inner duct size</label><select id="wInnerSz"><option>3/4"</option><option>1"</option><option>1-1/4"</option><option>1-1/2"</option><option>2"</option></select></div>
+      </div>
     </div>
     <div class="sched three wire-only">
       <div class="opt"><label for="wCount">How many wires</label><input type="number" id="wCount" min="1" max="40" step="1" inputmode="numeric"></div>
@@ -4625,6 +4633,9 @@ function takeoffRows() {
       add(`${w.id}:w`, `${gaugeTxt(w.gauge)} ${w.ins} ${mat}`, `${w.count * sets} wires × ${fmtLF(lf)} · ${wireLabel(w)}`, lf * w.count * sets, `${gaugeTxt(w.gauge)} ${w.ins} ${mat === "AL" ? "aluminum" : "copper"} wire`);
       if (w.ground) add(`${w.id}:g`, `${gaugeTxt(w.ground)} ground ${mat}`, `${sets} ground${sets > 1 ? "s" : ""} × ${fmtLF(lf)} · ${wireLabel(w)}`, lf * sets, `${gaugeTxt(w.ground)} ${mat === "AL" ? "aluminum" : "copper"} ground wire`);
     }
+    // inner duct (v198): only when checked on the run type; feet = conduit feet × inner ducts in each conduit
+    if (w.inner && !NOPIPE.includes(w.conduit)) { const pr = isUG(w) || isPull(w) ? w.runs || 1 : sets, n = w.innerN || 1;
+      add(`${w.id}:id`, `${innerName(w)}`, `${n > 1 ? `${n} in each conduit × ` : ""}${pr > 1 ? `${pr} conduits × ` : ""}${fmtLF(lf)} · ${wireLabel(w)}`, lf * pr * n, innerName(w)); }
     if (hasTrench(w)) foot.forEach(f => { if (f.key === `${w.id}:c`) f.ug = true; }); // no straps underground
   });
   counts.filter(c => c.feed && c.feed.ft).forEach(c => {
@@ -4735,6 +4746,8 @@ function supplierRows() {
   });
   const fittings = [];
   fit.forEach((v, nm) => {
+    // HDPE comes on reels: a coupling about every 500', no connectors or straps (type over any of these on the supplier sheet)
+    if (isHdpe(nm.replace(/^\S+" /, ""))) { fittings.push({ name: `${nm} coupling`, qty: Math.ceil(v.lf / 500) }); return; }
     fittings.push({ name: `${nm} coupling`, qty: Math.ceil(v.lf / 10) }, { name: `${nm} connector`, qty: Math.ceil((v.lf - v.connLf) / 100) + v.conn });
     if (v.lf - v.ug > 0) fittings.push({ name: `${nm} strap`, qty: Math.ceil((v.lf - v.ug) / 3) });
   });
@@ -4825,8 +4838,9 @@ function laborKeyForMat(name) {
     const sz = g >= 12 ? (n <= 2 ? "12/2" : "12/3") : g >= 10 ? (n <= 2 ? "10/2" : "10/3") : g >= 8 ? "8/3" : "6/3";
     return "mc|" + sz;
   }
-  let m = name.match(/^(.+?)" (EMT|PVC Sch 40|PVC Sch 80|Rigid \(RMC\)|IMC) conduit$/);
-  if (m) { const z = m[1].replace("-", " "), t = { "EMT": "emt", "PVC Sch 40": "pvc40", "PVC Sch 80": "pvc80", "Rigid (RMC)": "rigid", "IMC": "rigid" }[m[2]]; return `${t}|${z}`; }
+  let m = name.match(/^(.+?)" (EMT|PVC Sch 40|PVC Sch 80|Rigid \(RMC\)|IMC|HDPE thin \(SDR 13\.5\)|HDPE thick \(SDR 11\)) conduit$/);
+  // HDPE has no hours on the labor sheet yet: thin wall uses PVC Sch 40 hours, thick wall Sch 80 (placeholder)
+  if (m) { const z = m[1].replace("-", " "), t = { "EMT": "emt", "PVC Sch 40": "pvc40", "PVC Sch 80": "pvc80", "Rigid (RMC)": "rigid", "IMC": "rigid", [HDPE_THIN]: "pvc40", [HDPE_THICK]: "pvc80" }[m[2]]; return `${t}|${z}`; }
   m = name.match(/^(?:#(\S+)|(\d{3}) kcmil) (.*?)\s*(copper|aluminum)( ground)? wire$/);
   if (m) {
     const g = m[1] || m[2], ins = m[3] || "";
@@ -6210,7 +6224,7 @@ const impWireFt = id => impList().reduce((t, im) => (im.co || null) !== (coScope
 // a new run type from an imported footage line: conduit and size from its words, wire to pick next in the run type window
 function impWireNew(it) {
   const t = `${it.desc} ${it.tag}`;
-  const conduit = /pvc[^,]*80|sch(edule)?\.?\s*80/i.test(t) ? "PVC Sch 80" : /pvc/i.test(t) ? "PVC Sch 40" : /rigid|\brmc\b|\bgrc\b/i.test(t) ? "Rigid (RMC)" : /\bimc\b/i.test(t) ? "IMC"
+  const conduit = /hdpe|\bhdp\b/i.test(t) ? (/sdr\s*13|thin/i.test(t) ? HDPE_THIN : HDPE_THICK) : /pvc[^,]*80|sch(edule)?\.?\s*80/i.test(t) ? "PVC Sch 80" : /pvc/i.test(t) ? "PVC Sch 40" : /rigid|\brmc\b|\bgrc\b/i.test(t) ? "Rigid (RMC)" : /\bimc\b/i.test(t) ? "IMC"
     : /seal ?tite|lfmc|liquid/i.test(t) ? "Sealtite (LFMC)" : /flex|\bfmc\b/i.test(t) ? "Flex (FMC)" : /\bmc\b/i.test(t) ? "MC cable" : /romex|nm-?b/i.test(t) ? "Romex (NM-B)"
     : /\bemt\b/i.test(t) ? "EMT" : /thhn|thwn|xhhw|\bwire\b/i.test(t) ? "No conduit" : "EMT";
   const m = t.match(/(\d+(?:[- ]\d\/\d)?|\d\/\d)\s*(?:"|''|in\b\.?|inch)/i) || t.match(/\b(\d+(?:[- ]\d\/\d)?|\d\/\d)\b/);
@@ -7598,7 +7612,10 @@ let runType = null, contRun = null; // the type being drawn, and the run being m
 let exampleWires = [];
 const wiresList = () => job ? (job.wireTypes || (job.wireTypes = [])) : exampleWires;
 const wireOf = id => id ? wiresList().find(w => w.id === id) : null;
-const CONDUITS = ["EMT", "PVC Sch 40", "PVC Sch 80", "Rigid (RMC)", "IMC", "Flex (FMC)", "Sealtite (LFMC)", "MC cable", "Romex (NM-B)", "No conduit"];
+/* v198 HDPE (Jonathan 2026-11-20 "add HDPE thin and thick"): the two common electrical HDPE walls, SDR 13.5 (thinner) and SDR 11 (thicker) */
+const HDPE_THIN = "HDPE thin (SDR 13.5)", HDPE_THICK = "HDPE thick (SDR 11)";
+const isHdpe = c => /^HDPE/.test(c || "");
+const CONDUITS = ["EMT", "PVC Sch 40", "PVC Sch 80", HDPE_THIN, HDPE_THICK, "Rigid (RMC)", "IMC", "Flex (FMC)", "Sealtite (LFMC)", "MC cable", "Romex (NM-B)", "No conduit"];
 const NOPIPE = ["MC cable", "Romex (NM-B)", "No conduit"]; // cable types: no conduit size
 const CSIZES = ['1/2"', '3/4"', '1"', '1-1/4"', '1-1/2"', '2"', '2-1/2"', '3"', '3-1/2"', '4"'];
 const GAUGES = ["14", "12", "10", "8", "6", "4", "3", "2", "1", "1/0", "2/0", "3/0", "4/0", "250", "300", "350", "400", "500", "600", "750"];
@@ -7654,13 +7671,14 @@ function wireLabel(w) {
   return wireSpec(w);
 }
 const wireShort = w => isDitch(w) ? `Open and close ditch${w.label ? "" : ` · ${w.depth || 24}" deep`}` : isJH(w) ? `J-hooks every ${w.interval || 5}'` : isPull(w) ? `${w.size} ${w.conduit} · pull string${hasTrench(w) ? " underground" : ""}` : isUG(w) ? `${w.size} ${w.conduit} underground` : w.amps ? `${w.amps} amp${hasTrench(w) ? " underground" : ""}` : `${w.conduit === "No conduit" || NOPIPE.includes(w.conduit) ? w.conduit === "No conduit" ? "" : w.conduit + " " : w.size + " " + w.conduit + " · "}${w.count}x ${gaugeTxt(w.gauge)}${hasTrench(w) ? " underground" : ""}`;
+const innerTxt = w => w && w.inner && !NOPIPE.includes(w.conduit) ? ` with ${(w.innerN || 1) > 1 ? w.innerN + "× " : ""}${innerName(w)}` : "";
 function wireSpec(w) {
   if (isDitch(w)) return `Open and close ditch, no conduit · ${trenchLabel(w)}`;
-  if (isUG(w)) return `${(w.runs || 1) > 1 ? `${w.runs} runs of ` : ""}${w.size} ${w.conduit} underground · ${trenchLabel(w)}`;
+  if (isUG(w)) return `${(w.runs || 1) > 1 ? `${w.runs} runs of ` : ""}${w.size} ${w.conduit}${innerTxt(w)} underground · ${trenchLabel(w)}`;
   if (isJH(w)) return `J-hooks every ${w.interval || 5}'`;
-  if (isPull(w)) return `${(w.runs || 1) > 1 ? `${w.runs} runs of ` : ""}${w.size} ${w.conduit} · pull string${w.trench ? ` · underground ${trenchLabel(w)}` : ""}`;
+  if (isPull(w)) return `${(w.runs || 1) > 1 ? `${w.runs} runs of ` : ""}${w.size} ${w.conduit}${innerTxt(w)} · pull string${w.trench ? ` · underground ${trenchLabel(w)}` : ""}`;
   const sets = w.sets > 1 ? `${w.sets} sets of ` : "", amps = w.amps ? `${w.amps}A ${w.mat === "AL" ? "AL" : "CU"} · ` : "";
-  const pipe = w.conduit === "No conduit" ? "" : w.conduit === "MC cable" || w.conduit === "Romex (NM-B)" ? w.conduit : `${w.size} ${w.conduit}`;
+  const pipe = w.conduit === "No conduit" ? "" : w.conduit === "MC cable" || w.conduit === "Romex (NM-B)" ? w.conduit : `${w.size} ${w.conduit}${innerTxt(w)}`;
   const wire = `${w.count}x ${gaugeTxt(w.gauge)} ${w.ins}` + (w.ground ? ` + ${gaugeTxt(w.ground)} GND` : "");
   return amps + sets + (pipe ? `${pipe} · ${wire}` : wire) + (w.trench ? ` · underground ${trenchLabel(w)}` : "");
 }
@@ -7749,6 +7767,9 @@ const hooksOf = w => pages.reduce((t, pg) => t + pg.runs.filter(r => r.typeId ==
 const sweepFields = () => ({ sweep: +$("wSweep").value, sweepR: +$("wSweepR").value || 24, sweepSch: +$("wSweepSch").value || 40 });
 const sweepRFor = size => { const n = parseFloat(String(size).replace(/ (\d)\/(\d)/, (m, a, b) => "." + String(a / b).slice(2))) || 0; return n > 4 ? 36 : 24; };
 const sweepName = w => `${w.size} ${/rigid|rmc|imc|galv/i.test(w.conduit) ? w.conduit : "PVC Sch " + (w.sweepSch || 40)} 90° sweep, ${w.sweepR || 24}" radius`;
+// inner duct (v198): off unless checked; how many go in each conduit and their size
+const innerFields = () => $("wInner").checked && !NOPIPE.includes($("wConduit").value) ? { inner: true, innerN: +$("wInnerN").value || 1, innerSz: $("wInnerSz").value || '1"' } : { inner: false };
+const innerName = w => `${w.innerSz || '1"'} inner duct`;
 function wireFields() {
   const label = $("wLabel").value.trim();
   if ($("wKind").value === "jhook") return { label, kind: "jhook", interval: Math.max(1, Math.min(20, +$("wHook").value || 5)), conduit: "No conduit", size: "", count: 0, gauge: "", ins: "", ground: "", color: $("wColor").value, sets: 1, mat: "CU", amps: null };
@@ -7756,14 +7777,14 @@ function wireFields() {
     trench: true, depth: +$("wDepth").value, backfill: $("wFill").value, width: +$("wWidth").value || 30, fillDepth: $("wFillDepth").value, spacer: 0 };
   const wFor = $("wFor").value || undefined;
   if ($("wKind").value === "pull") return { label, kind: "pull", for: wFor, conduit: $("wConduit").value, size: $("wSize").value, count: 0, gauge: "", ins: "", ground: "", color: $("wColor").value, sets: 1, mat: "CU", amps: null,
-    runs: $("wTrench").checked ? Math.max(1, Math.min(20, parseInt($("wRuns").value, 10) || 1)) : 1,
+    runs: $("wTrench").checked ? Math.max(1, Math.min(20, parseInt($("wRuns").value, 10) || 1)) : 1, ...innerFields(),
     ...($("wTrench").checked ? { trench: true, depth: +$("wDepth").value, backfill: $("wFill").value, width: +$("wWidth").value || 30, fillDepth: $("wFillDepth").value, spacer: +$("wSpacer").value || 0, ...sweepFields() } : {}) };
   if ($("wKind").value === "ug") return { label, kind: "ug", for: wFor, conduit: $("wConduit").value, size: $("wSize").value, count: 0, gauge: "", ins: "", ground: "", color: $("wColor").value,
     sets: 1, mat: "CU", amps: null, depth: +$("wDepth").value, backfill: $("wFill").value,
-    width: +$("wWidth").value || 30, runs: Math.max(1, Math.min(20, parseInt($("wRuns").value, 10) || 1)), fillDepth: $("wFillDepth").value, spacer: +$("wSpacer").value || 0, ...sweepFields() };
+    width: +$("wWidth").value || 30, runs: Math.max(1, Math.min(20, parseInt($("wRuns").value, 10) || 1)), fillDepth: $("wFillDepth").value, spacer: +$("wSpacer").value || 0, ...sweepFields(), ...innerFields() };
   return { label, kind: "wire", for: wFor, conduit: $("wConduit").value, size: $("wSize").value, count: Math.max(1, Math.min(40, parseInt($("wCount").value, 10) || 1)),
     gauge: $("wGauge").value, ins: $("wIns").value, ground: $("wGround").value, color: $("wColor").value,
-    sets: Math.max(1, Math.min(12, parseInt($("wSets").value, 10) || 1)), mat: $("wMat").value, amps: parseInt($("wAmps").value, 10) || null,
+    sets: Math.max(1, Math.min(12, parseInt($("wSets").value, 10) || 1)), mat: $("wMat").value, amps: parseInt($("wAmps").value, 10) || null, ...innerFields(),
     ...($("wTrench").checked ? { trench: true, depth: +$("wDepth").value, backfill: $("wFill").value, width: +$("wWidth").value || 30, fillDepth: $("wFillDepth").value, spacer: +$("wSpacer").value || 0, ...sweepFields() } : {}) };
 }
 function wirePreview() {
@@ -7774,6 +7795,8 @@ function wirePreview() {
   $("wireForm").classList.toggle("ptr", $("wKind").value === "pull" && $("wTrench").checked);
   $("wireForm").classList.toggle("dt", $("wKind").value === "ditch");
   $("wireForm").classList.toggle("nosweep", $("wSweep").value === "0");
+  $("wireForm").classList.toggle("idx", $("wInner").checked);
+  $("wireForm").classList.toggle("nopipe", NOPIPE.includes($("wConduit").value));
   $("wSize").disabled = NOPIPE.includes($("wConduit").value);
   const w = wireFields();
   $("wirePrev").textContent = wireLabel(w);
@@ -7783,7 +7806,7 @@ function wirePreview() {
   el.textContent = !f ? "" : `Conduit fill about ${Math.round(f.used * 100)}% (EMT sizes; ${Math.round(f.max * 100)}% allowed)` +
     (f.used > f.max ? `. Too full: try ${conduitFor(w)}.` : ".");
 }
-["wLabel", "wConduit", "wSize", "wCount", "wGauge", "wIns", "wGround", "wSets", "wDepth", "wFill", "wWidth", "wRuns", "wFillDepth", "wSpacer", "wTrench", "wSweep", "wSweepR", "wSweepSch"].forEach(id => $(id).addEventListener("input", wirePreview));
+["wLabel", "wConduit", "wSize", "wCount", "wGauge", "wIns", "wGround", "wSets", "wDepth", "wFill", "wWidth", "wRuns", "wFillDepth", "wSpacer", "wTrench", "wSweep", "wSweepR", "wSweepSch", "wInner", "wInnerN", "wInnerSz"].forEach(id => $(id).addEventListener("input", wirePreview));
 $("wKind").addEventListener("input", () => {
   // underground runs are usually PVC; going back to wire picks EMT again
   if ($("wKind").value === "ug" && ["EMT", "MC cable", "Romex (NM-B)", "No conduit", "Flex (FMC)", "Sealtite (LFMC)"].includes($("wConduit").value)) $("wConduit").value = "PVC Sch 40";
@@ -7841,6 +7864,7 @@ function openWire(id) {
   $("wColor").value = w.color || PALETTE[(list.length + 3) % PALETTE.length];
   $("wLabel").value = w.label || ""; $("wKind").value = ["ug", "jhook", "pull", "ditch"].includes(w.kind) ? w.kind : "wire"; $("wHook").value = w.interval || 5; $("wDepth").value = String(w.depth || 24); $("wFill").value = w.backfill || "None"; $("wWidth").value = String(w.width || 30); $("wRuns").value = w.runs || 1; $("wFillDepth").value = w.fillDepth || "full"; $("wSpacer").value = String(w.spacer || 0); $("wTrench").checked = !!w.trench; $("wFor").value = w.for || ""; if (isPull(w)) $("wKind").value = "pull";
   if (isUG(w)) { $("wCount").value = 3; $("wGauge").value = "12"; $("wIns").value = "STR"; }
+  $("wInner").checked = !!(editingWire && w.inner); $("wInnerN").value = String(w.innerN || 1); $("wInnerSz").value = w.innerSz || '1"';
   $("wSweep").value = String(w.sweep != null ? w.sweep : editingWire ? 0 : 2); $("wSweepR").value = String(w.sweepR || sweepRFor(w.size)); $("wSweepSch").value = String(w.sweepSch || 40);
   $("wireDelete").hidden = !editingWire;
   $("wireSave").textContent = editingWire ? "Save" : "Save and draw";
