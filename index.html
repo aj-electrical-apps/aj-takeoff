@@ -154,6 +154,11 @@ html { touch-action: manipulation; } /* no double-tap page zoom on tablets */
 html, html * { -webkit-tap-highlight-color: transparent; }
 .btn:active:not(:disabled) { filter: brightness(.92); }
 .sheet canvas.sharp { inset: auto; pointer-events: none; }
+/* v197: the plan is painted into one screen-size canvas under the marks (crisp while pinching); the picture stays for size and taps */
+.view-cv { position: absolute; left: 0; top: 0; pointer-events: none; }
+.sheet.cv-on > img { opacity: 0; }
+.sheet.cv-on.repl-old { outline: 3px dashed #f76707; outline-offset: -3px; }
+@media print { .sheet.cv-on > img { opacity: 1; } .view-cv { display: none; } }
 .sharp-btn { position: absolute; top: 44px; right: 12px; font-size: 14px; padding: 8px 14px; box-shadow: 0 3px 12px rgb(0 0 0 / .25); z-index: 3; }
 .stage.panning, .stage.panning * { cursor: grabbing !important; }
 .stage.can-pan, .stage.can-pan * { cursor: grab !important; }
@@ -1030,7 +1035,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v196<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v197<span id="brandPos"></span></small></div>
     <a class="app-switch" id="appSwitch" href="https://aj-pricing-bonuses.vercel.app/" title="Switch to the AJ Leadership app">&#8644; Leadership</a>
     <a class="app-switch" id="subsBtn" href="https://aj-pricing-bonuses.vercel.app/" hidden title="This job's submittal PDFs in the AJ Leadership app">&#128196; Submittals</a>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
@@ -1139,7 +1144,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
       </span>
     </div>
     <section class="viewer" id="viewer">
-      <div class="stage" id="stage"><div class="sheet" id="sheet"><img id="sheetImg" alt="" draggable="false"><canvas id="cmpCanvas" hidden></canvas><svg id="overlay" aria-hidden="true"></svg></div></div>
+      <div class="stage" id="stage"><canvas id="viewCv" class="view-cv" aria-hidden="true" hidden></canvas><div class="sheet" id="sheet"><img id="sheetImg" alt="" draggable="false"><canvas id="cmpCanvas" hidden></canvas><svg id="overlay" aria-hidden="true"></svg></div></div>
       <div class="selbar pnl-wiz" id="pnlWiz" hidden role="status">
         <span id="pnlWizT"></span>
         <button class="btn sm" id="pnlWizSkip" type="button">Skip</button>
@@ -2685,16 +2690,35 @@ async function vecPage(src, n) {
     return new Blob([await d.save({ useObjectStreams: true })], { type: "application/pdf" }); }
   catch (e) { return null; }
 }
-const SHARP_MAX = 8e6; // most device pixels in the sharp layer (iPad Safari tops out near 16.7M per canvas)
+/* v197 crisp zoom (Jonathan 2026-11-20: blurry on the iPad while zooming in AND out, then it clears up).
+   Before, the picture sat in the page and Safari stretched an old snapshot of it while fingers moved, and the sharp
+   piece only covered what was on screen, so zooming out showed the soft picture around it.
+   Now the plan is painted into one screen-size canvas (#viewCv) every time the view moves, from:
+   1. the sheet picture, plus half and quarter size copies (mips) so zoomed-out lines stay clean, not grainy,
+   2. sharp pieces drawn from the sheet's PDF (tiles): what's on screen at full screen detail, then a piece twice as
+      wide and tall around it so zooming back out stays sharp too. The last few are kept; the most detailed one wins.
+   Sharp pieces are drawn as soon as fingers rest for a moment (even before they lift) and right after they lift. */
+const SHARP_MAX = 8e6; // most device pixels in one sharp piece (iPad Safari tops out near 16.7M per canvas)
+const TILE_BUDGET = 20e6; // all kept sharp pieces together (about 80 MB)
 const vecDocs = new Map(); // sheet id -> promise of { doc, page }, the last few opened
-let sharpT = 0, sharpSeq = 0, sharpTask = null;
+let sharpT = 0, sharpSeq = 0, sharpTask = null, tiles = [];
 const hasVec = p => !!(p && (p.vec || (p.cloud && p.cloud.vec)));
-// fingers or a drag are moving the sheet: the sharp layer waits until they stop (it made tablets jumpy, 2026-11-03)
+// fingers or a drag are moving the sheet: sharp pieces wait until they rest (drawing them mid-move made tablets jumpy, 2026-11-03)
 let gestureOn = false;
 const coarse = matchMedia("(pointer: coarse)").matches;
-function sharpSoon() { clearTimeout(sharpT); sharpT = setTimeout(sharpRender, coarse ? 450 : 320); sharpBtnShow(); }
-function sharpHold() { clearTimeout(sharpT); sharpSeq++; if (sharpTask) { try { sharpTask.cancel(); } catch (e) {} sharpTask = null; } }
-function sharpClear() { document.querySelectorAll("#sheet canvas.sharp").forEach(c => { c.width = c.height = 0; c.remove(); }); }
+const viewKey = () => { const p = pages[current]; if (!p || !fit) return ""; const v = viewOf(p); return [p.id, v.z, v.tx, v.ty, fit.dw].join(","); };
+function sharpCancel() { sharpSeq++; if (sharpTask) { try { sharpTask.cancel(); } catch (e) {} sharpTask = null; } }
+function sharpSoon() {
+  clearTimeout(sharpT);
+  if (sharpTask && (gestureOn || sharpTask.vk !== viewKey())) sharpCancel(); // the view moved: stop drawing the old spot
+  sharpT = setTimeout(sharpRender, gestureOn ? 300 : 80); sharpBtnShow();
+}
+function sharpHold() { clearTimeout(sharpT); sharpCancel(); }
+function sharpClear() {
+  tiles.forEach(t => { t.c.width = t.c.height = 0; }); tiles = [];
+  document.querySelectorAll("#sheet canvas.sharp").forEach(c => { c.width = c.height = 0; c.remove(); });
+  vcDraw();
+}
 function vecForget(p) { const e = vecDocs.get(p.id); vecDocs.delete(p.id); e && e.then(o => o && o.doc.destroy()).catch(() => {}); sharpClear(); }
 function vecDoc(p) {
   if (vecDocs.has(p.id)) return vecDocs.get(p.id);
@@ -2716,41 +2740,129 @@ function vecDoc(p) {
 }
 // how many screen pixels one picture pixel takes right now; over ~1.15 the picture looks soft
 const blurAt = (p, v) => fit ? fit.s * v.z * (window.devicePixelRatio || 1) : 0;
-async function sharpRender() {
-  if (gestureOn) return sharpSoon();
-  const seq = ++sharpSeq; if (sharpTask) { try { sharpTask.cancel(); } catch (e) {} sharpTask = null; }
-  const p = pages[current], img = $("sheetImg"), sh = $("sheet");
-  if (!p || !fit || !img.naturalWidth || !window.pdfjsLib) return sharpClear();
-  const v = viewOf(p), dpr = window.devicePixelRatio || 1;
-  if (!hasVec(p) || cmp || (showOld && p.prevBlob) || blurAt(p, v) < 1.15) return sharpClear();
-  // the part of the sheet on screen (plus a little around it for panning), in the sheet's own unzoomed px
-  const vx0 = (-fit.left - v.tx) / v.z, vx1 = (fit.W - fit.left - v.tx) / v.z, vy0 = (-fit.top - v.ty) / v.z, vy1 = (fit.H - fit.top - v.ty) / v.z;
-  const mx = (vx1 - vx0) * .15, my = (vy1 - vy0) * .15;
-  const x0 = Math.max(0, vx0 - mx), x1 = Math.min(fit.dw, vx1 + mx), y0 = Math.max(0, vy0 - my), y1 = Math.min(fit.dh, vy1 + my);
-  if (x1 - x0 < 2 || y1 - y0 < 2) return sharpClear();
-  const key = [p.id, v.z.toFixed(3), x0 | 0, y0 | 0, x1 | 0, y1 | 0, fit.dw | 0, dpr].join(",");
-  const have = sh.querySelector("canvas.sharp"); if (have && have.dataset.key === key) return;
-  // a small pan inside the part already drawn sharp: keep it instead of drawing again
-  if (have && have.dataset.pid === p.id && have.dataset.at) {
-    const a = have.dataset.at.split(",").map(Number);
-    if (a[0] === +v.z.toFixed(3) && a[5] === (fit.dw | 0) && a[6] === dpr && a[1] <= Math.max(0, vx0) + .5 && a[2] <= Math.max(0, vy0) + .5 && a[3] >= Math.min(fit.dw, vx1) - .5 && a[4] >= Math.min(fit.dh, vy1) - .5) return;
+// the screen canvas: picture (right-size copy) + sharp pieces, painted where the sheet's transform puts it right now
+let vcOk = true, vcRaf = 0, vcUntil = 0;
+const mips = { src: "", lv: [] };
+function vcMip(img, r) { // the smallest copy that still has at least r of its pixels per screen pixel
+  const src = img.currentSrc || img.src;
+  if (mips.src !== src) { mips.lv.slice(1).forEach(l => { l.c.width = l.c.height = 0; }); mips.src = src; mips.lv = [{ c: img, w: img.naturalWidth, h: img.naturalHeight, s: 1 }]; }
+  let L = mips.lv[0];
+  for (let i = 1; L.s / 2 >= r && L.w > 1200; i++) {
+    let n = mips.lv[i];
+    if (!n) { // made once per sheet, from the copy above it, so thin lines get averaged instead of skipped
+      const w = Math.round(L.w / 2), h = Math.round(L.h / 2), c = document.createElement("canvas"); c.width = w; c.height = h;
+      const x = c.getContext("2d"); if (!x) break;
+      x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "high"; x.drawImage(L.c, 0, 0, w, h);
+      n = mips.lv[i] = { c, w, h, s: L.s / 2 };
+    }
+    L = n;
   }
-  let e = null; try { e = await vecDoc(p); } catch (er) {}
-  if (seq !== sharpSeq) return;
-  if (!e) return sharpClear();
+  return L;
+}
+function vcPaint(cv, sh, st, img, p) {
+  if (!vcOk || !p || !fit || !img.naturalWidth || !img.complete) return false;
+  const dpr = window.devicePixelRatio || 1, W = st.clientWidth, H = st.clientHeight;
+  const cw = Math.max(1, Math.round(W * dpr)), ch = Math.max(1, Math.round(H * dpr));
+  if (cv.width !== cw) cv.width = cw; if (cv.height !== ch) cv.height = ch;
+  cv.style.width = W + "px"; cv.style.height = H + "px";
+  const x = cv.getContext("2d"); if (!x) { vcOk = false; return false; }
+  x.setTransform(1, 0, 0, 1, 0, 0); x.clearRect(0, 0, cw, ch);
+  // read the transform the screen shows right now (mid-animation for the corner zoom buttons)
+  const t = getComputedStyle(sh).transform, m = t && t !== "none" ? new DOMMatrixReadOnly(t) : new DOMMatrixReadOnly();
+  const z = m.a || 1, X = fit.left + m.e, Y = fit.top + m.f;
+  const u0 = Math.max(0, -X / z), u1 = Math.min(fit.dw, (W - X) / z), v0 = Math.max(0, -Y / z), v1 = Math.min(fit.dh, (H - Y) / z);
+  if (u1 <= u0 || v1 <= v0) return true;
+  // draws src (sw x shh px) that covers the sheet box rx0..rx1, ry0..ry1 (unzoomed sheet px), only the part on screen
+  const put = (src, sw, shh, rx0, ry0, rx1, ry1) => {
+    const a0 = Math.max(u0, rx0), a1 = Math.min(u1, rx1), b0 = Math.max(v0, ry0), b1 = Math.min(v1, ry1);
+    if (a1 <= a0 || b1 <= b0) return;
+    const kx = sw / (rx1 - rx0), ky = shh / (ry1 - ry0);
+    x.drawImage(src, (a0 - rx0) * kx, (b0 - ry0) * ky, (a1 - a0) * kx, (b1 - b0) * ky, (X + a0 * z) * dpr, (Y + b0 * z) * dpr, (a1 - a0) * z * dpr, (b1 - b0) * z * dpr);
+  };
+  x.fillStyle = "#fff"; x.fillRect((X + u0 * z) * dpr, (Y + v0 * z) * dpr, (u1 - u0) * z * dpr, (v1 - v0) * z * dpr);
+  x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "medium";
+  const L = vcMip(img, z * dpr * fit.s);
+  put(L.c, L.w, L.h, 0, 0, fit.dw, fit.dh);
+  if (!cmp && !(showOld && p.prevBlob)) {
+    const dw = fit.dw | 0;
+    tiles.filter(q => q.pid === p.id && q.dw === dw && z * dpr / q.d >= 0.45).sort((a, b) => a.d - b.d)
+      .forEach(q => put(q.c, q.c.width, q.c.height, q.x0, q.y0, q.x1, q.y1));
+  }
+  return true;
+}
+function vcDraw() {
+  const cv = $("viewCv"), sh = $("sheet"); if (!cv || !sh) return false;
+  let on = false; try { on = vcPaint(cv, sh, $("stage"), $("sheetImg"), pages[current]); } catch (e) { vcOk = false; on = false; }
+  sh.classList.toggle("cv-on", on); cv.hidden = !on;
+  return on;
+}
+// the corner and Full sheet buttons slide the sheet over .28s: follow along frame by frame
+function vcKick() {
+  vcUntil = performance.now() + 360;
+  if (!vcRaf) vcRaf = requestAnimationFrame(function f() { vcDraw(); vcRaf = performance.now() < vcUntil ? requestAnimationFrame(f) : 0; });
+}
+// one sharp piece of the PDF: the sheet box x0..x1, y0..y1 at d device px per unzoomed sheet px
+async function tileDraw(e, p, x0, y0, x1, y1, d, seq, vk) {
   const v1 = e.page.getViewport({ scale: 1 });
-  if (Math.abs(v1.width / v1.height - img.naturalWidth / img.naturalHeight) > 0.02) return sharpClear(); // not the same drawing
-  let d = v.z * dpr; // device px per unzoomed sheet px
-  d *= Math.min(1, Math.sqrt(SHARP_MAX / ((x1 - x0) * (y1 - y0) * d * d)));
   const vp = e.page.getViewport({ scale: fit.dw * d / v1.width, offsetX: -x0 * d, offsetY: -y0 * d });
   const c = document.createElement("canvas"); c.className = "sharp"; c.width = Math.max(1, Math.round((x1 - x0) * d)); c.height = Math.max(1, Math.round((y1 - y0) * d));
-  // placed in % of the sheet, so a window resize doesn't knock it off
-  Object.assign(c.style, { left: x0 / fit.dw * 100 + "%", top: y0 / fit.dh * 100 + "%", width: (x1 - x0) / fit.dw * 100 + "%", height: (y1 - y0) / fit.dh * 100 + "%" });
-  const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
-  const task = sharpTask = e.page.render({ canvasContext: ctx, viewport: vp });
-  try { await task.promise; } catch (er) { c.width = c.height = 0; return; }
-  if (seq !== sharpSeq || pages[current] !== p) { c.width = c.height = 0; return; }
-  sharpTask = null; sharpClear(); c.dataset.key = key; c.dataset.pid = p.id; c.dataset.at = [+v.z.toFixed(3), x0, y0, x1, y1, fit.dw | 0, dpr].join(","); sh.insertBefore(c, $("cmpCanvas"));
+  const ctx = c.getContext("2d"); if (!ctx) return null;
+  ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+  const task = sharpTask = e.page.render({ canvasContext: ctx, viewport: vp }); task.vk = vk;
+  try { await task.promise; } catch (er) { c.width = c.height = 0; return null; }
+  if (sharpTask === task) sharpTask = null;
+  if (seq !== sharpSeq || pages[current] !== p) { c.width = c.height = 0; return null; }
+  // the box it really covers after rounding to whole pixels
+  return { c, pid: p.id, dw: fit.dw | 0, x0, y0, x1: x0 + c.width / d, y1: y0 + c.height / d, d, at: Date.now() };
+}
+function tileKeep(t) {
+  // drop pieces this one fully covers with at least their detail, then the oldest while over budget
+  tiles = tiles.filter(q => { const gone = q.pid === t.pid && q.dw === t.dw && q.d <= t.d * 1.02 && q.x0 >= t.x0 - .5 && q.y0 >= t.y0 - .5 && q.x1 <= t.x1 + .5 && q.y1 <= t.y1 + .5; if (gone) q.c.width = q.c.height = 0; return !gone; });
+  tiles.push(t);
+  let px = tiles.reduce((s, q) => s + q.c.width * q.c.height, 0);
+  while (px > TILE_BUDGET && tiles.length > 1) { const o = tiles.reduce((a, b) => (a.at <= b.at ? a : b)); if (o === t) break; px -= o.c.width * o.c.height; o.c.width = o.c.height = 0; tiles.splice(tiles.indexOf(o), 1); }
+}
+// a kept piece already shows box x0..x1, y0..y1 with at least d detail (and isn't so detailed it's skipped)
+const tileHas = (p, x0, y0, x1, y1, d, zd) => tiles.some(q => q.pid === p.id && q.dw === (fit.dw | 0) && q.d >= d * 0.97 && zd / q.d >= 0.45 && q.x0 <= x0 + .5 && q.y0 <= y0 + .5 && q.x1 >= x1 - .5 && q.y1 >= y1 - .5);
+async function sharpRender() {
+  const p = pages[current], img = $("sheetImg"), sh = $("sheet");
+  if (!p || !fit || !img.naturalWidth || !window.pdfjsLib) return;
+  if (!hasVec(p) || cmp || (showOld && p.prevBlob)) return;
+  const v = viewOf(p), dpr = window.devicePixelRatio || 1;
+  if (blurAt(p, v) < 1.15) return; // the picture is sharp enough here; kept pieces stay for the next zoom in
+  const seq = ++sharpSeq; if (sharpTask) { try { sharpTask.cancel(); } catch (e) {} sharpTask = null; }
+  const vk = viewKey();
+  // the part of the sheet on screen, in the sheet's own unzoomed px
+  const vx0 = (-fit.left - v.tx) / v.z, vx1 = (fit.W - fit.left - v.tx) / v.z, vy0 = (-fit.top - v.ty) / v.z, vy1 = (fit.H - fit.top - v.ty) / v.z;
+  const sx0 = Math.max(0, vx0), sx1 = Math.min(fit.dw, vx1), sy0 = Math.max(0, vy0), sy1 = Math.min(fit.dh, vy1);
+  if (sx1 - sx0 < 2 || sy1 - sy0 < 2) return;
+  const zd = v.z * dpr, picD = img.naturalWidth / fit.dw; // device px per unzoomed sheet px: wanted now, and what the picture has
+  const box = (m, budget) => { // the view grown by m on every side, kept on the sheet, and its detail within the budget
+    const mx = (vx1 - vx0) * m, my = (vy1 - vy0) * m;
+    const x0 = Math.max(0, vx0 - mx), x1 = Math.min(fit.dw, vx1 + mx), y0 = Math.max(0, vy0 - my), y1 = Math.min(fit.dh, vy1 + my);
+    return { x0, y0, x1, y1, d: zd * Math.min(1, Math.sqrt(budget / ((x1 - x0) * (y1 - y0) * zd * zd))) };
+  };
+  const near = box(.15, SHARP_MAX), wide = box(.5, SHARP_MAX);
+  const jobs = [];
+  if (!tileHas(p, sx0, sy0, sx1, sy1, near.d, zd)) jobs.push(near);
+  if (!gestureOn && wide.d > picD * 1.2 && !tileHas(p, wide.x0, wide.y0, wide.x1, wide.y1, wide.d, zd)) jobs.push(wide);
+  if (!jobs.length) return;
+  let e = null; try { e = await vecDoc(p); } catch (er) {}
+  if (seq !== sharpSeq) return;
+  if (!e) return;
+  const v1 = e.page.getViewport({ scale: 1 });
+  if (Math.abs(v1.width / v1.height - img.naturalWidth / img.naturalHeight) > 0.02) return sharpClear(); // not the same drawing
+  for (const j of jobs) {
+    const t = await tileDraw(e, p, j.x0, j.y0, j.x1, j.y1, j.d, seq, vk);
+    if (!t) return;
+    tileKeep(t);
+    if (!vcDraw()) { // no screen canvas (out of memory): show the piece in the page like before v197
+      sh.querySelectorAll("canvas.sharp").forEach(c => c.remove());
+      Object.assign(t.c.style, { left: t.x0 / fit.dw * 100 + "%", top: t.y0 / fit.dh * 100 + "%", width: (t.x1 - t.x0) / fit.dw * 100 + "%", height: (t.y1 - t.y0) / fit.dh * 100 + "%" });
+      sh.insertBefore(t.c, $("cmpCanvas")); return;
+    }
+    if (gestureOn) return; // fingers are still down: the wider piece waits until they lift
+  }
 }
 // old jobs (added before v136) have no PDF kept: offer to add the plan PDF once, matched to sheets by their words
 function sharpBtnShow() {
@@ -2924,7 +3036,9 @@ function applyZoom() {
   k = s * v.z;
   $("zoomTag").textContent = p.zoom === "FREE" ? `${Math.round(v.z * 100)}%` : ZOOM_LABEL[p.zoom];
   drawOverlay();
-  const sc = sh.querySelector("canvas.sharp"); if (sc && sc.dataset.pid !== p.id) sharpClear();
+  if (tiles.some(q => q.pid !== p.id)) sharpClear(); // another sheet's sharp pieces: free them
+  sh.classList.toggle("repl-old", img.classList.contains("repl-old"));
+  vcDraw(); if (!sh.classList.contains("free")) vcKick();
   sharpSoon();
 }
 $("sheetImg").addEventListener("load", applyZoom);
