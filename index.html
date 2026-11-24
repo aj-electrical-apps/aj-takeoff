@@ -11322,4 +11322,18 @@ async function loadExamples() {
   showStart();
 })();
 </script>
+<script>
+// Test copy badge (2026-11-24): every PR gets its own test link on Vercel (…-git-…vercel.app). Those use the TEST jobs
+// store and TEST logins, never the real ones. This badge makes sure nobody mistakes a test link for the real app.
+(function () {
+  var h = location.hostname, live = "aj-commercial-takeoff.vercel.app";
+  if (h === live || !/\.vercel\.app$/.test(h)) return;
+  document.title = "TEST · " + document.title;
+  var b = document.createElement("div");
+  b.id = "testCopyBadge";
+  b.textContent = "TEST COPY · not the real app";
+  b.setAttribute("style", "position:fixed;z-index:2147483000;left:50%;bottom:calc(64px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#c0392b;color:#fff;font:700 13px system-ui,sans-serif;padding:4px 12px;border-radius:999px;pointer-events:none;opacity:.92;box-shadow:0 2px 8px rgba(0,0,0,.35);white-space:nowrap");
+  (document.body || document.documentElement).appendChild(b);
+})();
+</script>
 </body></html>
