@@ -24,8 +24,24 @@ function needs(path, method) {
 }
 const fieldBlocked = (path, method) => FIELD_BLOCKED.some(r => r.test(path)) || (["/api/jobs", "/api/settings"].includes(path) && method !== "GET");
 
+// Test links (Vercel "preview" builds, one per PR) must never touch the real jobs or real logins (2026-11-24).
+// Preview has its own BLOB_STORE_ID (store "aj-takeoff-TEST-only") and its own SESSION_SECRET in Vercel.
+// If either is ever missing or pointed back at the real store, the test link stops here instead of using real data.
+const REAL_STORE = "RxlaSvRIHU4WVzaz"; // aj-commercial-takeoff-blob: the real jobs
+function testCopyProblem() {
+  const env = process.env.VERCEL_ENV;
+  if (!env || env === "production") return "";
+  if (String(process.env.BLOB_STORE_ID || "").includes(REAL_STORE)) return "This test copy is hooked to the REAL jobs, so it is switched off. Ask Claude to fix the test copy settings.";
+  if (!String(process.env.BLOB_STORE_ID || "").trim()) return "This test copy has no test jobs store yet. Ask Claude to finish setting up the test copy.";
+  if (!secret()) return "This test copy has no sign-in key yet. Ask Claude to finish setting up the test copy.";
+  return "";
+}
+
 export default async function middleware(request) {
   const key = secret(), url = new URL(request.url), path = url.pathname;
+  const stop = testCopyProblem();
+  if (stop) return path.startsWith("/api/") ? json({ error: stop }, 503)
+    : new Response(stop, { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } });
   if (!key) return oldGate(request, path);
   if (OPEN.some(r => r.test(path))) return;
   const who = await readSession(key, request.headers.get("cookie")) || await basicWho(request, key);
