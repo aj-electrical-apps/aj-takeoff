@@ -378,7 +378,11 @@ html.look-new body { font-family: var(--font-ui); }
 .ask-db { display: flex; gap: 8px; align-items: center; }
 .ts-table tr.ug-off td { color: var(--muted); text-decoration: line-through; }
 .ts-table tr.ug-off td input { text-decoration: none; }
-@media print { .ts-table tr.ug-off { display: none; } #tsTable tr.need-blank { display: none; } }
+@media print { .ts-table tr.ug-off { display: none; } #tsTable tr.need-blank, #tsTable tr.sup-off { display: none; } }
+#tsTable .sup-skip { min-height: 24px; padding: 1px 7px; margin-right: 8px; font-size: 12px; white-space: nowrap; }
+#tsTable .sup-skip[aria-pressed="true"] { background: #c92a2a; border-color: #c92a2a; color: #fff; }
+#tsTable tr.sup-off td { color: var(--muted); }
+#tsTable tr.sup-off .sup-name { text-decoration: line-through; } #tsTable .sup-offtxt { color: #c92a2a; }
 #ampForm.m-brk { width: min(900px, calc(100vw - 24px)); max-width: none; }
 #pnlModal .modal-card { width: min(680px, calc(100vw - 32px)); max-width: none; }
 #pnlModal .opt { min-width: 0; } #pnlModal .opt select, #pnlModal .opt input { width: 100%; min-width: 0; box-sizing: border-box; }
@@ -1048,7 +1052,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v208<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v209<span id="brandPos"></span></small></div>
     <a class="app-switch" id="appSwitch" href="https://aj-pricing-bonuses.vercel.app/" title="Switch to the AJ Leadership app">&#8644; Leadership</a>
     <a class="app-switch" id="subsBtn" href="https://aj-pricing-bonuses.vercel.app/" hidden title="This job's submittal PDFs in the AJ Leadership app">&#128196; Submittals</a>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
@@ -4775,7 +4779,11 @@ function asmEdits() {
 function saveAsmEdits() { try { localStorage.setItem("aj-asm-edits", JSON.stringify(asmEdits())); } catch (e) {} settingsTouch("aj-asm-edits"); }
 const asmFor = key => asmEdits()[key] || ASSEMBLIES[key] || [];
 const PRICE_BY_DESC = ["rmt|Floor box", "rmt|Poke-through", "rmt|Ceiling box"];
-function supplierRows() {
+/* "Not needed" (Jonathan 2026-11-25: "a click to select to not send this stuff if i dont need it so the suplier doesnt have to ask us about it"):
+   a fitting, part or checklist line can be skipped. It's kept in the same supOver as typed quantities, under "x:" + its key, so each proposal
+   and change order has its own. Skipped lines stay on the screen, crossed out, and are left off everything that goes out (Copy, Email,
+   Print, Order page). supplierRows(true) returns them too, for the screen. */
+function supplierRows(withSkipped) {
   const { counts, foot } = takeoffRows(), mat = new Map(), parts = new Map(), need = new Map(), fit = new Map();
   foot.filter(f => f.sup).forEach(f => mat.set(f.sup, (mat.get(f.sup) || 0) + f.total));
   counts.forEach(c => {
@@ -4802,9 +4810,9 @@ function supplierRows() {
     fittings.push({ name: `${nm} coupling`, qty: Math.ceil(v.lf / 10) }, { name: `${nm} connector`, qty: Math.ceil((v.lf - v.connLf) / 100) + v.conn });
     if (v.lf - v.ug > 0) fittings.push({ name: `${nm} strap`, qty: Math.ceil((v.lf - v.ug) / 3) });
   });
-  const ov = overOf(), set = (m, k) => { m.key = k; m.calc = m.qty; if (ov[k] != null && ov[k] !== "") m.qty = +ov[k]; return m; };
-  return { counts: counts.filter(c => !c.brk), mat: [...mat].map(([name, lf]) => ({ name, lf })), parts: [...parts].map(([name, qty]) => set({ name, qty }, "p:" + name)).sort((a, b) => a.name.localeCompare(b.name)),
-    fittings: fittings.map(f => set(f, "f:" + f.name)).filter(f => f.qty || f.calc), need: [...need].map(([name, s2]) => set({ name, for: [...s2].join(", "), qty: 0 }, "n:" + name)) };
+  const ov = overOf(), set = (m, k) => { m.key = k; m.calc = m.qty; if (ov[k] != null && ov[k] !== "") m.qty = +ov[k]; m.skip = !!ov["x:" + k]; return m; }, keep = m => withSkipped || !m.skip;
+  return { counts: counts.filter(c => !c.brk), mat: [...mat].map(([name, lf]) => ({ name, lf })), parts: [...parts].map(([name, qty]) => set({ name, qty }, "p:" + name)).filter(keep).sort((a, b) => a.name.localeCompare(b.name)),
+    fittings: fittings.map(f => set(f, "f:" + f.name)).filter(f => (f.qty || f.calc) && keep(f)), need: [...need].map(([name, s2]) => set({ name, for: [...s2].join(", "), qty: 0 }, "n:" + name)).filter(keep) };
 }
 function renderNotes() {
   const t = $("tsTable"), all = allNotes(), rfis = all.filter(n => n.h.c === "q"), notes = all.filter(n => n.h.c !== "q");
@@ -6344,20 +6352,29 @@ function renderTakeoffView() {
       renderTakeoff();
     });
   } else {
-    const { mat, parts, fittings, need } = supplierRows();
+    const { mat, parts, fittings, need } = supplierRows(true);
+    // a fitting/part/checklist row: "Not needed" button, then the name; skipped rows are crossed out, can't be typed in, and don't print
+    const skipBtn = m => `<button class="btn sm no-print sup-skip" type="button" data-x="${esc(m.key)}" aria-pressed="${m.skip}" title="${m.skip ? "Put this back on the supplier list" : "Leave this off what goes to the supplier"}">${m.skip ? "↺ Put back" : "✕ Not needed"}</button>`;
+    const qRow = (m, ph, sub) => `<tr class="${m.skip ? "sup-off" : ""}${sub && !m.qty ? " need-blank" : ""}"><td>${skipBtn(m)}<span class="sup-name">${esc(m.name)}</span>${sub ? `<small>For ${esc(m.for)}</small>` : ""}${m.skip ? `<small class="sup-offtxt">Not needed · not sent to the supplier</small>` : ""}</td><td class="n">${m.skip ? "" : `<input type="number" class="sup-q${m.qty !== m.calc ? " over" : ""}" min="0" step="1" data-k="${esc(m.key)}" value="${m.qty || ""}" placeholder="${ph}" aria-label="Quantity of ${esc(m.name)}"> ea${m.qty !== m.calc ? `<span class="sup-was">was ${m.calc || "as needed"}</span>` : ""}`}</td></tr>`;
     let h = `<thead><tr><th>Material</th><th class="n">Quantity</th></tr></thead><tbody>`;
     bySection(counts.filter(c => !c.misc && !c.brk)).forEach(sec => h += `<tr class="sec"><td colspan="2">${esc(sec.title)}</td></tr>` + sec.rows.map(c => `<tr><td>${esc(c.name)}${c.what ? `<small>${esc(c.what)}</small>` : ""}</td><td class="n">${c.qty} ea</td></tr>`).join(""));
     const miscSup = counts.filter(c => c.misc && c.sup);
     if (miscSup.length) h += `<tr class="sec"><td colspan="2">Misc items for pricing</td></tr>` + miscSup.map(c => `<tr><td>${esc(c.label || c.name)} (price this)${c.gravel ? `<small>${esc(c.what)}</small>` : ""}</td><td class="n">${c.qty.toLocaleString()} ${c.unit === "LF" ? "ft" : c.unit === "CY" ? "CY" : "ea"}</td></tr>`).join("");
     if (mat.length) h += `<tr class="sec"><td colspan="2">Conduit and wire</td></tr>` + mat.map(m => `<tr><td>${esc(m.name)}</td><td class="n">${m.lf.toLocaleString()} ft</td></tr>`).join("");
-    if (fittings.length) h += `<tr class="sec"><td colspan="2">Conduit fittings</td></tr>` + fittings.map(m => `<tr><td>${esc(m.name)}</td><td class="n"><input type="number" class="sup-q${m.qty !== m.calc ? " over" : ""}" min="0" step="1" data-k="${esc(m.key)}" value="${m.qty || ""}" placeholder="${m.calc || "0"}" aria-label="Quantity of ${esc(m.name)}"> ea${m.qty !== m.calc ? `<span class="sup-was">was ${m.calc || "as needed"}</span>` : ""}</td></tr>`).join("");
-    if (parts.length) h += `<tr class="sec"><td colspan="2">Installation parts</td></tr>` + parts.map(m => `<tr><td>${esc(m.name)}</td><td class="n"><input type="number" class="sup-q${m.qty !== m.calc ? " over" : ""}" min="0" step="1" data-k="${esc(m.key)}" value="${m.qty || ""}" placeholder="${m.calc || "0"}" aria-label="Quantity of ${esc(m.name)}"> ea${m.qty !== m.calc ? `<span class="sup-was">was ${m.calc || "as needed"}</span>` : ""}</td></tr>`).join("");
-    if (need.length) h += `<tr class="sec${need.some(m => m.qty) ? "" : " need-blank"}"><td colspan="2">Your checklist, sized by the layout<small>Not on the supplier's copy unless you type a quantity</small></td></tr>` + need.map(m => `<tr${m.qty ? "" : ' class="need-blank"'}><td>${esc(m.name)}<small>For ${esc(m.for)}</small></td><td class="n"><input type="number" class="sup-q${m.qty !== m.calc ? " over" : ""}" min="0" step="1" data-k="${esc(m.key)}" value="${m.qty || ""}" placeholder="as needed" aria-label="Quantity of ${esc(m.name)}"> ea${m.qty !== m.calc ? `<span class="sup-was">was ${m.calc || "as needed"}</span>` : ""}</td></tr>`).join("");
+    if (fittings.length) h += `<tr class="sec"><td colspan="2">Conduit fittings</td></tr>` + fittings.map(m => qRow(m, m.calc || "0")).join("");
+    if (parts.length) h += `<tr class="sec"><td colspan="2">Installation parts</td></tr>` + parts.map(m => qRow(m, m.calc || "0")).join("");
+    if (need.length) h += `<tr class="sec${need.some(m => m.qty && !m.skip) ? "" : " need-blank"}"><td colspan="2">Your checklist, sized by the layout<small>Type a quantity to send it to the supplier, or tap ✕ Not needed</small></td></tr>` + need.map(m => qRow(m, "as needed", 1)).join("");
     t.innerHTML = h + ghostSheetRows(true) + roomRows(4) + redNotesRows(2, "Notes for supplier") + `</tbody>`;
     fillRedCrops(t);
     t.querySelectorAll("input.sup-q").forEach(inp => inp.onchange = () => {
       const ov = overOf(), v = inp.value.trim();
       if (v === "") delete ov[inp.dataset.k]; else ov[inp.dataset.k] = Math.max(0, Math.round(+v || 0));
+      if (job) saveJob(job);
+      renderTakeoff();
+    });
+    t.querySelectorAll(".sup-skip").forEach(bt => bt.onclick = () => {
+      const ov = overOf(), k = "x:" + bt.dataset.x;
+      if (ov[k]) delete ov[k]; else ov[k] = 1;
       if (job) saveJob(job);
       renderTakeoff();
     });
