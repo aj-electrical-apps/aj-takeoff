@@ -6107,6 +6107,7 @@ async function autoName(pg0, r) {
 }
 // v210 (Jonathan 2026-11-25): "select everything from this drawing down" + "put something in like a date that it puts on all of them
 // with the scanned name in front". Start at = this sheet and every sheet after it in the list; Add after = text put after every name.
+// Test: estimating-app/tests/t210.mjs in the project files.
 let lblFrom = 0, lblAdd = "";
 const lblFinal = x => (x.name.trim() + (lblAdd.trim() ? " " + lblAdd.trim() : "")).trim();
 const lblCount = () => { const n = lblState.filter((x, k) => k >= lblFrom && x.use && x.name.trim()).length; $("lblOk").textContent = `Name ${n} sheet${n === 1 ? "" : "s"}`; };
