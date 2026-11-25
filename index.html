@@ -1061,7 +1061,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v210<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v211<span id="brandPos"></span></small></div>
     <a class="app-switch" id="appSwitch" href="https://aj-pricing-bonuses.vercel.app/" title="Switch to the AJ Leadership app">&#8644; Leadership</a>
     <a class="app-switch" id="subsBtn" href="https://aj-pricing-bonuses.vercel.app/" hidden title="This job's submittal PDFs in the AJ Leadership app">&#128196; Submittals</a>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
@@ -4398,7 +4398,7 @@ function setHl(m) {
   $("hlYBtn").setAttribute("aria-pressed", hlMode === "y"); $("hlQBtn").setAttribute("aria-pressed", hlMode === "q"); $("hlRBtn").setAttribute("aria-pressed", hlMode === "r"); $("roomBtn").setAttribute("aria-pressed", hlMode === "room"); $("schedBtn").setAttribute("aria-pressed", hlMode === "sched"); $("pnlBtn").setAttribute("aria-pressed", hlMode === "pnl" || !$("pnlModal").hidden); $("symBtn").setAttribute("aria-pressed", hlMode === "sym"); $("lblBtn").setAttribute("aria-pressed", hlMode === "lbl");
   $("sheet").style.cursor = hlMode ? "crosshair" : "";
   if (hlMode === "sched") toast("Schedule reader: drag a box around the whole light fixture schedule, header row included.");
-  if (hlMode === "lbl") toast("Auto-name: drag a box around the sheet number in the title block, like E-101. Leave a little room around it.");
+  if (hlMode === "lbl") toast("Auto-name: go to the first sheet you want named, then drag a box around its sheet number, like E-101. That sheet and every sheet after it get read.");
   if (hlMode === "room") toast("Typical room: drag a box around one room you marked up. Click a room box to change it. Click the button again to stop.");
   else if (hlMode === "q") toast("RFI: drag a box around the part of the drawing you have a question about. Click the button again to stop.");
   else if (hlMode === "y" || hlMode === "r") toast(hlMode === "y" ? "Yellow highlighter: drag a box over the note. Click the button again to stop." : "Red highlighter: drag a box over the note for the supplier. Click the button again to stop.");
@@ -6082,7 +6082,8 @@ async function autoName(pg0, r) {
   if (r.w < 8 || r.h < 8) return toast("That box was too small. Drag a box around the sheet number.");
   const dims = async p => { if (!p.dims) { const b = await createImageBitmap(p.blob); p.dims = [b.width, b.height]; b.close && b.close(); } return p.dims; };
   const [W0, H0] = await dims(pg0), fr = { x: r.x / W0, y: r.y / H0, w: r.w / W0, h: r.h / H0 };
-  const rows = [], list = pages.filter(p => !p.example);
+  // v211 (Jonathan 2026-11-25: "its still trying to rename all the sheets"): only the sheet you boxed and every sheet after it are read
+  const rows = [], all = pages.filter(p => !p.example), list = all.slice(Math.max(0, all.indexOf(pg0)));
   try {
     for (let i = 0; i < list.length; i++) {
       const p = list[i];
@@ -6107,7 +6108,7 @@ async function autoName(pg0, r) {
 }
 // v210 (Jonathan 2026-11-25): "select everything from this drawing down" + "put something in like a date that it puts on all of them
 // with the scanned name in front". Start at = this sheet and every sheet after it in the list; Add after = text put after every name.
-// Test: estimating-app/tests/t210.mjs in the project files.
+// Tests: estimating-app/tests/t210.mjs, t211.mjs in the project files.
 let lblFrom = 0, lblAdd = "";
 const lblFinal = x => (x.name.trim() + (lblAdd.trim() ? " " + lblAdd.trim() : "")).trim();
 const lblCount = () => { const n = lblState.filter((x, k) => k >= lblFrom && x.use && x.name.trim()).length; $("lblOk").textContent = `Name ${n} sheet${n === 1 ? "" : "s"}`; };
@@ -6119,7 +6120,7 @@ function lblSetFrom(k) {
 }
 function renderLbl() {
   const rows = lblState, bad = rows.filter((x, k) => k >= lblFrom && x.why).length, shown = rows.length - lblFrom;
-  $("lblHint").textContent = `${shown - bad} of ${shown} look right. Yellow ones need a look. Pick where to start, fix any name, uncheck any you don't want changed, then tap Name sheets. Anything in "Add after each name" (like a date) goes after every name.`;
+  $("lblHint").textContent = `${rows.length && rows[0].i > 0 ? `Starting at sheet ${String(rows[0].i + 1).padStart(3, "0")}, the one you boxed. To name every sheet, close this, go to the first sheet and box there. ` : ""}${shown - bad} of ${shown} look right. Yellow ones need a look. Pick where to start, fix any name, uncheck any you don't want changed, then tap Name sheets. Anything in "Add after each name" (like a date) goes after every name.`;
   $("lblFrom").innerHTML = rows.map((x, k) => `<option value="${k}"${k === lblFrom ? " selected" : ""}>${k ? "" : "All sheets: "}${String(x.i + 1).padStart(3, "0")} ${esc(x.name || x.p.name || "")}${k ? " and every sheet after it" : ""}</option>`).join("");
   if ($("lblAdd").value !== lblAdd) $("lblAdd").value = lblAdd;
   const add = lblAdd.trim();
