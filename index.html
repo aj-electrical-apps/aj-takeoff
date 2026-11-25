@@ -1048,7 +1048,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v205<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v206<span id="brandPos"></span></small></div>
     <a class="app-switch" id="appSwitch" href="https://aj-pricing-bonuses.vercel.app/" title="Switch to the AJ Leadership app">&#8644; Leadership</a>
     <a class="app-switch" id="subsBtn" href="https://aj-pricing-bonuses.vercel.app/" hidden title="This job's submittal PDFs in the AJ Leadership app">&#128196; Submittals</a>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
@@ -7061,7 +7061,8 @@ function drawOverlay() {
     if (v.co && coDed(v.co)) { const a = 9 / k; g.appendChild(svgEl("path", { d: `M${v.x - a},${v.y - a}L${v.x + a},${v.y + a}M${v.x + a},${v.y - a}L${v.x - a},${v.y + a}`, class: "mk-ded-x", "stroke-width": 2.2 / k, opacity: inScope(v) ? 1 : .35, ...ns })); }
     // v205 (Jonathan 2026-11-23: "the hvac and stuff is so big its in the way, just show what it is when you hover over it"):
     // the type name only shows on the mouse-over mark, or the mark tapped/clicked (highlighted) on an iPad. Printed PDFs keep them.
-    if ((d.tag || d.label) && (lit || v === hoverDev)) g.appendChild(svgEl("text", { x: v.x + 10 / k, y: v.y - 6 / k, class: "mk-tag", "font-size": 11 / k, "stroke-width": 3 / k }, d.tag || d.label));
+    // v206 (Jonathan 2026-11-25: "the receptacles dont have a discription"): marks with no type/label (receptacles etc.) show their name
+    if (lit || v === hoverDev) g.appendChild(svgEl("text", { x: v.x + 10 / k, y: v.y - 6 / k, class: "mk-tag", "font-size": 11 / k, "stroke-width": 3 / k }, d.tag || d.label || nameOf(d)));
   }
   drawSketch(g, p);
   { const off = svgEl("g", { class: "mk-office" }); while (g.firstChild) off.appendChild(g.firstChild); g.appendChild(off); } // faded for the field
