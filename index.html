@@ -2691,7 +2691,12 @@ function renderSheet() {
   $("clearGroup").hidden = !job;
   $("scaleBtn").textContent = p && p.ftPerPx ? `Scale ${p.scaleLabel}` : "Set scale";
   $("scaleBtn").classList.toggle("warn", !!p && !p.ftPerPx);
-  if (!p) { img.removeAttribute("src"); $("pos").textContent = "–"; $("sheetNo").textContent = "Sheet –"; $("phSheet").textContent = "No sheets"; $("progress").textContent = ""; return; }
+  if (!p) { // a job with no sheets yet (+ New job): wipe everything the last job left on screen (v208)
+    img.removeAttribute("src"); sharpHold(); try { sharpClear(); } catch (e) {} vcDraw(); $("overlay").replaceChildren(); $("cmpCanvas").hidden = true;
+    const cv = $("viewCv"); cv.width = cv.height = 1; cv.hidden = true; $("sheet").classList.remove("cv-on"); mips.src = ""; mips.lv = [];
+    $("sheet").style.visibility = "hidden"; $("zoomTag").hidden = true; sharpBtnShow();
+    $("pos").textContent = "–"; $("sheetNo").textContent = "Sheet –"; $("phSheet").textContent = "No sheets"; $("progress").textContent = ""; return; }
+  $("sheet").style.visibility = ""; $("zoomTag").hidden = false;
   const want = showOld && p.prevBlob ? prevUrl(p) : p.url;
   if (img.getAttribute("src") !== want) img.src = want;
   img.classList.toggle("repl-old", want !== p.url);
