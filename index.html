@@ -1048,7 +1048,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v206<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v207<span id="brandPos"></span></small></div>
     <a class="app-switch" id="appSwitch" href="https://aj-pricing-bonuses.vercel.app/" title="Switch to the AJ Leadership app">&#8644; Leadership</a>
     <a class="app-switch" id="subsBtn" href="https://aj-pricing-bonuses.vercel.app/" hidden title="This job's submittal PDFs in the AJ Leadership app">&#128196; Submittals</a>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
@@ -8394,7 +8394,8 @@ function aiPerSheet() {
   return rs.length ? rs.reduce((t, r) => t + r.cost, 0) / rs.length : AI_EST[aiSt && aiSt.model] || 0.2;
 }
 async function aiLoad() {
-  if (!teamOn || !job) { aiSt = null; return null; }
+  // v207 (Jonathan 2026-11-25: "add it only in admin for now"): other logins don't see AI reading at all
+  if (!teamOn || !job || !isAdmin) { aiSt = null; return null; }
   if (aiJobId !== job.id) { aiIdx = {}; aiRead = {}; aiJobId = job.id; aiQ = []; }
   const jid = job.id;
   try {
@@ -8470,7 +8471,7 @@ $("aiChipStop").onclick = () => { aiJob.tot -= aiQ.length; aiQ = []; aiChip(); t
 $("aiChipX").onclick = () => { aiJob = { done: 0, tot: 0, err: 0, cost: 0, msg: "" }; aiChip(); };
 function aiBox() {
   const el = $("fwAi"), st = aiSt;
-  el.hidden = !teamOn || !st || (!st.key && !isAdmin);
+  el.hidden = !teamOn || !st || !isAdmin;
   if (el.hidden) return;
   const real = pages.filter(p => !p.example), read = real.filter(aiOf), stale = read.filter(aiStale), todo = real.filter(p => !aiOf(p) || aiStale(p)).filter(p => !aiQ.some(x => x.p === p));
   const edit = !fieldMode && can("edit"), ready = st.ready, cur = pages[current], spent = read.reduce((t, p) => t + (aiOf(p).cost || 0), 0);
@@ -8524,7 +8525,7 @@ async function aiAdminBox() {
   let st = null; try { const r = await fetch("/api/ai", { cache: "no-store" }); if (r.ok) st = await r.json(); } catch (e) {}
   if (!st) { box.innerHTML = ""; return; }
   box.innerHTML = `<h3>AI plan reading</h3><p class="hint">${st.key ? "The AI key is in Vercel." : "No AI key yet. To set it up: make a key at platform.claude.com, then in Vercel open aj-commercial-takeoff > Settings > Environment Variables, add ANTHROPIC_API_KEY with the key, and redeploy."}
-    The AI reads a sheet once (from Find words) and everyone searches what it read for free. Turn it off here any time; what it already read stays searchable.</p>
+    Only Admin logins see it and use it for now. The AI reads a sheet once (from Find words) and Admin logins search what it read for free. Turn it off here any time; what it already read stays searchable.</p>
     <label>AI reading <select id="admAiOn"><option value="1">On</option><option value="0">Off</option></select></label>
     <label>Model <select id="admAiModel">${st.models.map(m => `<option value="${m.id}">${esc(m.name)}</option>`).join("")}</select></label>`;
   $("admAiOn").value = st.on ? "1" : "0"; $("admAiModel").value = st.model;

@@ -10,6 +10,8 @@ import { MODELS, H, bad, status, loadConf, saveConf, askJson } from "../lib/ai.j
 // POST { op: "set", on, model, phrases }  admins turn it on/off and pick the model; office people can change the key phrases
 // POST { op: "ask", q }  -> { phrases: [...] }  other ways the same thing is written on drawings (about a penny)
 const who0 = { id: "open", n: "Office", r: "admin", p: "admin" };
+// v207 (Jonathan 2026-11-25: "add it only in admin for now"): only Admin logins see it or spend on it
+export const ADMIN_ONLY = "AI plan reading is only for Admin logins for now.";
 const okId = id => typeof id === "string" && /^[\w-]{1,80}$/.test(id);
 async function sheetsOf(job) {
   const out = []; let cursor;
@@ -21,6 +23,7 @@ export async function GET(request) {
   try {
     const who = await whoIs(request) || who0, u = new URL(request.url), job = u.searchParams.get("job"), sheet = u.searchParams.get("sheet");
     const st = await status();
+    if (!has(who, "admin")) Object.assign(st, { ready: false, adminOnly: true });
     if (!job) return Response.json(st, { headers: H });
     if (!okId(job) && !/^[^/]{1,120}$/.test(job)) return bad("Which job?");
     if (!(await jobOk(who, job))) return bad("That job isn't shared with you.", 403);
@@ -47,6 +50,7 @@ export async function POST(request) {
       return Response.json(await status(), { headers: H });
     }
     if (b.op === "ask") {
+      if (!has(who, "admin")) return bad(ADMIN_ONLY, 403);
       const st = await status();
       if (!st.key) return bad("The AI isn't set up (no ANTHROPIC_API_KEY in Vercel).", 400);
       if (!st.on) return bad("The AI is turned off on the Admin page.", 400);

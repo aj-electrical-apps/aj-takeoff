@@ -1,5 +1,5 @@
 import { put } from "@vercel/blob";
-import { whoIs } from "../lib/session.js";
+import { whoIs, has } from "../lib/session.js";
 import { jobOk, jobKey } from "../lib/team-store.js";
 import { H, bad, status, askJson } from "../lib/ai.js";
 
@@ -39,6 +39,7 @@ const num = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(+v || 0)));
 export async function POST(request) {
   try {
     const who = await whoIs(request) || { id: "open", n: "Office", r: "admin", p: "admin" };
+    if (!has(who, "admin")) return bad("AI plan reading is only for Admin logins for now.", 403); // v207
     const b = await request.json().catch(() => null);
     if (!b || !b.job || !b.sheet || !Array.isArray(b.tiles) || !b.tiles.length || b.tiles.length > 9) return bad("Send the sheet's tiles.");
     if (!(await jobOk(who, b.job))) return bad("That job isn't shared with you.", 403);
