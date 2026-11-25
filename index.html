@@ -1048,7 +1048,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v203<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v204<span id="brandPos"></span></small></div>
     <a class="app-switch" id="appSwitch" href="https://aj-pricing-bonuses.vercel.app/" title="Switch to the AJ Leadership app">&#8644; Leadership</a>
     <a class="app-switch" id="subsBtn" href="https://aj-pricing-bonuses.vercel.app/" hidden title="This job's submittal PDFs in the AJ Leadership app">&#128196; Submittals</a>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
@@ -2521,7 +2521,8 @@ function rsOpen() {
     focus: () => { if (w) w.focus(); },
     close: () => { if (w) { if (!w.closed) w.close(); } else { host.remove(); window.removeEventListener("keydown", keys, true); window.removeEventListener("resize", refit); } if (rsCur === S) rsCur = null; } };
   if (host) window.addEventListener("keydown", keys, true);
-  const fill = () => { $r("add").innerHTML = `<option value="">+ Add sheet…</option>` + pages.map((pg, i) => `<option value="${esc(pg.id)}">${esc(sheetName(pg, i))}</option>`).join(""); S.panes.forEach(x => x.name()); };
+  // only when the list really changed: rebuilding it while open closed the drop-down before a sheet could be picked (v201)
+  const fill = () => { const h = `<option value="">+ Add sheet…</option>` + pages.map((pg, i) => `<option value="${esc(pg.id)}">${esc(sheetName(pg, i))}</option>`).join(""); if ($r("add").dataset.h !== h) { $r("add").innerHTML = h; $r("add").dataset.h = h; } S.panes.forEach(x => x.name()); };
   fill(); S.fill = fill;
   $r("cols").value = String(S.cols);
   const save = () => rsSave({ ids: S.panes.map(x => x.id), cols: S.cols });
@@ -2580,10 +2581,14 @@ function renderRail() {
       b.className = "thumb"; b.type = "button"; b.dataset.id = p.id;
       b.innerHTML = `<span class="num">${String(i + 1).padStart(3, "0")}</span><span class="pic"><img alt="" loading="lazy" decoding="async"><span class="q" hidden></span></span><span class="name"></span><span class="pop no-print" role="button" tabindex="0" title="Open this sheet as a floating reference you can keep on top, or pop out to another screen">⧉</span>`;
       const pin = document.createElement("span"); pin.className = "pin no-print"; pin.setAttribute("role", "button"); pin.tabIndex = 0; pin.textContent = "📌"; b.appendChild(pin);
-      b.onclick = e => { if (railLong) { railLong = false; return; } if (e.target.closest(".pin")) { e.stopPropagation(); return togglePin(p); } if (e.target.closest(".pop")) { e.stopPropagation(); return refOpen(p); } go(pages.indexOf(p)); };
-      b.oncontextmenu = e => { e.preventDefault(); railMenu(p, e.clientX, e.clientY); };
+      /* v204 (Jonathan 2026-11-23: "i just cant select one, i would have to pin it and then click the pin"): the list is only
+         rebuilt when the sheets change, so after the same job was opened again (or refreshed from online) these buttons still
+         held the old copies of the sheets, pages.indexOf gave -1 and every click went to sheet 1. Look the sheet up by its id. */
+      const cur = () => pages.find(x => x.id === b.dataset.id);
+      b.onclick = e => { if (railLong) { railLong = false; return; } const p = cur(); if (!p) return; if (e.target.closest(".pin")) { e.stopPropagation(); return togglePin(p); } if (e.target.closest(".pop")) { e.stopPropagation(); return refOpen(p); } go(pages.indexOf(p)); };
+      b.oncontextmenu = e => { e.preventDefault(); const p = cur(); if (p) railMenu(p, e.clientX, e.clientY); };
       // touch: hold a sheet for the same menu
-      b.addEventListener("pointerdown", e => { if (e.pointerType !== "touch") return; clearTimeout(railHold); const x = e.clientX, y = e.clientY; railHold = setTimeout(() => { railLong = true; railMenu(p, x, y); }, 600); });
+      b.addEventListener("pointerdown", e => { if (e.pointerType !== "touch") return; clearTimeout(railHold); railLong = false; const x = e.clientX, y = e.clientY; railHold = setTimeout(() => { const p = cur(); if (!p) return; railLong = true; railMenu(p, x, y); }, 600); });
       ["pointerup", "pointercancel", "pointerleave", "pointermove"].forEach(t => b.addEventListener(t, e => { if (t !== "pointermove" || e.pointerType === "touch") clearTimeout(railHold); }));
       rail.appendChild(b);
     });
