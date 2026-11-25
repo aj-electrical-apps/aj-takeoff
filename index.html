@@ -813,6 +813,15 @@ tr.ex-off .ex-row span { color: var(--muted); text-decoration: line-through; }
 .pg-tile .pg-t { font-size: 11px; color: var(--muted, #888); font-family: var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .co-tbl tr.lbl-check td { background: #fff9db; }
 .co-tbl .lbl-why { font-size: 12px; color: #a66b00; }
+/* v210 Auto-name: start at a sheet + text added after every name */
+.lbl-opts { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 0 0 10px; }
+.lbl-opts label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; min-width: 0; flex: 1 1 220px; }
+.lbl-opts select, .lbl-opts input { width: 100%; min-width: 0; }
+.lbl-addrow { display: flex; gap: 6px; }
+.lbl-addrow input { flex: 1; }
+.co-tbl .lbl-add { font-size: 12px; opacity: .75; margin-top: 2px; }
+.co-tbl tr.lbl-skip td { opacity: .45; }
+.co-tbl .lbl-down { white-space: nowrap; }
 .repl-old { outline: 3px dashed #f76707; outline-offset: -3px; }
 .btn.tool.hl-room[aria-pressed="true"] { background: #d0ebff; border-color: #1c7ed6; color: #0b3d6e; }
 .note-item { display: grid; grid-template-columns: 220px 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); align-items: start; }
@@ -1048,7 +1057,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v206<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v210<span id="brandPos"></span></small></div>
     <a class="app-switch" id="appSwitch" href="https://aj-pricing-bonuses.vercel.app/" title="Switch to the AJ Leadership app">&#8644; Leadership</a>
     <a class="app-switch" id="subsBtn" href="https://aj-pricing-bonuses.vercel.app/" hidden title="This job's submittal PDFs in the AJ Leadership app">&#128196; Submittals</a>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
@@ -1639,6 +1648,10 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
   <div class="modal-card trk-card">
     <h2 id="lblTitle">Name the sheets</h2>
     <p class="hint" id="lblHint"></p>
+    <div class="lbl-opts">
+      <label>Start at <select id="lblFrom" aria-label="Name this sheet and every sheet after it"></select></label>
+      <label>Add after each name <span class="lbl-addrow"><input id="lblAdd" placeholder="like a date: 11/25/26" autocomplete="off"><button class="btn sm" type="button" id="lblToday">Today's date</button></span></label>
+    </div>
     <div class="trk-wrap"><table class="co-tbl" id="lblTbl"></table></div>
     <div class="actions"><button class="btn" type="button" id="lblCancel">Cancel</button><button class="btn primary" type="button" id="lblOk">Name sheets</button></div>
   </div>
@@ -6077,27 +6090,57 @@ async function autoName(pg0, r) {
   } finally { busy(null, null); }
   const seen = {}; rows.forEach(x => { if (x.name) seen[x.name] = (seen[x.name] || 0) + 1; });
   rows.forEach(x => { if (x.name && seen[x.name] > 1 && !x.why) x.why = "Same name as another sheet"; });
-  lblState = rows; renderLbl(); $("lblModal").hidden = false;
+  lblState = rows; lblFrom = 0; lblAdd = ""; renderLbl(); $("lblModal").hidden = false;
+}
+// v210 (Jonathan 2026-11-25): "select everything from this drawing down" + "put something in like a date that it puts on all of them
+// with the scanned name in front". Start at = this sheet and every sheet after it in the list; Add after = text put after every name.
+let lblFrom = 0, lblAdd = "";
+const lblFinal = x => (x.name.trim() + (lblAdd.trim() ? " " + lblAdd.trim() : "")).trim();
+const lblCount = () => { const n = lblState.filter((x, k) => k >= lblFrom && x.use && x.name.trim()).length; $("lblOk").textContent = `Name ${n} sheet${n === 1 ? "" : "s"}`; };
+function lblSetFrom(k) {
+  lblFrom = Math.max(0, Math.min(lblState.length - 1, k | 0));
+  // sheets from here down are used (if a name was found); sheets above are left alone
+  lblState.forEach((x, j) => { x.use = j >= lblFrom && !!x.name.trim(); });
+  renderLbl();
 }
 function renderLbl() {
-  const rows = lblState, bad = rows.filter(x => x.why).length;
-  $("lblHint").textContent = `${rows.length - bad} of ${rows.length} look right. Yellow ones need a look. Fix any name, uncheck any you don't want changed, then click Name sheets. You can add the title after the number, like "E-101 First Floor Lighting".`;
-  $("lblTbl").innerHTML = `<thead><tr><th>Use</th><th>Sheet</th><th>Name now</th><th>New name</th></tr></thead><tbody>` + rows.map((x, k) => `<tr class="${x.why ? "lbl-check" : ""}">
-    <td><input type="checkbox" data-k="${k}" data-f="use"${x.use ? " checked" : ""} aria-label="Use this name" style="width:auto;height:auto"></td>
+  const rows = lblState, bad = rows.filter((x, k) => k >= lblFrom && x.why).length, shown = rows.length - lblFrom;
+  $("lblHint").textContent = `${shown - bad} of ${shown} look right. Yellow ones need a look. Pick where to start, fix any name, uncheck any you don't want changed, then tap Name sheets. Anything in "Add after each name" (like a date) goes after every name.`;
+  $("lblFrom").innerHTML = rows.map((x, k) => `<option value="${k}"${k === lblFrom ? " selected" : ""}>${k ? "" : "All sheets: "}${String(x.i + 1).padStart(3, "0")} ${esc(x.name || x.p.name || "")}${k ? " and every sheet after it" : ""}</option>`).join("");
+  if ($("lblAdd").value !== lblAdd) $("lblAdd").value = lblAdd;
+  const add = lblAdd.trim();
+  $("lblTbl").innerHTML = `<thead><tr><th>Use</th><th>Sheet</th><th>Name now</th><th>New name</th><th></th></tr></thead><tbody>` + rows.map((x, k) => {
+    const off = k < lblFrom;
+    return `<tr class="${off ? "lbl-skip" : x.why ? "lbl-check" : ""}">
+    <td><input type="checkbox" data-k="${k}" data-f="use"${x.use && !off ? " checked" : ""}${off ? " disabled" : ""} aria-label="Use this name" style="width:auto;height:auto"></td>
     <td class="n">${String(x.i + 1).padStart(3, "0")}</td><td>${esc(x.p.name || "")}</td>
-    <td><input data-k="${k}" data-f="name" value="${esc(x.name)}" aria-label="New name">${x.why ? `<div class="lbl-why">${esc(x.why)}</div>` : ""}</td></tr>`).join("") + "</tbody>";
-  const n = rows.filter(x => x.use && x.name.trim()).length; $("lblOk").textContent = `Name ${n} sheet${n === 1 ? "" : "s"}`;
+    <td><input data-k="${k}" data-f="name" value="${esc(x.name)}" aria-label="New name"${off ? " disabled" : ""}>${add && !off ? `<div class="lbl-add" data-add="${k}">Becomes: ${esc(lblFinal(x))}</div>` : ""}${x.why && !off ? `<div class="lbl-why">${esc(x.why)}</div>` : ""}</td>
+    <td class="n"><button class="btn sm lbl-down" type="button" data-from="${k}" title="Name this sheet and every sheet after it"${k === lblFrom ? " disabled" : ""}>${k === lblFrom ? "Starts here" : "From here down"}</button></td></tr>`;
+  }).join("") + "</tbody>";
+  lblCount();
 }
 $("lblTbl").addEventListener("change", e => {
   const k = e.target.dataset.k; if (k == null) return; const x = lblState[k];
-  if (e.target.dataset.f === "use") x.use = e.target.checked; else { x.name = e.target.value.trim(); x.use = !!x.name; e.target.closest("tr").querySelector('[data-f="use"]').checked = x.use; }
-  const n = lblState.filter(x => x.use && x.name.trim()).length; $("lblOk").textContent = `Name ${n} sheet${n === 1 ? "" : "s"}`;
+  if (e.target.dataset.f === "use") x.use = e.target.checked; else {
+    x.name = e.target.value.trim(); x.use = !!x.name; e.target.closest("tr").querySelector('[data-f="use"]').checked = x.use;
+    const a = e.target.closest("tr").querySelector(".lbl-add"); if (a) a.textContent = "Becomes: " + lblFinal(x);
+  }
+  lblCount();
 });
+$("lblTbl").addEventListener("click", e => { const b = e.target.closest("[data-from]"); if (b) lblSetFrom(+b.dataset.from); });
+$("lblFrom").onchange = e => lblSetFrom(+e.target.value);
+$("lblAdd").addEventListener("input", e => {
+  lblAdd = e.target.value; const add = lblAdd.trim();
+  // update the "Becomes" lines in place so typing doesn't lose focus
+  if (add && !$("lblTbl").querySelector(".lbl-add") || !add) { renderLbl(); $("lblAdd").focus(); return; }
+  $("lblTbl").querySelectorAll(".lbl-add").forEach(d => { d.textContent = "Becomes: " + lblFinal(lblState[d.dataset.add]); });
+});
+$("lblToday").onclick = () => { const d = new Date(); lblAdd = `${d.getMonth() + 1}/${d.getDate()}/${String(d.getFullYear()).slice(2)}`; renderLbl(); };
 $("lblCancel").onclick = () => { $("lblModal").hidden = true; lblState = null; };
 $("lblModal").addEventListener("keydown", e => { if (e.key === "Escape") $("lblCancel").click(); });
 $("lblOk").onclick = () => {
   let n = 0;
-  lblState.filter(x => x.use && x.name.trim()).forEach(x => { x.p.name = x.name.trim(); saveMeta(x.p); n++; });
+  lblState.filter((x, k) => k >= lblFrom && x.use && x.name.trim()).forEach(x => { x.p.name = lblFinal(x); saveMeta(x.p); n++; });
   $("lblModal").hidden = true; lblState = null; touchJob(); renderAll();
   toast(`${n} sheet${n === 1 ? "" : "s"} named.`);
 };
