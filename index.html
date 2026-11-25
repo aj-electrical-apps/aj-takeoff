@@ -5803,8 +5803,9 @@ function altDelete(a) {
 function altBar() {
   const bar = $("tsAltBar"); if (!bar) return;
   const list = altList();
-  bar.hidden = !job || fieldMode || (!list.length && tsView !== "prop");
+  bar.hidden = fieldMode || (!list.length && !["prop", "bid", "count", "sup"].includes(tsView));
   if (bar.hidden) return;
+  if (!job) { bar.innerHTML = `<span>To start a new proposal with a fresh count, open the job first (Menu, then Jobs), then come back here.</span>`; return; }
   if (list.length) $("tsJob").insertAdjacentHTML("beforeend", `<br><b>${esc(altName(altCur()))}</b>`);
   const opts = [null, ...list.slice().sort((a, b) => a.n - b.n)].map(a => `<option value="${a ? esc(a.id) : ""}"${(a ? a.id : null) === altId() ? " selected" : ""}>${esc(altName(a))}</option>`).join("");
   bar.innerHTML = list.length
