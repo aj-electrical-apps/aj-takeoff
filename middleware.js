@@ -15,7 +15,6 @@ function needs(path, method) {
   if (/^\/api\/admin/.test(path)) return ["admin"];
   if (/^\/api\/subs/.test(path)) return ["subs", "admin"];
   if (/^\/api\/bids/.test(path)) return ["tracker", "admin"];
-  if (/^\/api\/aiscan/.test(path)) return ["admin"]; // v207: AI reading is Admin-only for now
   if (path === "/api/ai" && write) return ["edit", "admin"];
   if (/^\/api\/(team-upload|share-upload)/.test(path) || (path === "/api/jobs" && write)) return ["edit"];
   if (path === "/api/settings" && write) return ["lists", "admin"];
@@ -39,6 +38,8 @@ export default async function middleware(request) {
   // what each position can do is set on the Admin page; the sign-in cookie carries it
   const need = needs(path, request.method);
   if (need && !need.some(p => has(who, p))) return json({ error: "Your position doesn't have access to that. Ask an admin." }, 403);
+  // v215: AI sheet reading is for Admin and Estimator logins (v207 was Admin only)
+  if (/^\/api\/aiscan/.test(path) && !(has(who, "admin") || ["estimator", "office"].includes(String(who.r || "")))) return json({ error: "AI plan reading is only for Admin and Estimator logins." }, 403);
 }
 
 function oldGate(request, path) {

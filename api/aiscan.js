@@ -1,7 +1,7 @@
 import { put } from "@vercel/blob";
 import { whoIs, has } from "../lib/session.js";
 import { jobOk, jobKey } from "../lib/team-store.js";
-import { H, bad, status, askJson } from "../lib/ai.js";
+import { H, bad, status, askJson, canAi, AI_WHO } from "../lib/ai.js";
 
 // Read one sheet with Claude and save the words with the job (team/ai/<job>/<sheet>.json), once per sheet.
 // The app cuts the sheet into a few overlapping tiles (JPEG, each small enough for Claude to see at full size):
@@ -41,7 +41,7 @@ const num = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(+v || 0)));
 export async function POST(request) {
   try {
     const who = await whoIs(request) || { id: "open", n: "Office", r: "admin", p: "admin" };
-    if (!has(who, "admin")) return bad("AI plan reading is only for Admin logins for now.", 403); // v207
+    if (!canAi(who)) return bad(AI_WHO, 403); // v207 Admin only; v215 Admin and Estimator
     const b = await request.json().catch(() => null);
     if (!b || !b.job || !b.sheet || !Array.isArray(b.tiles) || !b.tiles.length || b.tiles.length > 9) return bad("Send the sheet's tiles.");
     if (!(await jobOk(who, b.job))) return bad("That job isn't shared with you.", 403);
