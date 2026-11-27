@@ -15,7 +15,8 @@ function needs(path, method) {
   if (/^\/api\/admin/.test(path)) return ["admin"];
   if (/^\/api\/subs/.test(path)) return ["subs", "admin"];
   if (/^\/api\/bids/.test(path)) return ["tracker", "admin"];
-  if (/^\/api\/aiscan/.test(path) || (path === "/api/ai" && write)) return ["edit", "admin"];
+  if (/^\/api\/aiscan/.test(path)) return ["admin"]; // v207: AI reading is Admin-only for now
+  if (path === "/api/ai" && write) return ["edit", "admin"];
   if (/^\/api\/(team-upload|share-upload)/.test(path) || (path === "/api/jobs" && write)) return ["edit"];
   if (path === "/api/settings" && write) return ["lists", "admin"];
   if (/^\/api\/field/.test(path) && write) return ["marks", "order", "scale", "edit"];

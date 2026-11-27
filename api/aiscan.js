@@ -1,5 +1,5 @@
 import { put } from "@vercel/blob";
-import { whoIs } from "../lib/session.js";
+import { whoIs, has } from "../lib/session.js";
 import { jobOk, jobKey } from "../lib/team-store.js";
 import { H, bad, status, askJson } from "../lib/ai.js";
 
@@ -16,7 +16,9 @@ Write down the readable text on the sheet as blocks:
 - callouts and labels on the drawing (circuit and panel tags, fixture and device tags, equipment names and tags, "EXISTING TO REMAIN", "BY OTHERS" and the like),
 - room names and numbers,
 - the sheet number and title.
-Skip dimensions, grid line labels, north arrows, scale bars, the architect's and engineer's names, addresses, stamps and revision clouds' dates.
+- contact details: every email address and phone number, as one block with the person's or company's name and role next to it (kind "contact"),
+- the owner's or client's name and any brand or national account name in the title block.
+Skip dimensions, grid line labels, north arrows, scale bars, plain street addresses, stamps and revision clouds' dates.
 Copy the words as written (keep abbreviations); don't explain or summarize. If a word is too small or blurry to read, leave it out rather than guess.
 For each block give the tile it is on and its box in that tile's own pixels (left, top, right, bottom), measured from the tile's top left corner.
 Text that sits in the overlap of two tiles goes in only one of them.`;
@@ -26,7 +28,7 @@ const SCHEMA = {
     sheet: { type: "string", description: "Sheet number and title, like E2.1 LIGHTING PLAN - LEVEL 1" },
     blocks: { type: "array", items: { type: "object", properties: {
       tile: { type: "integer" },
-      kind: { type: "string", enum: ["note", "keynote", "schedule", "label", "room", "title", "other"] },
+      kind: { type: "string", enum: ["note", "keynote", "schedule", "label", "room", "title", "contact", "other"] },
       text: { type: "string" },
       left: { type: "integer" }, top: { type: "integer" }, right: { type: "integer" }, bottom: { type: "integer" },
     }, required: ["tile", "kind", "text", "left", "top", "right", "bottom"], additionalProperties: false } },
@@ -39,6 +41,7 @@ const num = (v, lo, hi) => Math.max(lo, Math.min(hi, Math.round(+v || 0)));
 export async function POST(request) {
   try {
     const who = await whoIs(request) || { id: "open", n: "Office", r: "admin", p: "admin" };
+    if (!has(who, "admin")) return bad("AI plan reading is only for Admin logins for now.", 403); // v207
     const b = await request.json().catch(() => null);
     if (!b || !b.job || !b.sheet || !Array.isArray(b.tiles) || !b.tiles.length || b.tiles.length > 9) return bad("Send the sheet's tiles.");
     if (!(await jobOk(who, b.job))) return bad("That job isn't shared with you.", 403);
