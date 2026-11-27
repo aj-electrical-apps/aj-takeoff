@@ -146,7 +146,7 @@ export async function review(who, st, job, sheetIds) {
   });
   if (!n) throw Object.assign(new Error("The AI found no words on these sheets."), { status: 400 });
   if (text.length > MAX_CHARS) throw Object.assign(new Error("Too many words to check at once."), { status: 413 });
-  const r = await askJson(st.model, { system: READER, content: [{ type: "text", text: `The job's sheets:\n${text}\n\nFlag what the estimator must not miss.` }], schema: FLAG_SCHEMA, maxTokens: 32000 });
+  const r = await askJson(st.model, { system: READER, content: [{ type: "text", text: `The job's sheets:\n${text}\n\n${(st.phrases || []).length ? `This company also always wants these flagged wherever they show up (their "key phrases"): ${st.phrases.join("; ")}.\n\n` : ""}Flag what the estimator must not miss.` }], schema: FLAG_SCHEMA, maxTokens: 32000 });
   const now = new Date().toISOString(), fresh = [];
   const refsOf = a => (a || []).map(x => /^\[?s(\d+)n(\d+)\]?$/.exec(String(x).trim())).filter(Boolean).map(m => ({ s: reads[+m[1]], b: reads[+m[1]] && (reads[+m[1]].notes || [])[+m[2]] })).filter(x => x.s && x.b);
   (r.out.flags || []).slice(0, 80).forEach(f => {
