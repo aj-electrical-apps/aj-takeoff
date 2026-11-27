@@ -738,6 +738,8 @@ tr.ex-off .ex-row span { color: var(--muted); text-decoration: line-through; }
 .btn.tool.hl-air::before { content: "AI"; width: auto; padding: 0 3px; height: 14px; border-radius: 3px; background: #0ca678; color: #fff; font: 700 10px/14px system-ui; margin-right: 6px; flex: none; }
 .air-modal { width: min(760px, 100%); }
 .air-modal h3 { margin: 6px 0 4px; font-size: 16px; }
+.air-nat { border: 1px solid #0ca678; border-radius: 8px; padding: 6px 10px; margin: 4px 0 8px; } .air-nat textarea { width: 100%; font: 13px/1.4 ui-monospace, monospace; box-sizing: border-box; }
+.air-ct { padding: 6px 0; border-top: 1px solid var(--line); display: grid; gap: 2px; } .air-em { font-family: ui-monospace, monospace; user-select: all; }
 .air-line { padding: 6px 0; border-bottom: 1px solid var(--line); } .air-refs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .air-card { border: 1px solid var(--line); border-left: 4px solid #0ca678; border-radius: 8px; padding: 8px 10px; margin: 6px 0; display: grid; gap: 4px; background: var(--panel); color: var(--ink, inherit); text-align: left; }
 .air-card.lvl-red { border-left-color: #d33; } .air-card.lvl-rfi { border-left-color: #1c7ed6; } .air-card.done { opacity: .6; }
@@ -1677,7 +1679,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
     <h2 id="airTitle">AI Reader</h2>
     <p class="hint" id="airSum" aria-live="polite"></p>
     <div class="fw-ai-btns"><button class="btn primary" type="button" id="airRun">Have the AI Reader go through this job</button><button class="btn" type="button" id="airWalk" hidden>Check the flags one by one</button><button class="btn" type="button" id="airPrint" hidden>Print or save PDF</button></div>
-    <label class="opt" id="airShow" hidden><input type="checkbox" id="airShowC" checked> Show the teal AI boxes on the drawings</label>
+    <label class="opt fw-ocr" id="airShow" hidden><input type="checkbox" id="airShowC" checked> Show the teal AI boxes on the drawings</label>
     <div class="trk-wrap"><div id="airScope" class="air-scope"></div><div id="airList"></div></div>
     <div class="actions"><button class="btn" type="button" id="airClose">Close</button></div>
   </div>
@@ -8739,6 +8741,7 @@ function airRender() {
   // scope summary: every line with the page it came from
   const sc = $("airScope"); sc.replaceChildren();
   const lines = airMine() ? air.sums.flatMap(g => g.lines || []) : [];
+  airNatBox(sc);
   if (lines.length) {
     sc.insertAdjacentHTML("beforeend", `<h3>Scope summary</h3>`);
     lines.forEach(l => {
@@ -8754,6 +8757,31 @@ function airRender() {
   const ul = $("airList"); ul.replaceChildren();
   if (all.length) ul.insertAdjacentHTML("beforeend", `<h3>Things not to miss</h3>`);
   [...pend, ...all.filter(f => air.d[f.id])].forEach(f => ul.appendChild(airCard(f, false)));
+}
+// national account + every email on the sheets, ready to copy (Jonathan 2026-11-27)
+const airPgBtn = (rf, el) => { const pg = pages.find(p => p.id === rf.sheet && !p.example); if (!pg) return; const i = pages.indexOf(pg);
+  const b = document.createElement("button"); b.type = "button"; b.className = "btn sm"; b.textContent = `Page ${i + 1}, ${sheetName(pg, i)}`; b.title = rf.t || "";
+  b.onclick = () => { $("airModal").hidden = true; airHi = { sheet: rf.sheet, r: rf.r }; airZoom(pg, rf.r); }; el.appendChild(b); };
+const airEmails = () => airMine() ? [...new Set((air.contacts || []).map(c => c.email).filter(Boolean))] : [];
+async function airCopy(t, what) {
+  try { await navigator.clipboard.writeText(t); toast(`${what} copied. Paste it into your email.`); }
+  catch (e) { const ta = $("airEmT"); if (ta) { ta.focus(); ta.select(); } toast("Press and hold the box, then Copy."); }
+}
+function airNatBox(sc) {
+  if (!airMine() || !air.national) return;
+  const n = air.national, cs = air.contacts || [], em = airEmails(), d = document.createElement("div"); d.className = "air-nat";
+  d.innerHTML = `<h3>National account: ${n.is === "yes" ? "Yes" : n.is === "maybe" ? "Maybe" : "No"}${n.brand ? ` (${esc(n.brand)})` : ""}</h3>${n.why ? `<div class="hint">${esc(n.why)}</div>` : ""}<div class="air-refs"></div>
+    <h3>Emails and phone numbers on the drawings (${cs.length})</h3>
+    ${em.length ? `<textarea id="airEmT" readonly rows="2">${esc(em.join("; "))}</textarea><div class="air-btns"><button class="btn sm primary" type="button" id="airEmCopy">Copy all ${em.length} email${em.length === 1 ? "" : "s"}</button></div>` : `<div class="hint">No email addresses found on the sheets.</div>`}
+    <div class="air-cts"></div>`;
+  (n.refs || []).forEach(rf => airPgBtn(rf, d.querySelector(".air-refs")));
+  const box = d.querySelector(".air-cts");
+  cs.forEach(c => { const r = document.createElement("div"); r.className = "air-ct";
+    r.innerHTML = `<div><b>${esc(c.name || c.company || "Contact")}</b>${c.name && c.company ? ` · ${esc(c.company)}` : ""}${c.role ? ` <span class="hint">(${esc(c.role)})</span>` : ""}</div><div>${c.email ? `<span class="air-em">${esc(c.email)}</span>` : ""}${c.phone ? ` ${esc(c.phone)}` : ""}</div><div class="air-btns"></div>`;
+    const bs = r.lastChild; if (c.email) { const b = document.createElement("button"); b.type = "button"; b.className = "btn sm"; b.textContent = "Copy email"; b.onclick = () => airCopy(c.email, "Email"); bs.appendChild(b); }
+    (c.refs || []).slice(0, 1).forEach(rf => airPgBtn(rf, bs)); box.appendChild(r); });
+  sc.appendChild(d);
+  const cb = d.querySelector("#airEmCopy"); if (cb) cb.onclick = () => airCopy(em.join("; "), `${em.length} email${em.length === 1 ? "" : "s"}`);
 }
 function airCard(f, inBar) {
   const d = air.d[f.id], el = document.createElement("div"); el.className = "air-card lvl-" + f.lvl + (d ? " done" : "");
@@ -8852,6 +8880,8 @@ $("airPrint").onclick = () => {
   const html = `<!doctype html><meta charset="utf-8"><title>${esc(job.name)} AI Reader</title><style>body{font:13px/1.4 system-ui,sans-serif;margin:24px;color:#111}h1{font-size:20px;margin:0 0 4px}h2{font-size:16px;margin:18px 0 6px;border-bottom:1px solid #999}
     .l{margin:0 0 8px}.p{color:#555;font-size:12px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #bbb;padding:4px 6px;vertical-align:top;text-align:left}th{background:#eee}.q{color:#444;font-style:italic}</style>
     <h1>${esc(job.name)}: AI Reader</h1><div class="p">Written by the AI on ${esc(new Date(air.at || Date.now()).toLocaleDateString())}. Check every line against the drawings; the page numbers are the sheets in AJ Takeoff.</div>
+    ${air.national ? `<h2>National account: ${air.national.is === "yes" ? "Yes" : air.national.is === "maybe" ? "Maybe" : "No"}${air.national.brand ? ` (${esc(air.national.brand)})` : ""}</h2><div class="l">${esc(air.national.why || "")} <span class="p">${(air.national.refs || []).map(ref).map(esc).join("; ")}</span></div>` : ""}
+    ${(air.contacts || []).length ? `<h2>Contacts on the drawings</h2>${air.contacts.map(c => `<div class="l"><b>${esc(c.name || c.company || "Contact")}</b>${c.name && c.company ? ` · ${esc(c.company)}` : ""}${c.role ? ` (${esc(c.role)})` : ""} ${esc(c.email || "")} ${esc(c.phone || "")} <span class="p">${(c.refs || []).slice(0, 1).map(ref).map(esc).join("")}</span></div>`).join("")}` : ""}
     ${lines.length ? `<h2>Scope summary</h2>${lines.map(l => `<div class="l"><b>${esc(l.head)}:</b> ${esc(l.text)} <span class="p">${(l.refs || []).map(ref).map(esc).join("; ")}</span></div>`).join("")}` : ""}
     <h2>Things not to miss</h2><table><tr><th>#</th><th>Where</th><th>What</th><th>What to do</th><th>Checked</th></tr>
     ${all.map((f, i) => `<tr><td>${i + 1}</td><td>${esc(airWhere(f))}</td><td>${esc(AIR_CAT[f.cat] || "")} · ${esc(AIR_LVL[f.lvl] || "")}<div class="q">“${esc(f.t)}”</div></td><td>${esc(f.why)}${f.ask ? `<div><b>Ask:</b> ${esc(f.ask)}</div>` : ""}</td><td>${air.d[f.id] ? esc(AIR_D[air.d[f.id].d]) : ""}</td></tr>`).join("")}</table>`;

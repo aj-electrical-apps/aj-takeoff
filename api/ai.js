@@ -103,7 +103,11 @@ all its block numbers. Level: "red" = it changes price, counts or materials; "ye
 For "rfi" also write "ask": the question to send, polite and specific. Write at most 80 flags, the most important first.
 Also write "summary": a short scope summary for the estimator, 4 to 12 lines, each with a heading (like "Our scope", "By others",
 "Alternates", "Lighting", "Power and equipment", "Fire alarm and low voltage", "Watch out for") and one or two plain sentences,
-with the block numbers it comes from so they can check it on the drawings. Only say what the blocks say; don't guess.`;
+with the block numbers it comes from so they can check it on the drawings. Only say what the blocks say; don't guess.
+Also say whether this looks like a national account: a job for a national or regional chain, brand or franchise (stores, restaurants, banks,
+hotels, pharmacies, auto parts, dollar stores and the like) that has its own prototype drawings, standards, national vendors or owner-furnished
+packages. Give the brand name, why you think so, and the block numbers. And list every contact on the sheets that has an email address or phone
+number (name, company, role, email, phone, block numbers), copying emails exactly as written.`;
 const FLAG_SCHEMA = {
   type: "object",
   properties: {
@@ -116,8 +120,14 @@ const FLAG_SCHEMA = {
     summary: { type: "array", items: { type: "object", properties: {
       head: { type: "string" }, text: { type: "string" }, refs: { type: "array", items: { type: "string" } },
     }, required: ["head", "text", "refs"], additionalProperties: false } },
+    national: { type: "object", properties: {
+      is: { type: "string", enum: ["yes", "no", "maybe"] }, brand: { type: "string" }, why: { type: "string" }, refs: { type: "array", items: { type: "string" } },
+    }, required: ["is", "brand", "why", "refs"], additionalProperties: false },
+    contacts: { type: "array", items: { type: "object", properties: {
+      name: { type: "string" }, company: { type: "string" }, role: { type: "string" }, email: { type: "string" }, phone: { type: "string" }, refs: { type: "array", items: { type: "string" } },
+    }, required: ["name", "company", "role", "email", "phone", "refs"], additionalProperties: false } },
   },
-  required: ["flags", "summary"], additionalProperties: false,
+  required: ["flags", "summary", "national", "contacts"], additionalProperties: false,
 };
 const flagKey = job => `team/aiflags/${jobKey(job)}.json`;
 export async function loadFlags(job) {
@@ -169,6 +179,20 @@ export async function review(who, st, job, sheetIds) {
   const lines = (r.out.summary || []).slice(0, 16).map(l => ({ head: String(l.head || "").slice(0, 60), text: String(l.text || "").slice(0, 600),
     refs: refsOf(l.refs).slice(0, 6).map(x => ({ sheet: x.s.id, name: String(x.s.name || "").slice(0, 120), r: x.b.r, t: String(x.b.t).slice(0, 300) })) })).filter(l => l.text);
   o.sums = [...(o.sums || []).filter(g => !(g.sheets || []).some(id => sheets.has(id))), { sheets: [...sheets], at: now, by: who.n || "Office", lines }];
+  // national account and contacts (Jonathan 2026-11-27: "is it a national account and if it is list the email so they can be copy and pasted")
+  const refOf = a => refsOf(a).slice(0, 4).map(x => ({ sheet: x.s.id, name: String(x.s.name || "").slice(0, 120), r: x.b.r, t: String(x.b.t).slice(0, 300) }));
+  const nat = r.out.national || {}, nOld = o.national && !(o.national.sheets || []).every(id => sheets.has(id)) ? o.national : null;
+  const nNew = { is: ["yes", "no", "maybe"].includes(nat.is) ? nat.is : "no", brand: String(nat.brand || "").slice(0, 80), why: String(nat.why || "").slice(0, 400), refs: refOf(nat.refs), sheets: [...sheets] };
+  const rank = { yes: 2, maybe: 1, no: 0 };
+  o.national = nOld && rank[nOld.is] > rank[nNew.is] ? nOld : nNew;
+  const EM = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, cs = (o.contacts || []).filter(c => !sheets.has(c.sheet));
+  const addC = c => { const e = String(c.email || "").trim().toLowerCase(); if (e && cs.some(x => x.email.toLowerCase() === e)) return; if (!e && !c.phone) return;
+    if (!e && cs.some(x => !x.email && x.phone === c.phone)) return; cs.push(c); };
+  (r.out.contacts || []).slice(0, 60).forEach(c => { const rf = refOf(c.refs); const m = String(c.email || "").match(EM);
+    addC({ name: String(c.name || "").slice(0, 80), company: String(c.company || "").slice(0, 80), role: String(c.role || "").slice(0, 60), email: m ? m[0] : "", phone: String(c.phone || "").slice(0, 40), sheet: rf[0] ? rf[0].sheet : reads[0].id, refs: rf }); });
+  // any email the AI copied off a sheet but didn't list as a contact
+  reads.forEach(sh => (sh.notes || []).forEach(b => (String(b.t || "").match(EM) || []).forEach(e => addC({ name: "", company: "", role: "", email: e, phone: "", sheet: sh.id, refs: [{ sheet: sh.id, name: String(sh.name || "").slice(0, 120), r: b.r, t: String(b.t).slice(0, 300) }] }))));
+  o.contacts = cs.slice(0, 150);
   o.runs = [...(o.runs || []), { at: now, by: who.n || "Office", sheets: reads.length, flags: fresh.length, cost: r.cost, model: r.model }].slice(-50);
   o.at = now; o.by = who.n || "Office";
   await saveFlags(job, o);

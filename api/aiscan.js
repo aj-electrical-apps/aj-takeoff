@@ -16,7 +16,9 @@ Write down the readable text on the sheet as blocks:
 - callouts and labels on the drawing (circuit and panel tags, fixture and device tags, equipment names and tags, "EXISTING TO REMAIN", "BY OTHERS" and the like),
 - room names and numbers,
 - the sheet number and title.
-Skip dimensions, grid line labels, north arrows, scale bars, the architect's and engineer's names, addresses, stamps and revision clouds' dates.
+- contact details: every email address and phone number, as one block with the person's or company's name and role next to it (kind "contact"),
+- the owner's or client's name and any brand or national account name in the title block.
+Skip dimensions, grid line labels, north arrows, scale bars, plain street addresses, stamps and revision clouds' dates.
 Copy the words as written (keep abbreviations); don't explain or summarize. If a word is too small or blurry to read, leave it out rather than guess.
 For each block give the tile it is on and its box in that tile's own pixels (left, top, right, bottom), measured from the tile's top left corner.
 Text that sits in the overlap of two tiles goes in only one of them.`;
@@ -26,7 +28,7 @@ const SCHEMA = {
     sheet: { type: "string", description: "Sheet number and title, like E2.1 LIGHTING PLAN - LEVEL 1" },
     blocks: { type: "array", items: { type: "object", properties: {
       tile: { type: "integer" },
-      kind: { type: "string", enum: ["note", "keynote", "schedule", "label", "room", "title", "other"] },
+      kind: { type: "string", enum: ["note", "keynote", "schedule", "label", "room", "title", "contact", "other"] },
       text: { type: "string" },
       left: { type: "integer" }, top: { type: "integer" }, right: { type: "integer" }, bottom: { type: "integer" },
     }, required: ["tile", "kind", "text", "left", "top", "right", "bottom"], additionalProperties: false } },
