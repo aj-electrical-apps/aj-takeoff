@@ -8695,7 +8695,7 @@ const airWhere = f => { const pg = airPg(f), i = pages.indexOf(pg); return pg ? 
 function airVis() {
   const b = $("airBtn"); if (!b) return;
   b.hidden = !teamOn || !isAdmin || fieldMode || !job;
-  if (!b.hidden && !airMine() && airLoadingFor !== job.id && !rsInApp()) { // iPad: nothing loads until the AI Reader is opened airLoadingFor = job.id; airLoadFlags().then(() => { airLoadingFor = null; if (airMine()) drawOverlay(); }); }
+  if (!b.hidden && !airMine() && airLoadingFor !== job.id && !rsInApp()) { /* iPad: nothing loads until the AI Reader is opened */ airLoadingFor = job.id; airLoadFlags().then(() => { airLoadingFor = null; if (airMine()) drawOverlay(); }); }
 }
 async function airLoadFlags() {
   if (!job || !teamOn || !isAdmin) { air = null; return null; }
