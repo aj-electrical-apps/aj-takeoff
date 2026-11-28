@@ -737,6 +737,8 @@ tr.ex-off .ex-row span { color: var(--muted); text-decoration: line-through; }
 .mk-aic { fill: rgb(12 166 120 / .25); stroke: #087f5b; stroke-width: 2.5; } .mk-aic.dim { fill: none; stroke: rgb(8 127 91 / .35); stroke-width: 1.5; }
 .btn.tool.hl-aic::before { content: "AI"; width: auto; padding: 0 3px; height: 14px; border-radius: 3px; background: #087f5b; color: #fff; font: 700 10px/14px system-ui; margin-right: 6px; flex: none; }
 .aic-row { padding: 6px 0; border-bottom: 1px solid var(--line); display: grid; gap: 4px; } .aic-row select { max-width: 100%; min-width: 0; }
+.aic-pick { border: 2px solid #087f5b; border-radius: 10px; padding: 8px 10px; margin: 6px 0; } .aic-pick-list { max-height: 45vh; overflow: auto; margin: 6px 0; }
+.aic-pick-list label { display: flex; align-items: center; gap: 8px; padding: 7px 2px; border-bottom: 1px solid var(--line); cursor: pointer; } .aic-pick-list input { width: 20px; height: 20px; flex: none; } .aic-pick-list .hint { margin: 0 0 0 auto; white-space: nowrap; }
 .aic-leg { margin-top: 8px; font-size: 13px; } .selbar.aic-bar { top: 14px; bottom: auto; border: 2px solid #087f5b; }
 /* v214 AI Reader */
 .mk-ai { fill: rgb(12 166 120 / .16); stroke: #0ca678; stroke-width: 2; stroke-dasharray: 6 3; } .mk-ai.on { fill: rgb(12 166 120 / .3); stroke: #087f5b; stroke-width: 3; stroke-dasharray: none; animation: mkfind 1.2s ease-in-out infinite alternate; }
@@ -1696,7 +1698,13 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
   <div class="modal-card trk-card air-modal">
     <h2 id="aicTitle">AI Counter</h2>
     <p class="hint" id="aicSum" aria-live="polite"></p>
-    <div class="fw-ai-btns"><button class="btn primary" type="button" id="aicThis">Count this sheet with AI</button><button class="btn" type="button" id="aicAll" hidden>Count the other sheets</button></div>
+    <div class="fw-ai-btns"><button class="btn primary" type="button" id="aicThis">Count this sheet with AI</button><button class="btn" type="button" id="aicAll" hidden>Pick sheets to count…</button></div>
+    <div id="aicPick" class="aic-pick" hidden>
+      <p class="hint"><b>Check the sheets you want counts on.</b> Only checked sheets are sent to the AI.</p>
+      <div class="air-btns"><button class="btn sm" type="button" id="aicPickNone">Uncheck all</button><button class="btn sm" type="button" id="aicPickNew">Check all not counted yet</button></div>
+      <div id="aicPickList" class="aic-pick-list"></div>
+      <div class="air-btns"><button class="btn primary" type="button" id="aicPickGo" disabled>Count 0 sheets</button><button class="btn" type="button" id="aicPickX">Cancel</button></div>
+    </div>
     <div class="trk-wrap"><div id="aicKinds"></div></div>
     <div class="actions"><button class="btn" type="button" id="aicClose">Close</button></div>
   </div>
@@ -8982,7 +8990,7 @@ function aicPump() {
 const aicEach = () => { const m = aiSt && (aiSt.models || []).find(x => x.id === aiSt.model); return m && m.in < 1 ? 0.02 : m && m.in < 3 ? 0.1 : 0.2; };
 async function aicOpen() {
   if (!job) return; if (tool) setTool(null);
-  $("aicModal").hidden = false; $("aicSum").textContent = "Opening the AI Counter…"; $("aicKinds").replaceChildren();
+  $("aicModal").hidden = false; $("aicPick").hidden = true; $("aicSum").textContent = "Opening the AI Counter…"; $("aicKinds").replaceChildren();
   await Promise.all([aiLoad(), aicLoad()]); aicRender();
 }
 function aicRender() {
@@ -8998,8 +9006,8 @@ function aicRender() {
       + (pad && ready ? " Start counting from the office computer; you can check and add dots right here after." : "");
   $("aicThis").hidden = !ready || pad || !p || p.example || aic.q.some(x => x.p === p);
   $("aicThis").textContent = r ? `Count this sheet again (about ${aiMoney(aicEach())})` : `Count this sheet with AI (about ${aiMoney(aicEach())})`;
-  $("aicAll").hidden = !ready || pad || !todo.length || (todo.length === 1 && todo[0] === p);
-  $("aicAll").textContent = `Count the ${todo.length} sheet${todo.length === 1 ? "" : "s"} not counted yet (about ${aiMoney(aicEach() * todo.length)})`;
+  $("aicAll").hidden = !ready || pad || real.length < 2 || !$("aicPick").hidden;
+  if (pad || !ready) $("aicPick").hidden = true; else if (!$("aicPick").hidden) aicPickCount();
   // the kinds on this sheet
   const box = $("aicKinds"); box.replaceChildren();
   if (r) {
@@ -9056,10 +9064,30 @@ $("aicBtn").onclick = () => aicOpen();
 $("aicClose").onclick = () => { $("aicModal").hidden = true; aicOn = !!aicOf(pages[current]); aicBar(); drawOverlay(); };
 $("aicModal").addEventListener("keydown", e => { if (e.key === "Escape") $("aicClose").click(); });
 $("aicThis").onclick = () => { const p = pages[current]; if (!p) return; aicQueue([p]); toast("The AI is counting this sheet. Keep working; it takes a minute or two."); };
-$("aicAll").onclick = () => {
-  const todo = pages.filter(x => !x.example && !aicOf(x) && !aic.q.some(y => y.p === x)); if (!todo.length) return;
-  if (!confirm(`Have the AI count ${todo.length} sheet${todo.length === 1 ? "" : "s"}? About ${aiMoney(aicEach() * todo.length)} on the Anthropic account. It runs while you keep working.`)) return;
-  aicQueue(todo);
+// pick which sheets to count: nothing is checked to start, so only the sheets you want get sent (and paid for)
+var aicSel = new Set();
+function aicPickList() {
+  const box = $("aicPickList"); box.replaceChildren();
+  pages.forEach((x, i) => { if (x.example) return;
+    const r = aicOf(x), busy = aic.q.some(y => y.p === x), l = document.createElement("label");
+    l.innerHTML = `<input type="checkbox"${aicSel.has(x.id) ? " checked" : ""}${busy ? " disabled" : ""}><span>${esc(sheetName(x, i))}</span><span class="hint">${busy ? "counting…" : r ? `counted ✓ (${r.marks.length} dots)` : ""}</span>`;
+    const c = l.querySelector("input"); c.onchange = () => { if (c.checked) aicSel.add(x.id); else aicSel.delete(x.id); aicPickCount(); };
+    box.appendChild(l); });
+  aicPickCount();
+}
+function aicPickCount() {
+  const n = pages.filter(x => !x.example && aicSel.has(x.id) && !aic.q.some(y => y.p === x)).length, b = $("aicPickGo");
+  b.disabled = !n; b.textContent = n ? `Count ${n} checked sheet${n === 1 ? "" : "s"} (about ${aiMoney(aicEach() * n)})` : "Check the sheets to count";
+}
+$("aicAll").onclick = () => { aicSel = new Set(); $("aicPick").hidden = false; $("aicAll").hidden = true; aicPickList(); };
+$("aicPickX").onclick = () => { $("aicPick").hidden = true; aicRender(); };
+$("aicPickNone").onclick = () => { aicSel.clear(); aicPickList(); };
+$("aicPickNew").onclick = () => { pages.forEach(x => { if (!x.example && !aicOf(x)) aicSel.add(x.id); }); aicPickList(); };
+$("aicPickGo").onclick = () => {
+  const list = pages.filter(x => !x.example && aicSel.has(x.id) && !aic.q.some(y => y.p === x)); if (!list.length) return;
+  const again = list.filter(x => aicOf(x)).length;
+  if (!confirm(`Have the AI count ${list.length} sheet${list.length === 1 ? "" : "s"}?${again ? ` (${again} already counted will be counted again.)` : ""} About ${aiMoney(aicEach() * list.length)} on the Anthropic account. It runs while you keep working.`)) return;
+  aicSel.clear(); $("aicPick").hidden = true; aicQueue(list);
 };
 $("aicBarList").onclick = () => { aicHi = null; aicOpen(); };
 $("aicBarX").onclick = () => { aicOn = false; aicHi = null; aicBar(); drawOverlay(); };
