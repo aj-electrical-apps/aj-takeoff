@@ -395,6 +395,31 @@ html.look-new body { font-family: var(--font-ui); }
 .fw-list button:hover { background: var(--accent-soft, rgb(255 212 59 / .15)); } .fw-list small { color: var(--muted); }
 .mk-fw { fill: rgb(255 212 59 / .35); stroke: #f08c00; stroke-width: 2; } .mk-fw.on { fill: rgb(255 146 43 / .45); stroke: #e8590c; stroke-width: 3; animation: mkfind 1.2s ease-in-out infinite alternate; }
 .selbar.fw-bar { top: 14px; bottom: auto; }
+/* v218 guided estimating: one category at a time (Jonathan 2026-11-28) */
+.selbar.est-bar { top: 14px; bottom: auto; z-index: 4; flex-direction: column; align-items: stretch; gap: 6px; width: min(620px, calc(100% - 24px)); border: 2px solid var(--accent); padding: 8px 10px; }
+.viewer:has(#fwBar:not([hidden]), #airBar:not([hidden]), #pnlWiz:not([hidden]), #cmpBar:not([hidden])) .est-bar { display: none; }
+.est-top { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.est-top .est-k { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.est-top b { font-size: 16px; }
+.est-top .est-n { margin-left: auto; font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); }
+.est-help { font-size: 13.5px; line-height: 1.35; }
+.est-btns { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.est-btns .btn { min-height: 34px; }
+.est-btns #estStop { margin-right: auto; }
+.est-dots { display: flex; gap: 3px; }
+.est-dots i { flex: 1; height: 5px; border-radius: 3px; background: var(--line); }
+.est-dots i.ok { background: #2f9e44; } .est-dots i.cur { background: var(--accent); }
+.est-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; max-height: 40vh; overflow-y: auto; }
+.est-steps button { width: 100%; text-align: left; display: flex; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); font: inherit; font-size: 14px; cursor: pointer; }
+.est-steps button[aria-current="true"] { border-color: var(--accent); font-weight: 700; }
+.est-steps .ck { width: 18px; color: #2f9e44; font-weight: 700; }
+.est-steps small { margin-left: auto; color: var(--muted); font-size: 12px; }
+#estBtn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+.tbx.est-on details { opacity: .55; }
+.tbx.est-on details.est-cur { opacity: 1; order: -1; outline: 3px solid var(--accent); outline-offset: 1px; }
+.tbx.est-on .sched-box.est-cur { order: -2; }
+.tbx.est-on .est-tip { order: -3; margin: 0; padding: 6px 8px; border-radius: 6px; background: var(--accent-soft); font-size: 13px; }
+html.role-field #estBtn, html.role-field #estBar { display: none !important; }
 .selbar.pnl-wiz { top: 14px; bottom: auto; max-width: min(720px, calc(100% - 24px)); font-size: 14px; border: 2px solid var(--accent); }
 .pnl-wiz #pnlWizT b { color: var(--accent); }
 .scan-cta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 10px; margin-bottom: 8px; background: var(--accent-soft); border-radius: 8px; }
@@ -1078,7 +1103,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v216<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v218<span id="brandPos"></span></small></div>
     <a class="app-switch" id="appSwitch" href="https://aj-pricing-bonuses.vercel.app/" title="Switch to the AJ Leadership app">&#8644; Leadership</a>
     <a class="app-switch" id="subsBtn" href="https://aj-pricing-bonuses.vercel.app/" hidden title="This job's submittal PDFs in the AJ Leadership app">&#128196; Submittals</a>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
@@ -1111,6 +1136,10 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
     <button class="btn" id="notesBtn" type="button" title="Notes & RFIs: every RFI, ready to print or send, and every yellow and red note, with its sheet">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 13.5 4 10l7-7 2.5 2.5-7 7z"/><path d="M2 14.5h6"/></svg>
       Notes &amp; RFIs
+    </button>
+    <button class="btn" id="estBtn" type="button" aria-pressed="false" title="Estimating, one step at a time: lights, then receptacles, then switching, and on through the job">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 3.5h2M2 8h2M2 12.5h2M6.5 3.5h7.5M6.5 8h7.5M6.5 12.5h7.5"/></svg>
+      <span id="estBtnT">Estimating</span>
     </button>
     <button class="btn" id="takeoffBtn" type="button" title="Count sheet with extra % on footage, and the material list for your supplier">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3.5 1.5h9v13h-9z"/><path d="M6 5h4.5M6 8h4.5M6 11h3"/></svg>
@@ -1199,6 +1228,19 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
         <button class="btn sm" id="pnlWizStop" type="button">Stop and review</button>
       </div>
       <div class="selbar ai-chip" id="aiChip" hidden role="status"><b id="aiChipT"></b><button class="btn sm" id="aiChipStop" type="button">Stop</button><button class="btn sm" id="aiChipX" type="button" hidden>OK</button></div>
+      <div class="selbar est-bar" id="estBar" hidden role="status">
+        <div class="est-top"><span class="est-k" id="estK"></span><b id="estT"></b><span class="est-n" id="estN"></span></div>
+        <div class="est-dots" id="estDots"></div>
+        <div class="est-help" id="estHelp"></div>
+        <ol class="est-steps" id="estSteps" hidden></ol>
+        <div class="est-btns">
+          <button class="btn sm" id="estStop" type="button" title="Put the steps away. Your marks and checks stay; tap Estimating to pick up where you left off.">✕ Close</button>
+          <button class="btn sm" id="estList" type="button" aria-expanded="false">All steps</button>
+          <button class="btn sm" id="estOnly" type="button" aria-pressed="false" title="Hide every other step's marks on the drawing so you only see this one. Nothing is deleted.">Only these marks</button>
+          <button class="btn sm" id="estBack" type="button">‹ Back</button>
+          <button class="btn sm primary" id="estNext" type="button"></button>
+        </div>
+      </div>
       <div class="selbar fw-bar" id="fwBar" hidden role="status">
         <b id="fwBarT"></b>
         <button class="btn sm" id="fwPrev" type="button" aria-label="Previous one">‹</button>
@@ -3432,7 +3474,7 @@ function buildToolbox() {
   FAMILIES.forEach(([fk, fname]) => {
     const rk = c => c.key === "wall" ? CATS.findIndex(x => x.key === "open") + 0.5 : CATS.indexOf(c); // wall-mount fixtures sit after the open-ceiling lights
     const cats = CATS.filter(c => c.fam === fk).sort((a, b) => rk(a) - rk(b));
-    const det = document.createElement("details"); det.open = true;
+    const det = document.createElement("details"); det.open = true; det.dataset.fam = fk;
     const sum = document.createElement("summary");
     sum.appendChild(swatch({ shape: cats[0].shape, color: "transparent" }));
     sum.append(fname);
@@ -3466,6 +3508,130 @@ function buildToolbox() {
   });
 }
 buildToolbox();
+
+/* v218 guided estimating (Jonathan 2026-11-28: "when you click estimating it goes through lighting and then receptacles,
+   then switching and so on"). The Estimating button opens a bar over the drawing that walks the job one step at a time.
+   The step's own toolbox buttons move to the top (the rest stay below, faded), "Only these marks" hides the other steps'
+   marks (just for looking, nothing is changed), and "Done, next" puts a green check on the step with who and when.
+   Checks save with the job, or with the proposal / change order you're in (estDone), so everyone on the job sees them.
+   Which step you're on is kept on this device only (aj-est-<job>), so nobody else gets pulled into the steps. */
+var estStep = -1, estJobId = null, estOnlyOn = false;
+const EST_STEPS = [
+  { k: "lights", fam: "lights", name: "Lights", what: "every light fixture, exit sign, emergency light and fan",
+    how: w => `${w} a light category (Ceiling lights, Exterior lights, Emergency lighting…), pick the type, then tap the drawing wherever one goes. Got a fixture schedule? <b>Read schedule</b> under Tools reads the types in for you.` },
+  { k: "recept", fam: "recept", name: "Receptacles", what: "every receptacle, GFCI, floor box and special outlet",
+    how: w => `${w} Standard receptacles, Specialty receptacles or Floor receptacles, pick the type, then tap the drawing wherever one goes.` },
+  { k: "switching", fam: "switching", name: "Switching", what: "every switch, occupancy sensor and lighting control",
+    how: w => `${w} Switches or Lighting controls, pick the type, then tap the drawing wherever one goes.` },
+  { k: "gear", fam: "gear", name: "Panels & gear", what: "panels, the service, disconnects, meter bases and transformers",
+    how: w => `${w} Panels &amp; gear and pick the type. <b>Read panel</b> under Tools counts the breakers off a panel schedule.` },
+  { k: "wire", name: "Conduit & wire", what: "the home runs, feeders and underground",
+    how: () => `Set the <b>Sheet scale</b> first if this sheet doesn't have one. Then under <b>Conduit &amp; wire</b> tap <b>+ Add run type</b> (or tap a run type you already made) and tap along the path. Tap <b>Finish run</b> at the end.` },
+  { k: "lowv", fam: "lowv", name: "Low voltage", what: "data, phone, cameras, card readers, speakers, pathways and J-hooks",
+    how: w => `${w} Low-voltage / communications or Low-voltage pathways, pick the type, then tap the drawing wherever one goes.` },
+  { k: "fire", fam: "fire", name: "Fire alarm", what: "pull stations, horn/strobes, detectors, modules and the panel",
+    how: w => `${w} Fire alarm, pick the type, then tap the drawing wherever one goes.` },
+  { k: "misc", fam: "misc", name: "Misc", what: "anything left: one-off items, equipment hookups and special wire",
+    how: w => `${w} Misc item, type what it is, then tap the drawing where it goes.` },
+  { k: "final", name: "Final check", what: "",
+    how: () => `Look over the <b>Count sheet</b> for anything missing, then price it on <b>Bid &amp; proposal</b>.<br><button class="btn sm" type="button" data-estgo="count">Open Count sheet</button> <button class="btn sm" type="button" data-estgo="bid">Open Bid &amp; proposal</button>` }
+];
+const estHost = () => (typeof coCur === "function" && coCur()) || (typeof altCur === "function" && altCur()) || job;
+const estDone = () => { const h = estHost(); return h ? (h.estDone || (h.estDone = {})) : {}; };
+const estFm = () => { try { return !!fieldMode; } catch (e) { return false; } };
+const estPh = () => { try { return isPhone(); } catch (e) { return false; } };
+function estCount(st) {
+  const all = { n: 0, here: 0 };
+  if (!st.fam && st.k !== "wire") return null;
+  pages.forEach((pg, i) => {
+    let n = 0;
+    if (st.fam) (pg.devices || []).forEach(v => { const d = devInfo(v.t); if (d && inScope(v) && famOf(d.group) === st.fam) n += wAt(pg, v.x, v.y); });
+    else n = (pg.runs || []).filter(inScope).length;
+    all.n += n; if (i === current) all.here += n;
+  });
+  return all;
+}
+function estToolbox(st) {
+  const box = $("toolbox"); if (!box) return;
+  const fam = st && st.fam || "";
+  box.classList.toggle("est-on", !!fam);
+  const changed = box.dataset.estFam !== fam; box.dataset.estFam = fam;
+  box.querySelectorAll("details[data-fam]").forEach(det => {
+    det.classList.toggle("est-cur", !!fam && det.dataset.fam === fam);
+    if (changed) det.open = !fam || det.dataset.fam === fam;
+  });
+  const sb = $("schedBox"); if (sb) sb.classList.toggle("est-cur", fam === "lights");
+  let tip = box.querySelector(".est-tip");
+  if (!fam) { if (tip) tip.remove(); return; }
+  if (!tip) { tip = document.createElement("p"); tip.className = "est-tip"; box.prepend(tip); }
+  tip.innerHTML = `<b>Step ${estStep + 1}: ${st.name}.</b> Use these buttons. Everything else is still below.`;
+}
+function estOnlyApply() {
+  hideSecs.clear();
+  const st = EST_STEPS[estStep];
+  if (estOnlyOn && st && (st.fam || st.k === "wire")) pages.forEach(pg => (pg.devices || []).forEach(v => { const d = devInfo(v.t); if (d && famOf(d.group) !== st.fam) hideSecs.add(cntSecKey(d)); }));
+  drawOverlay(); renderCounts();
+}
+function estShow() {
+  const bar = $("estBar"), btn = $("estBtn"); if (!bar || !btn) return;
+  const ok = !!job && !estFm();
+  btn.hidden = !ok;
+  if (ok && estJobId !== job.id) {
+    estJobId = job.id; const s = lsGet("aj-est-" + job.id); estStep = s == null ? -1 : Math.min(EST_STEPS.length - 1, Math.max(-1, +s || 0));
+    if (estOnlyOn) { estOnlyOn = false; hideSecs.clear(); }
+  }
+  const on = ok && estStep >= 0, st = on ? EST_STEPS[estStep] : null;
+  bar.hidden = !on; btn.setAttribute("aria-pressed", String(on));
+  $("estBtnT").textContent = on ? `Estimating ${estStep + 1}/${EST_STEPS.length}` : "Estimating";
+  estToolbox(st);
+  if (!on) return;
+  const done = estDone(), c = estCount(st), w = estPh() ? "Tap <b>Tools</b>, then in the Toolbox tap" : "In the <b>Toolbox</b> tap";
+  $("estK").textContent = `Estimating · step ${estStep + 1} of ${EST_STEPS.length}`;
+  $("estT").textContent = st.name + (done[st.k] ? " ✓" : "");
+  $("estN").textContent = c ? `${c.n} ${st.fam ? "marked" : c.n === 1 ? "run" : "runs"} on all sheets · ${c.here} on this sheet` : "";
+  $("estDots").innerHTML = EST_STEPS.map((x, i) => `<i class="${i === estStep ? "cur" : done[x.k] ? "ok" : ""}" title="${x.name}"></i>`).join("");
+  $("estHelp").innerHTML = (st.what ? `Mark ${st.what}, on every sheet. ` : "") + st.how(w) + (done[st.k] ? `<br><small>✓ Done${done[st.k].by ? " by " + esc(done[st.k].by) : ""} ${new Date(done[st.k].at).toLocaleDateString()}. You can still add more.</small>` : "");
+  $("estHelp").querySelectorAll("[data-estgo]").forEach(b => b.onclick = () => $(b.dataset.estgo === "bid" ? "bidBtn" : "takeoffBtn").click());
+  const last = estStep === EST_STEPS.length - 1;
+  $("estNext").textContent = last ? "✓ Finish" : `✓ Done, next: ${EST_STEPS[estStep + 1].name} ›`;
+  $("estBack").disabled = estStep === 0;
+  $("estOnly").hidden = !(st.fam || st.k === "wire"); $("estOnly").setAttribute("aria-pressed", String(estOnlyOn));
+  const ul = $("estSteps");
+  if (!ul.hidden) ul.innerHTML = EST_STEPS.map((x, i) => `<li><button type="button" data-esti="${i}" aria-current="${i === estStep}"><span class="ck">${done[x.k] ? "✓" : ""}</span>${i + 1}. ${x.name}<small>${done[x.k] ? esc(done[x.k].by || "") : ""}</small></button></li>`).join("");
+  ul.querySelectorAll("[data-esti]").forEach(b => b.onclick = () => { ul.hidden = true; $("estList").setAttribute("aria-expanded", "false"); estGo(+b.dataset.esti); });
+}
+function estGo(i) {
+  if (!job) return;
+  if (i < 0 && estStep >= 0) lsSet("aj-est-last-" + job.id, String(estStep));
+  estStep = i; lsSet("aj-est-" + job.id, i < 0 ? null : String(i));
+  if (estOnlyOn || i < 0) { if (i < 0) estOnlyOn = false; estOnlyApply(); }
+  estShow();
+  const st = EST_STEPS[i]; if (!st || estPh()) return;
+  // bring the step's buttons into view in the side panel
+  const sec = st.fam ? document.querySelector(`#toolbox details[data-fam="${st.fam}"]`) : st.k === "wire" ? document.querySelector('.psec[data-fold="wire"]') : null;
+  if (!sec) return;
+  const ps = sec.closest(".psec"); if (ps && ps.classList.contains("folded")) { const h = ps.querySelector("h2"); if (h) h.click(); }
+  setTimeout(() => sec.scrollIntoView({ block: "nearest", behavior: "smooth" }), 60);
+}
+$("estBtn").onclick = () => {
+  if (!job) return toast("Open or start a job first.");
+  if (estStep >= 0) return estGo(-1);
+  const done = estDone(), s = lsGet("aj-est-last-" + job.id);
+  let i = s != null ? +s : EST_STEPS.findIndex(x => !done[x.k]);
+  estGo(i < 0 || i >= EST_STEPS.length ? 0 : i);
+};
+$("estStop").onclick = () => { estGo(-1); toast("Steps put away. Tap Estimating at the top to pick up where you left off."); };
+$("estBack").onclick = () => estStep > 0 && estGo(estStep - 1);
+$("estList").onclick = () => { const ul = $("estSteps"); ul.hidden = !ul.hidden; $("estList").setAttribute("aria-expanded", String(!ul.hidden)); estShow(); };
+$("estOnly").onclick = () => { estOnlyOn = !estOnlyOn; estOnlyApply(); toast(estOnlyOn ? "Only this step's marks show now. Nothing was deleted." : "All marks show again."); };
+$("estNext").onclick = () => {
+  const st = EST_STEPS[estStep]; if (!st || !job) return;
+  estDone()[st.k] = { by: teamWho || "", at: Date.now() };
+  saveJob(job);
+  if (estStep === EST_STEPS.length - 1) { estGo(-1); lsSet("aj-est-last-" + job.id, null); toast("Every step is checked off. Nice work!"); return; }
+  estGo(estStep + 1);
+  toast(`${st.name} checked off. Now: ${EST_STEPS[estStep].name}.`);
+};
 
 /* Count items: the job's own list of what is being counted (fixture + tag + engineer's description).
    Placed symbols point at a count item id; older placements may point straight at a toolbox device id. */
@@ -3508,6 +3674,7 @@ function findCount(id) {
 }
 function renderCounts() {
   renderSchedBox();
+  try { estShow(); } catch (e) {}
   const p = pages[current];
   document.querySelectorAll(".gcount").forEach(s => {
     const n = p ? p.devices.filter(v => { const d = devInfo(v.t); return d && inAlt(v) && famOf(d.group) === s.dataset.group; }).length : 0;
