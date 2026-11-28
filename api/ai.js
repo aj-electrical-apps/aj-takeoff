@@ -1,7 +1,7 @@
 import { list, put } from "@vercel/blob";
 import { whoIs, has } from "../lib/session.js";
 import { jobOk, jobKey } from "../lib/team-store.js";
-import { MODELS, H, bad, status, loadConf, saveConf, askJson } from "../lib/ai.js";
+import { MODELS, H, bad, status, loadConf, saveConf, askJson, canAi, AI_WHO } from "../lib/ai.js";
 
 // AI plan reading: settings, what's been read on a job, and "find what I mean".
 // GET              -> { key, on, ready, model, models, phrases }
@@ -11,7 +11,7 @@ import { MODELS, H, bad, status, loadConf, saveConf, askJson } from "../lib/ai.j
 // POST { op: "ask", q }  -> { phrases: [...] }  other ways the same thing is written on drawings (about a penny)
 const who0 = { id: "open", n: "Office", r: "admin", p: "admin" };
 // v207 (Jonathan 2026-11-25: "add it only in admin for now"): only Admin logins see it or spend on it
-export const ADMIN_ONLY = "AI plan reading is only for Admin logins for now.";
+export const ADMIN_ONLY = AI_WHO; // v215: Admin and Estimator
 const okId = id => typeof id === "string" && /^[\w-]{1,80}$/.test(id);
 async function sheetsOf(job) {
   const out = []; let cursor;
@@ -23,12 +23,12 @@ export async function GET(request) {
   try {
     const who = await whoIs(request) || who0, u = new URL(request.url), job = u.searchParams.get("job"), sheet = u.searchParams.get("sheet");
     const st = await status();
-    if (!has(who, "admin")) Object.assign(st, { ready: false, adminOnly: true });
+    if (!canAi(who)) Object.assign(st, { ready: false, adminOnly: true });
     if (!job) return Response.json(st, { headers: H });
     if (!okId(job) && !/^[^/]{1,120}$/.test(job)) return bad("Which job?");
     if (!(await jobOk(who, job))) return bad("That job isn't shared with you.", 403);
     const sheets = await sheetsOf(job);
-    if (u.searchParams.get("flags")) { if (!has(who, "admin")) return bad(ADMIN_ONLY, 403); return Response.json(await loadFlags(job), { headers: H }); }
+    if (u.searchParams.get("flags")) { if (!canAi(who)) return bad(ADMIN_ONLY, 403); return Response.json(await loadFlags(job), { headers: H }); }
     if (sheet) {
       const s = sheets.find(x => x.id === jobKey(sheet)); if (!s) return bad("The AI hasn't read that sheet.", 404);
       const r = await fetch(s.url + "?v=" + s.at, { cache: "no-store" }); if (!r.ok) return bad("Couldn't open what the AI read.", 502);
@@ -51,7 +51,7 @@ export async function POST(request) {
       return Response.json(await status(), { headers: H });
     }
     if (b.op === "ask") {
-      if (!has(who, "admin")) return bad(ADMIN_ONLY, 403);
+      if (!canAi(who)) return bad(ADMIN_ONLY, 403);
       const st = await status();
       if (!st.key) return bad("The AI isn't set up (no ANTHROPIC_API_KEY in Vercel).", 400);
       if (!st.on) return bad("The AI is turned off on the Admin page.", 400);
@@ -66,7 +66,7 @@ export async function POST(request) {
       return Response.json({ phrases, cost: r.cost }, { headers: H });
     }
     if (b.op === "review" || b.op === "decide") {
-      if (!has(who, "admin")) return bad(ADMIN_ONLY, 403);
+      if (!canAi(who)) return bad(ADMIN_ONLY, 403);
       if (!b.job || !(await jobOk(who, b.job))) return bad("That job isn't shared with you.", 403);
       if (b.op === "decide") return Response.json(await decide(who, b.job, String(b.id || ""), ["r", "y", "q", "n"].includes(b.d) ? b.d : null), { headers: H });
       const st = await status();
