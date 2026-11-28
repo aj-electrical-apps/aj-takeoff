@@ -733,6 +733,11 @@ tr.ex-off .ex-row span { color: var(--muted); text-decoration: line-through; }
 .fw-ai .hint { margin: 2px 0 6px; } .fw-ai-btns { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
 .fw-keys { margin: 6px 0; } .fw-keys summary { cursor: pointer; font-weight: 600; } .fw-keys textarea { width: 100%; box-sizing: border-box; font: inherit; }
 .ai-chip { background: #5b21b6; color: #fff; } .ai-chip b { font-weight: 600; }
+/* v217 AI Counter (separate from the Reader) */
+.mk-aic { fill: rgb(12 166 120 / .25); stroke: #087f5b; stroke-width: 2.5; } .mk-aic.dim { fill: none; stroke: rgb(8 127 91 / .35); stroke-width: 1.5; }
+.btn.tool.hl-aic::before { content: "AI"; width: auto; padding: 0 3px; height: 14px; border-radius: 3px; background: #087f5b; color: #fff; font: 700 10px/14px system-ui; margin-right: 6px; flex: none; }
+.aic-row { padding: 6px 0; border-bottom: 1px solid var(--line); display: grid; gap: 4px; } .aic-row select { max-width: 100%; min-width: 0; }
+.aic-leg { margin-top: 8px; font-size: 13px; } .selbar.aic-bar { top: 14px; bottom: auto; border: 2px solid #087f5b; }
 /* v214 AI Reader */
 .mk-ai { fill: rgb(12 166 120 / .16); stroke: #0ca678; stroke-width: 2; stroke-dasharray: 6 3; } .mk-ai.on { fill: rgb(12 166 120 / .3); stroke: #087f5b; stroke-width: 3; stroke-dasharray: none; animation: mkfind 1.2s ease-in-out infinite alternate; }
 .btn.tool.hl-air::before { content: "AI"; width: auto; padding: 0 3px; height: 14px; border-radius: 3px; background: #0ca678; color: #fff; font: 700 10px/14px system-ui; margin-right: 6px; flex: none; }
@@ -1078,7 +1083,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
 
 <div class="app">
   <header class="toolbar" role="toolbar" aria-label="Main toolbar">
-    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v216<span id="brandPos"></span></small></div>
+    <div class="brand"><svg class="brand-logo" viewBox="0 0 680 540" aria-hidden="true"><path fill="#3a62c8" d="M210,18 L300,18 L365,152 L243,152 L184,312 L150,328 L222,328 L140,526 L22,526 Z"/><path fill="#1c2233" d="M372,162 L514,524 L456,524 L426,442 L212,442 L347,265 L293,265 Z"/><path fill="#3a62c8" d="M545,40 L640,40 L640,410 C640,480 590,525 520,525 L514,525 L490,462 C527,458 545,440 545,400 Z"/></svg>AJ Takeoff <small>Commercial · v217<span id="brandPos"></span></small></div>
     <a class="app-switch" id="appSwitch" href="https://aj-pricing-bonuses.vercel.app/" title="Switch to the AJ Leadership app">&#8644; Leadership</a>
     <a class="app-switch" id="subsBtn" href="https://aj-pricing-bonuses.vercel.app/" hidden title="This job's submittal PDFs in the AJ Leadership app">&#128196; Submittals</a>
     <button class="btn sm look-btn" id="lookBtn" type="button" title="Switch between the new look and the classic look. Nothing else changes.">Classic look</button>
@@ -1206,6 +1211,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
         <button class="btn sm" id="fwList" type="button">List</button>
         <button class="btn sm" id="fwClear" type="button">Done</button>
       </div>
+      <div class="selbar aic-bar" id="aicBar" hidden role="status"><b id="aicBarT"></b><button class="btn sm" id="aicBarList" type="button">List</button><button class="btn sm" id="aicBarX" type="button">Done</button></div>
       <div class="selbar air-bar" id="airBar" hidden role="status">
         <b id="airBarT"></b>
         <button class="btn sm" id="airPrev" type="button" aria-label="Previous flag">‹</button>
@@ -1286,6 +1292,7 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
           <p class="tool-sub">Let the app read it</p>
           <button class="btn tool hl-sched" id="fwBtn" type="button" title="Find words: type a word (like GFCI, WP or LP-1) and every place it's written on every sheet gets highlighted, with a list to jump to each one">Find words</button>
           <button class="btn tool hl-air" id="airBtn" type="button" hidden title="AI Reader (Admin and Estimator logins): the AI goes over every sheet and writes a scope summary plus the things not to miss, each with its page number and a teal box on the drawing, for you to check and keep or skip">AI Reader</button>
+          <button class="btn tool hl-aic" id="aicBtn" type="button" hidden title="AI Counter (Admin and Estimator logins): the AI puts a teal dot on every device symbol it sees on a sheet. You pick what each kind counts as and tap Add. Nothing counts until you do.">AI Counter</button>
           <button class="btn tool hl-sched" id="lblBtn" type="button" aria-pressed="false" title="Name every sheet: drag a box around the sheet number in the title block on one sheet, and every sheet gets named from that spot">Auto-name sheets</button>
           <button class="btn tool hl-sched" id="symBtn" type="button" aria-pressed="false" title="Find symbol: click an item in Counts, then drag a box around one of its symbols. Every match on the sheet gets a circle for you to check before adding dots.">Find symbol</button>
           <button class="btn tool hl-sched" id="pnlBtn" type="button" aria-pressed="false" title="Read a panel schedule: pick the size, box the panel name and the TRIP / POLES columns, and the breakers get counted for you">Read panel</button>
@@ -1682,6 +1689,16 @@ html.ph-lay .ph-close { display: block; align-self: flex-end; }
     <label class="opt fw-ocr" id="airShow" hidden><input type="checkbox" id="airShowC" checked> Show the teal AI boxes on the drawings</label>
     <div class="trk-wrap"><div id="airScope" class="air-scope"></div><div id="airList"></div></div>
     <div class="actions"><button class="btn" type="button" id="airClose">Close</button></div>
+  </div>
+</div>
+
+<div class="modal" id="aicModal" hidden role="dialog" aria-modal="true" aria-labelledby="aicTitle">
+  <div class="modal-card trk-card air-modal">
+    <h2 id="aicTitle">AI Counter</h2>
+    <p class="hint" id="aicSum" aria-live="polite"></p>
+    <div class="fw-ai-btns"><button class="btn primary" type="button" id="aicThis">Count this sheet with AI</button><button class="btn" type="button" id="aicAll" hidden>Count the other sheets</button></div>
+    <div class="trk-wrap"><div id="aicKinds"></div></div>
+    <div class="actions"><button class="btn" type="button" id="aicClose">Close</button></div>
   </div>
 </div>
 
@@ -2763,7 +2780,7 @@ function renderSheet() {
   $("progress").innerHTML = `<b>${named}</b> of ${pages.length} named`;
   $("nextBtn").firstChild.textContent = current === pages.length - 1 ? "Save " : "Next ";
 }
-function renderAll() { renderTabs(); renderRail(); renderSheet(); renderRuns(); renderWires(); renderCounts(); renderSel(); renderCmpBar(); try { bigNamed(); } catch (e) {} try { airVis(); } catch (e) {} }
+function renderAll() { renderTabs(); renderRail(); renderSheet(); renderRuns(); renderWires(); renderCounts(); renderSel(); renderCmpBar(); try { bigNamed(); } catch (e) {} try { airVis(); } catch (e) {} try { aicVis(); aicBar(); } catch (e) {} }
 
 /* Corner zoom: the sheet (image + markup layer) is sized to fit the view, then scaled 2x and
    anchored on the chosen corner, so exactly that quarter of the sheet (50% wide x 50% tall) fills the view. */
@@ -7171,6 +7188,7 @@ function drawOverlay() {
       const rc = svgEl("rect", { x: f.r[0] - pad, y: f.r[1] - pad, width: f.r[2] + pad * 2, height: f.r[3] + pad * 2, rx: 4, class: "mk-ai" + (f === cur ? " on" : ""), ...ns });
       rc.appendChild(svgEl("title", {}, `AI Reader: ${f.why}`)); g.appendChild(rc); }); }
   if (airHi && airHi.sheet === p.id) g.appendChild(svgEl("rect", { x: airHi.r[0] - 6, y: airHi.r[1] - 6, width: airHi.r[2] + 12, height: airHi.r[3] + 12, rx: 4, class: "mk-ai on", ...ns })); } catch (e) {}
+  try { aicDraw(g, p, ns); } catch (e) {} // v217 AI Counter dots
   (p.rooms || []).forEach(m => {
     const rc = svgEl("rect", { x: m.x, y: m.y, width: m.w, height: m.h, class: "mk-hl room", ...ns });
     rc.appendChild(svgEl("title", {}, `Typical room${m.name ? ": " + m.name : ""} · counts ${m.n} times`));
@@ -8890,6 +8908,174 @@ $("airPrint").onclick = () => {
   fr.contentDocument.open(); fr.contentDocument.write(html); fr.contentDocument.close();
   setTimeout(() => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e) { toast("Couldn't print here."); } setTimeout(() => fr.remove(), 60000); }, 300);
 };
+/* ---------- v217 AI Counter coworker (Jonathan 2026-11-27: "lets build the take off count tool and see how it works but keep it
+   separate from the read one incase i dont like it"). Separate from the AI Reader: own button, own server file (api/aicount.js),
+   own saved data. To take it out: delete this block, its button/modal/bar, its CSS and api/aicount.js.
+   The AI puts a teal dot on every device symbol it sees on a sheet and names the kind. You pick which count type each kind is
+   and tap Add; tap a wrong dot to drop it. Nothing counts until you tap Add. Admin and Estimator logins, started from a PC. */
+var aic = { job: null, read: {}, idx: {}, q: [], run: 0, tot: 0, done: 0, err: 0, cost: 0, msg: "" }, aicOn = false;
+const aicPad = () => /iPad|iPhone|iPod|Android/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+const aicOf = p => p && aic.job === (job && job.id) ? aic.read[segId(p.id)] || null : null;
+const aicPend = p => { const r = aicOf(p); return r ? (r.marks || []).filter(m => !(r.d || {})[m.id]) : []; };
+const aicTypes = () => countsList().map(c => ({ id: c.id, name: nameOf(devInfo(c.id)) }));
+const aicMapKey = () => "aj-aic-map-" + (job ? job.id : "");
+const aicMap = () => { try { return JSON.parse(lsGet(aicMapKey()) || "{}") || {}; } catch (e) { return {}; } };
+function aicVis() {
+  const b = $("aicBtn"); if (!b) return;
+  b.hidden = !teamOn || !aiOk || fieldMode || !job;
+  if (!b.hidden && aic.job !== job.id) { aic = { job: job.id, read: {}, idx: {}, q: [], run: 0, tot: 0, done: 0, err: 0, cost: 0, msg: "" }; aicOn = false; aicBar(); }
+}
+async function aicLoad() {
+  if (!job || !teamOn || !aiOk) return;
+  const jid = job.id; if (aic.job !== jid) aicVis();
+  try {
+    const r = await fetch("/api/aicount?job=" + encodeURIComponent(jid), { cache: "no-store" }), o = await r.json(); if (!r.ok) throw new Error(o.error);
+    if (aic.job !== jid) return; aic.idx = Object.fromEntries((o.sheets || []).map(x => [x.id, x.at]));
+    const want = pages.filter(p => !p.example && aic.idx[segId(p.id)] && !aic.read[segId(p.id)]);
+    for (let i = 0; i < want.length; i += 6) await Promise.all(want.slice(i, i + 6).map(async p => {
+      try { const r2 = await fetch(`/api/aicount?job=${encodeURIComponent(jid)}&sheet=${encodeURIComponent(p.id)}`, { cache: "no-store" }); if (r2.ok && aic.job === jid) aic.read[segId(p.id)] = await r2.json(); } catch (e) {}
+    }));
+  } catch (e) {}
+}
+// the sheet in a grid of overlapping tiles, each small enough (about 1,568 px) for the AI to place points well
+async function aicTiles(p) {
+  const img = await symBmp(p), W = img.width, H = img.height, n = Math.max(W, H) > 2400 ? 3 : Math.max(W, H) > 1400 ? 2 : 1;
+  const ov = n > 1 ? Math.round(Math.max(W, H) * .03) : 0, tw = Math.min(W, Math.ceil(W / n) + ov), th = Math.min(H, Math.ceil(H / n) + ov);
+  const spots = []; for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) spots.push([n > 1 ? Math.round(i * (W - tw) / (n - 1)) : 0, n > 1 ? Math.round(j * (H - th) / (n - 1)) : 0]);
+  const toB64 = b => new Promise((ok, no) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(",")[1]); fr.onerror = no; fr.readAsDataURL(b); });
+  for (const [q, shrink] of [[.8, 1], [.65, 1], [.55, .85], [.45, .7]]) {
+    const sc = Math.min(1, 1568 / Math.max(tw, th)) * shrink, tiles = [];
+    for (const [x, y] of spots) {
+      const iw = Math.max(1, Math.round(tw * sc)), ih = Math.max(1, Math.round(th * sc)), c = document.createElement("canvas"); c.width = iw; c.height = ih;
+      const g = c.getContext("2d"); if (!g) throw new Error("This computer couldn't cut up the sheet.");
+      g.fillStyle = "#fff"; g.fillRect(0, 0, iw, ih); g.drawImage(img, x, y, tw, th, 0, 0, iw, ih);
+      const b = await new Promise(ok => c.toBlob(ok, "image/jpeg", q)); if (!b) throw new Error("This computer couldn't cut up the sheet.");
+      tiles.push({ x, y, w: tw, h: th, iw, ih, data: await toB64(b) });
+    }
+    if (tiles.reduce((t, x) => t + x.data.length, 0) < 4e6) return { W, H, tiles };
+  }
+  throw new Error("This sheet is too big a picture to send.");
+}
+async function aicCount(p, jid) {
+  const { W, H, tiles } = await aicTiles(p);
+  const r = await fetch("/api/aicount", { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ job: jid, sheet: p.id, name: sheetName(p, pages.indexOf(p)), w: W, h: H, tiles, types: aicTypes() }) });
+  const o = await r.json().catch(() => ({ error: r.status === 504 ? "The AI took too long on this sheet." : "The AI didn't answer." }));
+  if (!r.ok) throw Object.assign(new Error(o.error || "The AI couldn't count this sheet."), { stop: [400, 402, 403].includes(r.status) });
+  if (aic.job === jid) { aic.read[segId(p.id)] = o; aic.idx[segId(p.id)] = Date.now(); }
+  return o;
+}
+function aicQueue(list) {
+  if (!job) return; const jid = job.id;
+  if (!aic.run && !aic.q.length) Object.assign(aic, { tot: 0, done: 0, err: 0, cost: 0, msg: "" });
+  list.forEach(p => { if (!aic.q.some(x => x.p === p)) { aic.q.push({ p, jid }); aic.tot++; } });
+  aicPump(); aicRender();
+}
+function aicPump() {
+  while (aic.run < 2 && aic.q.length) {
+    const { p, jid } = aic.q.shift(); aic.run++;
+    aicCount(p, jid).then(o => { aic.done++; aic.cost += o.cost || 0; })
+      .catch(e => { aic.err++; aic.msg = e.message; if (e.stop) { aic.tot -= aic.q.length; aic.q = []; } })
+      .finally(() => { aic.run--; aicPump(); aicRender(); if (p === pages[current]) { aicOn = true; aicBar(); drawOverlay(); } });
+  }
+}
+const aicEach = () => { const m = aiSt && (aiSt.models || []).find(x => x.id === aiSt.model); return m && m.in < 1 ? 0.02 : m && m.in < 3 ? 0.1 : 0.2; };
+async function aicOpen() {
+  if (!job) return; if (tool) setTool(null);
+  $("aicModal").hidden = false; $("aicSum").textContent = "Opening the AI Counter…"; $("aicKinds").replaceChildren();
+  await Promise.all([aiLoad(), aicLoad()]); aicRender();
+}
+function aicRender() {
+  if ($("aicModal").hidden) { aicBar(); return; }
+  const st = aiSt, p = pages[current], r = aicOf(p), real = pages.filter(x => !x.example), todo = real.filter(x => !aicOf(x)), pad = aicPad(), busy = aic.run || aic.q.length;
+  const ready = st && st.ready;
+  $("aicSum").textContent = !st ? "The AI Counter couldn't be reached. Check you're online."
+    : !st.key ? "The AI isn't set up yet (no AI key in Vercel)." : !st.on ? "AI is turned off on the Admin page."
+    : (busy ? `Counting: ${aic.done + aic.err} of ${aic.tot} sheets done${aic.cost ? ` (${aiMoney(aic.cost)})` : ""}. Keep working. ` : "")
+      + (aic.err && !busy ? `${aic.err} sheet${aic.err === 1 ? "" : "s"} couldn't be counted: ${aic.msg} ` : "")
+      + (r ? `On this sheet the AI put ${r.marks.length} teal dot${r.marks.length === 1 ? "" : "s"}; ${aicPend(p).length} still to check. Pick what each kind counts as, then tap Add. Tap a wrong dot on the drawing to drop it.`
+        : `The AI puts a teal dot on every device symbol it sees on a sheet and names each kind. Nothing counts until you pick the count type and tap Add. About ${aiMoney(aicEach())} a sheet.`)
+      + (pad && ready ? " Start counting from the office computer; you can check and add dots right here after." : "");
+  $("aicThis").hidden = !ready || pad || !p || p.example || aic.q.some(x => x.p === p);
+  $("aicThis").textContent = r ? `Count this sheet again (about ${aiMoney(aicEach())})` : `Count this sheet with AI (about ${aiMoney(aicEach())})`;
+  $("aicAll").hidden = !ready || pad || !todo.length || (todo.length === 1 && todo[0] === p);
+  $("aicAll").textContent = `Count the ${todo.length} sheet${todo.length === 1 ? "" : "s"} not counted yet (about ${aiMoney(aicEach() * todo.length)})`;
+  // the kinds on this sheet
+  const box = $("aicKinds"); box.replaceChildren();
+  if (r) {
+    const map = aicMap(), types = aicTypes(), groups = {};
+    aicPend(p).forEach(m => (groups[m.kind] || (groups[m.kind] = [])).push(m));
+    const kinds = Object.keys(groups).sort((a, b) => groups[b].length - groups[a].length);
+    if (!kinds.length) box.insertAdjacentHTML("beforeend", `<p class="hint">Every dot on this sheet has been added or dropped.</p>`);
+    if (kinds.length && !types.length) box.insertAdjacentHTML("beforeend", `<p class="hint"><b>This job has no count types yet.</b> Close this, tap <b>+ Add type</b> (or pick one in the toolbox) for each kind, then come back.</p>`);
+    const all = document.createElement("div"); all.className = "air-btns"; box.appendChild(all);
+    kinds.forEach(kind => {
+      const ms = groups[kind], guess = map[kind] || ms.map(m => m.type).find(Boolean) || (types.find(t => t.name.toLowerCase() === kind.toLowerCase()) || {}).id || "";
+      const row = document.createElement("div"); row.className = "aic-row";
+      const tags = [...new Set(ms.map(m => m.tag).filter(Boolean))].slice(0, 4);
+      row.innerHTML = `<div><b>${esc(kind)}</b> · ${ms.length} dot${ms.length === 1 ? "" : "s"}${tags.length ? ` <span class="hint">(${esc(tags.join(", "))})</span>` : ""}</div>
+        <div class="air-btns"><select aria-label="Count ${esc(kind)} as"><option value="">Count as…</option>${types.map(t => `<option value="${esc(t.id)}"${t.id === guess ? " selected" : ""}>${esc(t.name)}</option>`).join("")}</select>
+        <button class="btn sm primary" type="button" data-add>Add ${ms.length}</button><button class="btn sm" type="button" data-drop>Drop all</button><button class="btn sm" type="button" data-see>Show</button></div>`;
+      const sel = row.querySelector("select");
+      sel.onchange = () => { const mp = aicMap(); if (sel.value) mp[kind] = sel.value; else delete mp[kind]; lsSet(aicMapKey(), JSON.stringify(mp)); };
+      row.querySelector("[data-add]").onclick = () => { if (!sel.value) return toast("Pick what it counts as first."); aicAdd(p, ms, sel.value); };
+      row.querySelector("[data-drop]").onclick = () => aicDecide(p, ms.map(m => m.id), "n");
+      row.querySelector("[data-see]").onclick = () => { $("aicModal").hidden = true; aicOn = true; aicHi = kind; aicBar(); drawOverlay(); };
+      box.appendChild(row);
+    });
+    if (kinds.length > 1) { const b = document.createElement("button"); b.type = "button"; b.className = "btn sm primary"; b.textContent = "Add every kind that has a count type";
+      b.onclick = () => { const mp = aicMap(); let n = 0; [...box.querySelectorAll(".aic-row")].forEach((row, i) => { const v = row.querySelector("select").value; if (v) { mp[kinds[i]] = v; n += aicAdd(p, groups[kinds[i]], v, true); } }); lsSet(aicMapKey(), JSON.stringify(mp)); if (!n) toast("Pick what each kind counts as first."); };
+      all.appendChild(b); }
+    if ((r.legend || []).length) box.insertAdjacentHTML("beforeend", `<details class="aic-leg"><summary>What the AI read on the legend (${r.legend.length})</summary>${r.legend.map(l => `<div>${esc(l)}</div>`).join("")}</details>`);
+  }
+  aicBar();
+}
+var aicHi = null;
+// Add: the dots become real counts of the picked type (a dot already sitting on one of yours isn't added twice)
+function aicAdd(p, ms, type, quiet) {
+  const r = aicOf(p); if (!r || !ms.length) return 0;
+  const near = Math.max(r.w || 3000, r.h || 2000) * 0.004, add = ms.filter(m => !p.devices.some(v => v.t === type && Math.hypot(v.x - m.x, v.y - m.y) < near));
+  if (add.length) { remember([p]); add.forEach(m => p.devices.push({ t: type, x: Math.round(m.x), y: Math.round(m.y), ...scopeTag() })); saveMeta(p); renderCounts(); }
+  aicDecide(p, ms.map(m => m.id), "y");
+  toast(`Added ${add.length} ${nameOf(devInfo(type))}${ms.length > add.length ? ` (${ms.length - add.length} already had a dot)` : ""}. Undo takes them back off.`);
+  return add.length;
+}
+async function aicDecide(p, ids, d) {
+  const r = aicOf(p); if (!r) return; r.d = r.d || {}; ids.forEach(id => { if (d) r.d[id] = d; else delete r.d[id]; });
+  aicRender(); drawOverlay();
+  try { const x = await fetch("/api/aicount", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "decide", job: job.id, sheet: p.id, ids, d }) }); if (!x.ok) throw new Error((await x.json()).error); }
+  catch (e) { toast("Saved on this computer only. " + (e.message || "")); }
+}
+function aicBar() {
+  const b = $("aicBar"); if (!b) return; const p = pages[current], n = aicPend(p).length;
+  b.hidden = !aicOn || !aicOf(p);
+  if (b.hidden) return;
+  $("aicBarT").textContent = n ? `AI Counter: ${n} teal dot${n === 1 ? "" : "s"} to check${aicHi ? ` (showing ${aicHi})` : ""}. Tap a wrong one to drop it.` : "AI Counter: every dot on this sheet is checked.";
+}
+$("aicBtn").onclick = () => aicOpen();
+$("aicClose").onclick = () => { $("aicModal").hidden = true; aicOn = !!aicOf(pages[current]); aicBar(); drawOverlay(); };
+$("aicModal").addEventListener("keydown", e => { if (e.key === "Escape") $("aicClose").click(); });
+$("aicThis").onclick = () => { const p = pages[current]; if (!p) return; aicQueue([p]); toast("The AI is counting this sheet. Keep working; it takes a minute or two."); };
+$("aicAll").onclick = () => {
+  const todo = pages.filter(x => !x.example && !aicOf(x) && !aic.q.some(y => y.p === x)); if (!todo.length) return;
+  if (!confirm(`Have the AI count ${todo.length} sheet${todo.length === 1 ? "" : "s"}? About ${aiMoney(aicEach() * todo.length)} on the Anthropic account. It runs while you keep working.`)) return;
+  aicQueue(todo);
+};
+$("aicBarList").onclick = () => { aicHi = null; aicOpen(); };
+$("aicBarX").onclick = () => { aicOn = false; aicHi = null; aicBar(); drawOverlay(); };
+// tap a teal dot to drop it
+$("sheet").addEventListener("click", e => {
+  if (!aicOn || tool || hlMode) return; const p = pages[current], ms = aicPend(p); if (!ms.length) return;
+  const q = imgPoint(e); let best = null, bd = 16 / k;
+  ms.forEach(m => { const d = Math.hypot(m.x - q[0], m.y - q[1]); if (d <= bd) { bd = d; best = m; } });
+  if (!best) return; e.stopImmediatePropagation(); aicDecide(p, [best.id], "n"); toast(`Dropped that ${best.kind} dot.`);
+}, true);
+function aicDraw(g, p, ns) {
+  if (!aicOn) return; const ms = aicPend(p); if (!ms.length) return;
+  ms.forEach(m => { const on = !aicHi || m.kind === aicHi;
+    const el = svgEl("circle", { cx: m.x, cy: m.y, r: 11 / k, class: "mk-aic" + (on ? "" : " dim"), ...ns });
+    el.appendChild(svgEl("title", {}, `AI: ${m.kind}${m.tag ? " " + m.tag : ""}. Tap to drop it.`)); g.appendChild(el); });
+}
 function fwGo(i) {
   if (!fw || !fw.hits.length) return;
   fw.at = (i + fw.hits.length) % fw.hits.length;
@@ -10100,7 +10286,7 @@ async function roleCheck() {
     const pp = lsGet("aj-perms"); if (pp != null && !window.AJ_ROLE) { myPerms = new Set(pp.split(",").filter(Boolean)); posName = lsGet("aj-pos") || ""; }
   }
   if (window.AJ_ROLE === "field" || (role === "field" && !myPerms)) myPerms = new Set(["hours", "counts", "order", "marks", "scale"]);
-  try { airVis(); } catch (e) {} // v216: the job can open before we know who's signed in, so show the AI Reader button once we do
+  try { airVis(); aicVis(); } catch (e) {} // v216: the job can open before we know who's signed in, so show the AI Reader button once we do
   applyLang(); meBtnShow();
   if (role === "field" && !fieldMode) { enterField(); applyPerms(); }
 }

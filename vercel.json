@@ -5,6 +5,9 @@
     },
     "api/ai.js": {
       "maxDuration": 300
+    },
+    "api/aicount.js": {
+      "maxDuration": 300
     }
   }
 }

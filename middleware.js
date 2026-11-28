@@ -7,7 +7,7 @@ import { secret, readSession, basicWho, norm, same, has } from "./lib/session.js
 // backup script signs in with the backup key shown on the Admin page.
 // Without SESSION_SECRET it works the old way: a browser password box for APP_PASSWORD / FIELD_PASSWORD,
 // and if APP_PASSWORD isn't set either, the site stays open.
-const FIELD_BLOCKED = [/^\/api\/bids/, /^\/api\/team-upload/, /^\/api\/share-upload/, /^\/api\/admin/, /^\/api\/aiscan/];
+const FIELD_BLOCKED = [/^\/api\/bids/, /^\/api\/team-upload/, /^\/api\/share-upload/, /^\/api\/admin/, /^\/api\/aiscan/, /^\/api\/aicount/];
 const OPEN = [/^\/login\.html$/, /^\/sw\.js$/, /^\/manifest\.webmanifest$/, /^\/(icon-\d+|apple-touch-icon|favicon)\.png$/, /^\/mark\.svg$/, /^\/api\/login$/, /^\/api\/logout$/, /^\/favicon/];
 const json = (o, status) => new Response(JSON.stringify(o), { status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
 function needs(path, method) {
